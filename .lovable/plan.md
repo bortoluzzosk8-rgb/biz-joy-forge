@@ -1,163 +1,39 @@
 
-## Plano: Corrigir Fluxo de Autenticação SaaS Multi-tenant
+## Plano: Controle de Super Admin para o SaaS
 
-Vou corrigir o fluxo completo para que cada cliente que criar uma conta seja automaticamente uma nova "franqueadora" e possa acessar o sistema imediatamente.
-
----
-
-### Problemas Identificados
-
-| Problema | Causa | Impacto |
-|----------|-------|---------|
-| Role não detectado após login/cadastro | AuthContext verifica roles antes da Edge Function terminar | Usuário redirecionado para `/` por não ter `isAdmin = true` |
-| Edge Function não chamada no Header | Login no Header não invoca `assign-franqueadora-role` | Usuários que fazem login pela landing não recebem role |
-| Timing incorreto | Navigate acontece antes de `checkAdminStatus` atualizar o estado | `ProtectedRoute` vê `isAdmin = false` |
+Vou implementar um sistema onde você (dono do SaaS) tenha acesso especial para gerenciar todos os clientes, enquanto a landing page fica limpa sem mostrar opções de admin.
 
 ---
 
-### Solução
+### O Que Será Implementado
 
-Implementar um sistema onde:
-1. O role é atribuído **imediatamente** após login/cadastro
-2. O `AuthContext` tem uma função para **forçar re-verificação** dos roles
-3. O redirecionamento só acontece **após** confirmar que o role foi atribuído
-
----
-
-### Arquivos a Modificar
-
-**1. `src/contexts/AuthContext.tsx`**
-- Adicionar função `refreshRoles()` que pode ser chamada externamente para forçar re-verificação
-- Exportar esta função no contexto
-
-**2. `src/pages/UserLogin.tsx`**
-- Após chamar a Edge Function, aguardar a resposta
-- Chamar `refreshRoles()` para atualizar o estado
-- Só então fazer o navigate
-
-**3. `src/pages/UserRegister.tsx`**
-- Mesmo ajuste: aguardar Edge Function e chamar `refreshRoles()`
-
-**4. `src/components/landing/Header.tsx`**
-- Adicionar formulário de login inline (já existe)
-- Após login bem-sucedido, chamar Edge Function + refreshRoles
-- Atualizar botão "Acessar Sistema" para verificar corretamente
+1. **Remover o botão "Área Admin" da landing page** - A landing ficará limpa, sem mostrar esse acesso
+2. **Criar role `super_admin`** - Um novo role exclusivo para você
+3. **Detectar automaticamente seu email** - O sistema reconhece quando você faz login
+4. **Menu extra no dashboard** - Opção "Gestão SaaS" aparece apenas para você
+5. **Nova página de gestão** - Para gerenciar todos os clientes/franqueadoras do sistema
 
 ---
 
-### Implementação Detalhada
-
-**AuthContext.tsx - Adicionar refreshRoles:**
-
-```typescript
-type AuthContextType = {
-  // ... existing
-  refreshRoles: () => Promise<void>;
-};
-
-// Dentro do provider:
-const refreshRoles = async () => {
-  if (user) {
-    await checkAdminStatus(user.id);
-  }
-};
-
-// Exportar no value:
-<AuthContext.Provider value={{ 
-  // ... existing
-  refreshRoles
-}}>
-```
-
-**UserLogin.tsx - Aguardar e atualizar:**
-
-```typescript
-const { refreshRoles } = useAuth();
-
-// No handleSubmit:
-if (data.user) {
-  // Chamar Edge Function e aguardar
-  const { error: roleError } = await supabase.functions.invoke('assign-franqueadora-role', {
-    body: { user_id: data.user.id }
-  });
-  
-  if (!roleError) {
-    // Forçar re-verificação dos roles
-    await refreshRoles();
-  }
-}
-
-navigate('/admin/dashboard');
-```
-
-**UserRegister.tsx - Mesmo ajuste:**
-
-```typescript
-const { refreshRoles } = useAuth();
-
-// Após signUp e chamar Edge Function:
-await refreshRoles();
-navigate('/admin/dashboard');
-```
-
----
-
-### Fluxo Corrigido
+### Arquitetura
 
 ```
+Landing Page (limpa)
+     |
+     v
 Usuario cria conta / faz login
-         |
-         v
-   signUp() / signInWithPassword()
-         |
-         v
-   invoke('assign-franqueadora-role')
-         |
-         v
-   Aguardar resposta OK
-         |
-         v
-   refreshRoles() → checkAdminStatus()
-         |
-         v
-   isAdmin = true (franqueadora detectado)
-         |
-         v
-   navigate('/admin/dashboard')
-         |
-         v
-   ProtectedRoute vê isAdmin = true
-         |
-         v
-   Dashboard renderizado!
+     |
+     v
+Sistema verifica:
+  - Email autorizado? 
+    -> Sim: Atribui role super_admin + franqueadora
+    -> Não: Atribui apenas role franqueadora
+     |
+     v
+Dashboard renderiza:
+  - Se super_admin: Menu "Gestão SaaS" visível
+  - Se franqueadora comum: Menu normal
 ```
-
----
-
-### Alternativa Mais Simples
-
-Se preferir uma solução mais simples, podemos:
-
-1. **Remover a verificação de role no ProtectedRoute** temporariamente
-2. **Usar apenas `requireAuth`** em vez de `requireAdmin`
-3. Isso permitiria que qualquer usuário logado acesse o dashboard
-
-Mas a solução completa (com roles) é melhor para quando você tiver diferentes tipos de usuários no futuro.
-
----
-
-### Resultado Esperado
-
-1. Cliente acessa landing page
-2. Clica em "Criar conta"
-3. Preenche dados e clica "Criar conta"
-4. Sistema:
-   - Cria conta no Supabase Auth
-   - Atribui role `franqueadora`
-   - Atualiza estado do AuthContext
-   - Redireciona para `/admin/dashboard`
-5. Cliente acessa o painel como franqueadora
-6. Todos os dados que criar serão isolados para sua conta
 
 ---
 
@@ -165,6 +41,173 @@ Mas a solução completa (com roles) é melhor para quando você tiver diferente
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/contexts/AuthContext.tsx` | Adicionar função `refreshRoles()` |
-| `src/pages/UserLogin.tsx` | Aguardar Edge Function e chamar `refreshRoles()` |
-| `src/pages/UserRegister.tsx` | Aguardar Edge Function e chamar `refreshRoles()` |
+| `src/components/landing/Header.tsx` | Remover botão "Área Admin" |
+| `supabase/config.toml` | Manter config da Edge Function |
+| Nova migração SQL | Adicionar `super_admin` ao enum `app_role` |
+| `src/contexts/AuthContext.tsx` | Adicionar verificação de `super_admin` |
+| `supabase/functions/assign-franqueadora-role` | Verificar se é email autorizado e atribuir `super_admin` |
+| `src/pages/admin/AdminLayout.tsx` | Adicionar menu "Gestão SaaS" para super_admin |
+| Nova página `src/pages/admin/SaasManagement.tsx` | Página para gerenciar clientes do SaaS |
+| `src/App.tsx` | Adicionar rota `/admin/saas-management` |
+
+---
+
+### Detalhes Técnicos
+
+**1. Migração SQL - Adicionar novo role:**
+
+```sql
+ALTER TYPE app_role ADD VALUE 'super_admin';
+```
+
+**2. Edge Function - Verificar email autorizado:**
+
+```typescript
+const SUPER_ADMIN_EMAILS = ['seu-email@gmail.com']; // Seu email
+
+if (SUPER_ADMIN_EMAILS.includes(email.toLowerCase())) {
+  // Inserir role super_admin
+  await supabase.from('user_roles').insert({
+    user_id,
+    role: 'super_admin'
+  });
+}
+// Sempre inserir franqueadora também
+await supabase.from('user_roles').insert({
+  user_id,
+  role: 'franqueadora'
+});
+```
+
+**3. AuthContext - Adicionar isSuperAdmin:**
+
+```typescript
+type AuthContextType = {
+  // ... existing
+  isSuperAdmin: boolean;
+};
+
+const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+// Na verificação de roles:
+const superAdminCheck = await supabase.rpc('has_role', { 
+  _user_id: userId, 
+  _role: 'super_admin' 
+});
+setIsSuperAdmin(superAdminCheck.data || false);
+```
+
+**4. AdminLayout - Menu condicional:**
+
+```typescript
+const menuItems = [
+  // ... existing items
+  { value: "saas-management", label: "Gestão SaaS", icon: Shield, roles: ["super_admin"] },
+];
+
+// No filtro de menus visíveis:
+if (isSuperAdmin) return item.roles.includes("super_admin") || item.roles.includes("franqueadora");
+```
+
+**5. Header - Remover botão Área Admin:**
+
+Simplesmente remover estas linhas do Header:
+```tsx
+<Button variant="ghost" asChild>
+  <Link to="/admin-login" className="text-xs text-muted-foreground">
+    Área Admin
+  </Link>
+</Button>
+```
+
+---
+
+### Página de Gestão SaaS
+
+A nova página terá:
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Lista de clientes | Todas as franqueadoras cadastradas |
+| Status da conta | Ativo, Inativo, Período de teste |
+| Data de cadastro | Quando criou a conta |
+| Último acesso | Data do último login |
+| Ações | Ver detalhes, Ativar/Desativar |
+
+---
+
+### Fluxo de Acesso (Você)
+
+```
+Você acessa landing page
+         |
+         v
+   Faz login com seu email
+         |
+         v
+   Sistema detecta email autorizado
+         |
+         v
+   Atribui role: super_admin + franqueadora
+         |
+         v
+   Redireciona para /admin/dashboard
+         |
+         v
+   Menu mostra "Gestão SaaS" (só pra você)
+         |
+         v
+   Acessa /admin/saas-management
+         |
+         v
+   Gerencia todos os clientes do SaaS
+```
+
+---
+
+### Fluxo de Acesso (Clientes)
+
+```
+Cliente acessa landing page
+         |
+         v
+   Cria conta ou faz login
+         |
+         v
+   Atribui role: franqueadora
+         |
+         v
+   Redireciona para /admin/dashboard
+         |
+         v
+   Menu normal (sem "Gestão SaaS")
+         |
+         v
+   Usa o sistema normalmente
+```
+
+---
+
+### Segurança
+
+- O role `super_admin` só é atribuído para emails na lista autorizada
+- A verificação é feita no servidor (Edge Function), não no frontend
+- RLS policies podem ser adicionadas para dar acesso total ao super_admin
+- O botão "Área Admin" some da landing, mas a rota `/admin-login` ainda funciona como backup
+
+---
+
+### Resultado Final
+
+1. Landing page limpa sem botão de admin
+2. Você faz login normal pela landing
+3. Sistema detecta seu email e dá poderes extras
+4. Menu "Gestão SaaS" aparece só para você
+5. Clientes usam o sistema normalmente sem ver opções de admin
+6. Você pode gerenciar todos os clientes do SaaS em uma página dedicada
+
+---
+
+### Qual é o seu email?
+
+Antes de implementar, preciso saber qual email você vai usar para o acesso de super admin. Esse email será configurado na Edge Function como o único autorizado a ter poderes de super admin.
