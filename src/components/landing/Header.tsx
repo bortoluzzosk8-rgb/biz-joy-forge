@@ -66,10 +66,15 @@ export function Header() {
               </>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => navigate('/admin-login')}>
+                <Button variant="ghost" asChild>
+                  <Link to="/admin-login" className="text-xs text-muted-foreground">
+                    Área Admin
+                  </Link>
+                </Button>
+                <Button variant="ghost" onClick={() => navigate('/login')}>
                   LOGIN
                 </Button>
-                <Button onClick={() => navigate('/admin-login')}>
+                <Button onClick={() => navigate('/cadastro')}>
                   CRIAR CONTA
                 </Button>
               </>
@@ -116,11 +121,16 @@ export function Header() {
                   </>
                 ) : (
                   <>
-                    <Button variant="ghost" onClick={() => navigate('/admin-login')}>
+                    <Button variant="ghost" onClick={() => navigate('/login')}>
                       LOGIN
                     </Button>
-                    <Button onClick={() => navigate('/admin-login')}>
+                    <Button onClick={() => navigate('/cadastro')}>
                       CRIAR CONTA
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to="/admin-login" className="text-xs">
+                        Área Admin
+                      </Link>
                     </Button>
                   </>
                 )}
