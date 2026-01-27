@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, UserPlus, ArrowLeft } from 'lucide-react';
-import logoEngbrink from '@/assets/logo-engbrink.jpg';
+import logoPlayGestor from '@/assets/logo-playgestor.png';
 
 export default function UserRegister() {
   const [name, setName] = useState('');
@@ -138,7 +138,7 @@ export default function UserRegister() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <Link to="/">
-            <img src={logoEngbrink} alt="Logo" className="h-16" />
+            <img src={logoPlayGestor} alt="PlayGestor" className="h-16" />
           </Link>
         </div>
 

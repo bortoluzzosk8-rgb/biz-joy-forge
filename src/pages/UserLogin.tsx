@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, LogIn, ArrowLeft, Mail } from 'lucide-react';
-import logoEngbrink from '@/assets/logo-engbrink.jpg';
+import logoPlayGestor from '@/assets/logo-playgestor.png';
 
 export default function UserLogin() {
   const [email, setEmail] = useState('');
@@ -138,7 +138,7 @@ export default function UserLogin() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <Link to="/">
-            <img src={logoEngbrink} alt="Logo" className="h-16" />
+            <img src={logoPlayGestor} alt="PlayGestor" className="h-16" />
           </Link>
         </div>
 

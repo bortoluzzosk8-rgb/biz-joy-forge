@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import logoEngbrink from '@/assets/logo-engbrink.jpg';
+import logoPlayGestor from '@/assets/logo-playgestor.png';
 
 const navLinks = [
   { href: '#hero', label: 'Principal' },
@@ -32,7 +32,7 @@ export function Header() {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center">
-            <img src={logoEngbrink} alt="Engbrink" className="h-10 md:h-14" />
+            <img src={logoPlayGestor} alt="PlayGestor" className="h-10 md:h-14" />
           </Link>
 
           {/* Desktop Navigation */}
