@@ -127,7 +127,8 @@ Deno.serve(async (req) => {
           email: email || userEmail,
           phone: phone || null,
           city: 'A definir',
-          status: 'active'
+          status: 'active',
+          parent_franchise_id: null // Marca como franquia raiz (cliente SaaS)
         })
         .select()
         .single()
