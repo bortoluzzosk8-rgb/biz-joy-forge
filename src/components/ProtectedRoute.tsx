@@ -23,28 +23,34 @@ const ProtectedRoute = ({
     );
   }
 
+  // Se exige admin
+  if (requireAdmin) {
+    // Se não tem usuário, vai para login
+    if (!user) {
+      return <Navigate to="/login" replace />;
+    }
+    
+    // Se ainda está verificando roles, mostra loading
+    if (checkingAdmin) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      );
+    }
+    
+    // Se verificou e não é admin, redireciona para home
+    if (!isAdmin) {
+      return <Navigate to="/" replace />;
+    }
+  }
+
   // Se exige apenas autenticação (não admin)
   if (requireAuth && !user) {
-    return <Navigate to="/admin-login" replace />;
+    return <Navigate to="/login" replace />;
   }
 
-  // Se requer admin e não é admin (e já terminou de verificar)
-  if (requireAdmin && !isAdmin && !checkingAdmin) {
-    return <Navigate to="/admin-login" replace />;
-  }
-
-  // Mantém children montados mesmo durante checkingAdmin
-  // Isso preserva o estado dos formulários quando a sessão é revalidada
-  return (
-    <>
-      {checkingAdmin && (
-        <div className="fixed inset-0 bg-background/50 flex items-center justify-center z-50">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      )}
-      {children}
-    </>
-  );
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;
