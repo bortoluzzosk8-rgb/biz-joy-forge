@@ -1,119 +1,56 @@
 
-## Plano: Novo Usuário com Acesso Completo (Franqueadora)
 
-Vou alterar o fluxo de cadastro para que novos usuários tenham acesso completo ao painel administrativo, como se fossem a franqueadora.
+## Plano: Corrigir Redirecionamentos para o Painel Administrativo
 
----
-
-### Problema Atual
-
-Quando um usuário cria uma conta pelo formulário `/cadastro`:
-- Ele é salvo apenas na tabela `clients` (como cliente)
-- Ele é redirecionado para o `/catalog` (catálogo de produtos)
-- Ele **não tem nenhum role** administrativo
-- Ele **não consegue acessar** o painel administrativo
+Vou corrigir todos os pontos onde o sistema está redirecionando incorretamente para o catálogo em vez do painel administrativo.
 
 ---
 
-### Solução
+### Problemas Encontrados
 
-Criar uma **Edge Function** para gerenciar o registro de usuários com acesso administrativo completo. O fluxo será:
-
-1. Usuário preenche o formulário de cadastro
-2. Frontend cria a conta via `supabase.auth.signUp()`
-3. Frontend chama a Edge Function `assign-franqueadora-role` com o `user_id`
-4. Edge Function adiciona o role `franqueadora` na tabela `user_roles`
-5. Usuário é redirecionado para `/admin/dashboard`
-
----
-
-### O que será criado/modificado
-
-**1. Nova Edge Function:** `supabase/functions/assign-franqueadora-role/index.ts`
-- Recebe o `user_id` do usuário recém-criado
-- Valida se o usuário existe
-- Insere o role `franqueadora` na tabela `user_roles`
-- Retorna sucesso ou erro
-
-**2. Atualização do UserRegister:** `src/pages/UserRegister.tsx`
-- Após criar a conta, chama a Edge Function para atribuir o role
-- Redireciona para `/admin/dashboard` (não mais `/catalog`)
-- Melhora as mensagens de feedback
-
-**3. Atualização do UserLogin:** `src/pages/UserLogin.tsx`
-- Redireciona para `/admin/dashboard` após login (não mais `/catalog`)
+| Arquivo | Linha | Problema | Correção |
+|---------|-------|----------|----------|
+| `src/components/landing/Header.tsx` | 60 | "Acessar Sistema" → `/catalog` | Mudar para `/admin/dashboard` |
+| `src/components/landing/Header.tsx` | 115 | "Acessar Sistema" (mobile) → `/catalog` | Mudar para `/admin/dashboard` |
+| `src/pages/LoginSelection.tsx` | 64 | "Acessar Catálogo" → `/catalog` | Mudar para `/admin/dashboard` |
+| `src/components/landing/Hero.tsx` | 63 | "Criar conta" → `/admin-login` | Mudar para `/cadastro` |
+| `src/components/landing/Hero.tsx` | 71 | "Entrar no sistema" → `/admin-login` | Mudar para `/login` |
 
 ---
 
-### Fluxo Após Implementação
+### Alterações a Serem Feitas
 
-```
-                Landing Page
-                     |
-            +--------+--------+
-            |                 |
-      [CRIAR CONTA]      [Área Admin]
-            |                 |
-            v                 v
-     /cadastro           /admin-login
-            |                 |
-     (Cria conta +          (Login)
-      atribui role)           |
-            |                 |
-            +-----------------+
-                     |
-                     v
-           /admin/dashboard
-         (Painel Administrativo)
-```
+**1. Header.tsx** - Quando usuário logado clica em "Acessar Sistema":
+- Linha 60: `navigate('/catalog')` → `navigate('/admin/dashboard')`
+- Linha 115: `navigate('/catalog')` → `navigate('/admin/dashboard')`
 
----
+**2. LoginSelection.tsx** - Botão principal:
+- Linha 64: `navigate("/catalog")` → `navigate("/admin/dashboard")`
+- Também atualizar o texto do botão de "Acessar Catálogo" para "Acessar Sistema"
+- Atualizar o título da página
 
-### Segurança
-
-- A Edge Function usa `SUPABASE_SERVICE_ROLE_KEY` para inserir roles
-- Apenas usuários autenticados podem chamar a função
-- O role é atribuído apenas uma vez (verificação de duplicatas)
-
----
-
-### Detalhes Técnicos
-
-**Edge Function - assign-franqueadora-role:**
-```typescript
-// 1. Recebe user_id do body
-// 2. Valida que user_id foi enviado
-// 3. Verifica se usuário já tem role franqueadora
-// 4. Se não tem, insere na tabela user_roles
-// 5. Retorna sucesso
-```
-
-**UserRegister.tsx - handleSubmit:**
-```typescript
-// 1. Cria usuário com signUp()
-// 2. Chama Edge Function para atribuir role
-// 3. Redireciona para /admin/dashboard
-```
-
----
-
-### Arquivos Afetados
-
-| Arquivo | Ação |
-|---------|------|
-| `supabase/functions/assign-franqueadora-role/index.ts` | Criar (novo) |
-| `src/pages/UserRegister.tsx` | Modificar redirecionamento e adicionar chamada à Edge Function |
-| `src/pages/UserLogin.tsx` | Modificar redirecionamento para `/admin/dashboard` |
-| `supabase/config.toml` | Adicionar configuração da nova Edge Function |
+**3. Hero.tsx** - Botões de CTA na landing page:
+- Linha 63: `navigate('/admin-login')` → `navigate('/cadastro')`
+- Linha 71: `navigate('/admin-login')` → `navigate('/login')`
 
 ---
 
 ### Resultado Esperado
 
-Após a implementação:
-1. Usuário acessa a landing page e clica em "Criar Conta"
-2. Preenche nome, email, telefone e senha
-3. Clica em "Criar conta"
-4. Sistema cria a conta e atribui automaticamente o role `franqueadora`
-5. Usuário é redirecionado diretamente para o painel administrativo completo
-6. Pode gerenciar locações, estoque, logística, financeiro, etc.
+Após as correções:
+
+| Ação do Usuário | Antes | Depois |
+|-----------------|-------|--------|
+| Clicar "Criar conta" na landing | `/admin-login` | `/cadastro` |
+| Clicar "Entrar no sistema" na landing | `/admin-login` | `/login` |
+| Clicar "Acessar Sistema" (logado) | `/catalog` | `/admin/dashboard` |
+| Clicar "Acessar" na LoginSelection | `/catalog` | `/admin/dashboard` |
+
+---
+
+### Arquivos a Modificar
+
+1. `src/components/landing/Header.tsx` - 2 alterações
+2. `src/components/landing/Hero.tsx` - 2 alterações  
+3. `src/pages/LoginSelection.tsx` - 1 alteração + ajuste de texto
+
