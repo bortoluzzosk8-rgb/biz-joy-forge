@@ -59,11 +59,12 @@ Deno.serve(async (req) => {
     }
 
     const userRoles = roles?.map(r => r.role) || [];
+    const isSuperAdmin = userRoles.includes('super_admin');
     const isFranqueadora = userRoles.includes('franqueadora');
     const isFranqueado = userRoles.includes('franqueado');
     const isVendedor = userRoles.includes('vendedor');
 
-    if (!isFranqueadora && !isFranqueado && !isVendedor) {
+    if (!isSuperAdmin && !isFranqueadora && !isFranqueado && !isVendedor) {
       console.log('User does not have permission to delete users');
       return new Response(
         JSON.stringify({ error: 'Acesso negado. Você não tem permissão para deletar usuários.' }),
@@ -126,7 +127,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const deletedBy = isFranqueadora ? 'franqueadora' : (isFranqueado ? 'franqueado' : 'vendedor');
+    const deletedBy = isSuperAdmin ? 'super_admin' : (isFranqueadora ? 'franqueadora' : (isFranqueado ? 'franqueado' : 'vendedor'));
     console.log(`User deleted successfully: ${user_id} by ${deletedBy}`);
 
     return new Response(
