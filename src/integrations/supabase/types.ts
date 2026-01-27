@@ -592,6 +592,7 @@ export type Database = {
           franqueadora_percentage: number | null
           id: string
           name: string
+          parent_franchise_id: string | null
           phone: string | null
           state: string | null
           status: string
@@ -609,6 +610,7 @@ export type Database = {
           franqueadora_percentage?: number | null
           id?: string
           name: string
+          parent_franchise_id?: string | null
           phone?: string | null
           state?: string | null
           status?: string
@@ -626,12 +628,21 @@ export type Database = {
           franqueadora_percentage?: number | null
           id?: string
           name?: string
+          parent_franchise_id?: string | null
           phone?: string | null
           state?: string | null
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "franchises_parent_franchise_id_fkey"
+            columns: ["parent_franchise_id"]
+            isOneToOne: false
+            referencedRelation: "franchises"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory_archive: {
         Row: {

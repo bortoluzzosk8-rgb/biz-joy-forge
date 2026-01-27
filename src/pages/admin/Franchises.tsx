@@ -29,6 +29,7 @@ type Franchise = {
   franqueado_percentage?: number;
   franqueadora_percentage?: number;
   equilibrio_inicial?: number;
+  parent_franchise_id?: string | null;
   created_at: string;
 };
 
@@ -39,8 +40,9 @@ const BRAZILIAN_STATES = [
 ];
 
 const Franchises = () => {
-  const { isFranqueadora } = useAuth();
+  const { isFranqueadora, user } = useAuth();
   const [franchises, setFranchises] = useState<Franchise[]>([]);
+  const [rootFranchiseId, setRootFranchiseId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     id: "",
@@ -66,13 +68,35 @@ const Franchises = () => {
       return;
     }
     fetchFranchises();
-  }, [isFranqueadora]);
+  }, [isFranqueadora, user]);
 
   const fetchFranchises = async () => {
     try {
+      if (!user?.id) return;
+
+      // Buscar a franquia raiz do usuário logado
+      const { data: userFranchise, error: userFranchiseError } = await supabase
+        .from("user_franchises")
+        .select("franchise_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (userFranchiseError) throw userFranchiseError;
+
+      if (!userFranchise?.franchise_id) {
+        setFranchises([]);
+        setLoading(false);
+        return;
+      }
+
+      const userRootFranchiseId = userFranchise.franchise_id;
+      setRootFranchiseId(userRootFranchiseId);
+
+      // Buscar apenas a franquia raiz e suas unidades filhas
       const { data, error } = await supabase
         .from("franchises")
         .select("*")
+        .or(`id.eq.${userRootFranchiseId},parent_franchise_id.eq.${userRootFranchiseId}`)
         .order("name");
 
       if (error) throw error;
@@ -118,9 +142,13 @@ const Franchises = () => {
         if (error) throw error;
         toast.success("Unidade atualizada com sucesso");
       } else {
+        // Ao criar nova unidade, vincular à franquia raiz do usuário
         const { error } = await supabase
           .from("franchises")
-          .insert(franchiseData);
+          .insert({
+            ...franchiseData,
+            parent_franchise_id: rootFranchiseId, // Vincula como unidade filha
+          });
 
         if (error) throw error;
         toast.success("Unidade criada com sucesso");
