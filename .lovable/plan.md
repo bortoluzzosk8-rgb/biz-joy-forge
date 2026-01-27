@@ -1,200 +1,229 @@
 
-## Plano: Separar Dashboard do Super Admin vs Dashboard dos Clientes
+## Plano: Adicionar Recuperação de Senha na Tela de Login
 
-O Dashboard atual será dividido em dois: um para você gerenciar o SaaS (como na imagem que você enviou) e outro para os clientes gerenciarem suas franquias.
-
----
-
-### Estrutura Nova
-
-| Usuário | O que vê no Dashboard |
-|---------|----------------------|
-| Super Admin (você) | Dashboard do SaaS - Leads, Mensagens, Novos Usuários |
-| Franqueadora (cliente) | Dashboard Financeiro - Receitas, Despesas, Vendas |
-| Franqueado | Dashboard da Franquia |
-| Vendedor | Dashboard do Vendedor |
-| Motorista | Redirecionado para Logística |
+Vamos implementar um sistema completo de recuperação de senha que permite ao usuário solicitar um link para redefinir sua senha por email.
 
 ---
 
-### Arquivos a Modificar
+### Como Funciona
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/pages/admin/Dashboard.tsx` | Adicionar lógica para mostrar `SuperAdminDashboard` se for super admin |
-| Novo: `src/pages/admin/SuperAdminDashboard.tsx` | Dashboard completo do SaaS (baseado na imagem) |
-| `src/pages/admin/AdminLayout.tsx` | Ajustar menu para super admin ver opções de gestão SaaS |
-
----
-
-### O Dashboard do Super Admin terá
-
-Baseado na imagem que você enviou (PlayGestor), o dashboard terá:
-
-**Cards de Resumo:**
-- Novos Hoje - Cadastros nas últimas 24h
-- Mensagens Pendentes - Aguardando envio
-- Em Conversa - Leads sendo atendidos
-- Última Semana - Total de novos leads
-
-**Seção Leads por Status:**
-- Novos
-- Mensagem Enviada
-- Em Conversa
-- Ativando
-- Ativos
-- Inativos
-
-**Seção Últimos Cadastros:**
-- Lista dos clientes mais recentes que se cadastraram no SaaS
+1. Usuário clica em "Esqueceu a senha?" na tela de login
+2. Uma modal/formulário aparece pedindo o email
+3. Sistema envia um link de recuperação para o email
+4. Usuário clica no link e é redirecionado para uma página de redefinição
+5. Usuário define a nova senha e faz login
 
 ---
 
-### Menu do Super Admin
+### Arquivos a Criar/Modificar
 
-O menu lateral/tabs terá:
-- **Dashboard** (visão geral do SaaS)
-- **Leads** (leads do SaaS - pessoas que visitaram a landing)
-- **Clientes** (franqueadoras que usam o sistema)
-- **Mensagens** (comunicação com leads/clientes)
-
-Os menus atuais de "Locações", "Estoque", "Financeiro" etc. **NÃO aparecerão** para o Super Admin, pois ele não gerencia franquias diretamente.
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `src/pages/UserLogin.tsx` | Modificar | Adicionar link "Esqueceu a senha?" e modal para solicitar recuperação |
+| `src/pages/ResetPassword.tsx` | Criar | Página para o usuário definir a nova senha após clicar no link do email |
+| `src/App.tsx` | Modificar | Adicionar rota `/reset-password` |
 
 ---
 
-### Fluxo Final
+### Fluxo Detalhado
 
 ```
-Super Admin (bortoluzzosk8@gmail.com):
-  /admin/dashboard → SuperAdminDashboard
-     - Novos cadastros hoje
-     - Leads por status  
-     - Últimos cadastros
-
-  Menu:
-     - Dashboard (SaaS)
-     - Leads (pessoas da landing)
-     - Clientes (franqueadoras)
+Tela de Login
+    └── Usuário clica "Esqueceu a senha?"
+         └── Abre modal com campo de email
+              └── Usuário digita email e clica "Enviar"
+                   └── Supabase envia email automático com link
+                        └── Usuário recebe email e clica no link
+                             └── Abre página /reset-password
+                                  └── Usuário digita nova senha
+                                       └── Senha atualizada - redireciona para login
+```
 
 ---
 
-Franqueadora (cliente comum):
-  /admin/dashboard → FinancialDashboard
-     - Receitas
-     - Despesas
-     - Vendas
-     - Gráficos
+### Sobre Confirmação de Email
 
-  Menu:
-     - Dashboard
-     - Locações
-     - Estoque
-     - Logística
-     - Financeiro
-     - etc...
+**Boa notícia**: O Supabase já tem sistema nativo de recuperação de senha que funciona da seguinte forma:
+
+- Usa a função `supabase.auth.resetPasswordForEmail(email)`
+- O Supabase envia automaticamente um email com link de recuperação
+- O link redireciona para sua aplicação com um token especial
+- A função `supabase.auth.updateUser({ password })` atualiza a senha
+
+**Não é necessário** configurar SMTP ou criar edge functions para isso - o Supabase já faz automaticamente usando os templates de email nativos.
+
+---
+
+### Mudanças na Tela de Login
+
+Vamos adicionar entre a senha e o botão "Entrar":
+
+```
+Senha
+┌──────────────────────────────┐
+│ ••••••••              👁     │
+└──────────────────────────────┘
+             Esqueceu a senha?  ← Link clicável
+
+┌──────────────────────────────┐
+│          → Entrar            │
+└──────────────────────────────┘
+```
+
+---
+
+### Modal de Recuperação
+
+Quando clicar em "Esqueceu a senha?", aparece:
+
+```
+┌──────────────────────────────────────────┐
+│         Recuperar Senha                  │
+├──────────────────────────────────────────┤
+│                                          │
+│  Digite seu email para receber um        │
+│  link de recuperação de senha.           │
+│                                          │
+│  Email                                   │
+│  ┌────────────────────────────────────┐  │
+│  │ seu@email.com                      │  │
+│  └────────────────────────────────────┘  │
+│                                          │
+│  ┌────────────────────────────────────┐  │
+│  │        Enviar Link                 │  │
+│  └────────────────────────────────────┘  │
+│                                          │
+│              Voltar ao login             │
+└──────────────────────────────────────────┘
+```
+
+---
+
+### Página de Nova Senha
+
+Após clicar no link do email, o usuário vai para `/reset-password`:
+
+```
+┌──────────────────────────────────────────┐
+│              [LOGO]                      │
+│                                          │
+│       Definir Nova Senha                 │
+│                                          │
+│  Nova senha                              │
+│  ┌────────────────────────────────────┐  │
+│  │ ••••••••                       👁  │  │
+│  └────────────────────────────────────┘  │
+│                                          │
+│  Confirmar nova senha                    │
+│  ┌────────────────────────────────────┐  │
+│  │ ••••••••                       👁  │  │
+│  └────────────────────────────────────┘  │
+│                                          │
+│  ┌────────────────────────────────────┐  │
+│  │      Atualizar Senha               │  │
+│  └────────────────────────────────────┘  │
+└──────────────────────────────────────────┘
 ```
 
 ---
 
 ### Detalhes Técnicos
 
-**1. Dashboard.tsx - Lógica de Renderização:**
+**1. UserLogin.tsx - Função de recuperação:**
 
 ```typescript
-const Dashboard = () => {
-  const { isSuperAdmin, isFranqueadora, isFranqueado, isVendedor, isMotorista } = useAuth();
-
-  // Super Admin vê dashboard do SaaS
-  if (isSuperAdmin) {
-    return <SuperAdminDashboard />;
+const handleForgotPassword = async () => {
+  if (!forgotEmail.trim()) {
+    toast({
+      title: "Email obrigatório",
+      description: "Digite seu email para recuperar a senha.",
+      variant: "destructive",
+    });
+    return;
   }
 
-  // Motorista redireciona
-  if (isMotorista && !isFranqueadora && !isFranqueado && !isVendedor) {
-    return <Navigate to="/admin/logistics" replace />;
-  }
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    forgotEmail.trim(),
+    {
+      redirectTo: `${window.location.origin}/reset-password`,
+    }
+  );
 
-  // Vendedor vê seu dashboard
-  if (isVendedor && !isFranqueadora && !isFranqueado) {
-    return <SellerDashboard />;
+  if (error) {
+    toast({
+      title: "Erro",
+      description: "Não foi possível enviar o email. Tente novamente.",
+      variant: "destructive",
+    });
+  } else {
+    toast({
+      title: "Email enviado!",
+      description: "Verifique sua caixa de entrada para redefinir sua senha.",
+    });
+    setShowForgotPassword(false);
   }
-
-  // Franqueado vê dashboard da franquia
-  if (isFranqueado && !isFranqueadora) {
-    return <FranchiseDashboard />;
-  }
-
-  // Franqueadora (cliente) vê dashboard financeiro
-  return <FinancialDashboard />;
 };
 ```
 
-**2. SuperAdminDashboard.tsx - Componentes:**
+**2. ResetPassword.tsx - Atualização de senha:**
 
 ```typescript
-// Cards de estatísticas
-const statsCards = [
-  { label: "Novos Hoje", value: newTodayCount, icon: Users, description: "Cadastros nas últimas 24h" },
-  { label: "Mensagens Pendentes", value: pendingMessages, icon: MessageSquare, description: "Aguardando envio" },
-  { label: "Em Conversa", value: inConversation, icon: TrendingUp, description: "Leads sendo atendidos" },
-  { label: "Última Semana", value: lastWeekCount, icon: Clock, description: "Total de novos leads" },
-];
+const handleResetPassword = async () => {
+  if (password !== confirmPassword) {
+    toast({
+      title: "Senhas diferentes",
+      description: "As senhas não coincidem.",
+      variant: "destructive",
+    });
+    return;
+  }
 
-// Leads por status
-const leadStatuses = [
-  { status: "Novos", color: "blue", count: X },
-  { status: "Mensagem Enviada", color: "yellow", count: X },
-  { status: "Em Conversa", color: "purple", count: X },
-  { status: "Ativando", color: "orange", count: X },
-  { status: "Ativos", color: "green", count: X },
-  { status: "Inativos", color: "gray", count: X },
-];
+  const { error } = await supabase.auth.updateUser({
+    password: password,
+  });
+
+  if (error) {
+    toast({
+      title: "Erro",
+      description: "Não foi possível atualizar a senha.",
+      variant: "destructive",
+    });
+  } else {
+    toast({
+      title: "Senha atualizada!",
+      description: "Faça login com sua nova senha.",
+    });
+    navigate('/login');
+  }
+};
 ```
 
-**3. AdminLayout.tsx - Menu Filtrado:**
+**3. App.tsx - Nova rota:**
 
 ```typescript
-const menuItems = [
-  // Menus do Super Admin (SaaS)
-  { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["super_admin"] },
-  { value: "leads", label: "Leads", icon: UserPlus, roles: ["super_admin"] },
-  { value: "saas-clients", label: "Clientes", icon: Building2, roles: ["super_admin"] },
-  
-  // Menus das Franqueadoras/Franqueados (sem acesso pro super admin)
-  { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["franqueadora", "franqueado", "vendedor"] },
-  { value: "rentals", label: "Locações", icon: Calendar, roles: ["franqueadora", "franqueado", "vendedor"] },
-  // ... resto dos menus
-];
+import ResetPassword from "./pages/ResetPassword";
+
+// Dentro de Routes
+<Route path="/reset-password" element={<ResetPassword />} />
 ```
 
 ---
 
-### Dados que o Super Admin verá
+### Validações de Segurança
 
-| Métrica | De onde vem |
-|---------|-------------|
-| Novos Hoje | `user_roles` criados nas últimas 24h com role = franqueadora |
-| Mensagens Pendentes | Campo a definir (precisamos criar tabela de mensagens ou usar outro sistema) |
-| Em Conversa | Leads com status específico |
-| Última Semana | `user_roles` criados nos últimos 7 dias |
-| Leads por Status | Precisamos adicionar campo `status` na lógica de leads do SaaS |
-| Últimos Cadastros | `user_roles` ordenados por created_at |
+- Email é validado antes de enviar
+- Senha mínima de 6 caracteres
+- Confirmação de senha obrigatória
+- Token do Supabase valida automaticamente se o link é válido
+- Links expiram após um tempo definido pelo Supabase
 
 ---
 
-### Observações
-
-1. **Leads do SaaS vs Leads da Franquia**: Os "leads" que você vê como super admin são diferentes dos leads das franquias. Os seus são pessoas interessadas no SaaS, os das franquias são clientes finais que querem alugar produtos.
-
-2. **Mensagens**: Na imagem aparece "Mensagens Pendentes". Precisamos definir se isso será um sistema de mensagens interno ou integração com WhatsApp/email.
-
-3. **Status dos Leads**: Precisamos criar um sistema de status para os leads do SaaS (Novo → Mensagem Enviada → Em Conversa → Ativando → Ativo → Inativo).
-
----
-
-### Resultado
+### Resultado Final
 
 Após implementar:
-- Você (super admin) verá o dashboard focado em gestão do SaaS
-- Seus clientes (franqueadoras) continuarão vendo o dashboard financeiro para gerenciar suas franquias
-- Cada tipo de usuário terá a experiência correta para seu papel
+- Usuário que esqueceu a senha pode recuperá-la facilmente
+- Processo seguro usando o sistema nativo do Supabase
+- Experiência intuitiva com feedback visual em cada etapa
+- Não precisa de configuração adicional de email (Supabase já envia)
+
