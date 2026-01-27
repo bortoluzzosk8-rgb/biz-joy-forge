@@ -50,10 +50,12 @@ const SuperAdminDashboard = () => {
 
       if (rolesError) throw rolesError;
 
-      // Buscar franchises para associar com os clientes
+      // Buscar apenas franquias raiz (clientes SaaS principais)
+      // parent_franchise_id IS NULL significa que é uma franquia raiz
       const { data: franchises, error: franchisesError } = await supabase
         .from("franchises")
-        .select("id, name, city, status");
+        .select("id, name, city, status, parent_franchise_id")
+        .is("parent_franchise_id", null);
 
       if (franchisesError) throw franchisesError;
 
