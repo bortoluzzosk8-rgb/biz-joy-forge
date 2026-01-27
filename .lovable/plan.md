@@ -1,88 +1,163 @@
 
-## Plano: Atribuir Role Automaticamente no Login
+## Plano: Corrigir Fluxo de Autenticação SaaS Multi-tenant
 
-Vou corrigir o sistema para que o role `franqueadora` seja atribuído automaticamente tanto no cadastro quanto no login.
+Vou corrigir o fluxo completo para que cada cliente que criar uma conta seja automaticamente uma nova "franqueadora" e possa acessar o sistema imediatamente.
 
 ---
 
-### Problema Identificado
+### Problemas Identificados
 
-1. **Usuário sem role**: O usuário `oompabrink01@gmail.com` não tem nenhum role na tabela `user_roles`
-2. **Login não atribui role**: A Edge Function `assign-franqueadora-role` só é chamada no cadastro, não no login
-3. **ProtectedRoute bloqueia acesso**: Como `isAdmin = false`, o usuário é redirecionado para `/` ao tentar acessar `/admin/dashboard`
+| Problema | Causa | Impacto |
+|----------|-------|---------|
+| Role não detectado após login/cadastro | AuthContext verifica roles antes da Edge Function terminar | Usuário redirecionado para `/` por não ter `isAdmin = true` |
+| Edge Function não chamada no Header | Login no Header não invoca `assign-franqueadora-role` | Usuários que fazem login pela landing não recebem role |
+| Timing incorreto | Navigate acontece antes de `checkAdminStatus` atualizar o estado | `ProtectedRoute` vê `isAdmin = false` |
 
 ---
 
 ### Solução
 
-Modificar o `UserLogin.tsx` para chamar a Edge Function `assign-franqueadora-role` após o login bem-sucedido, garantindo que qualquer usuário que fizer login tenha o role `franqueadora`.
+Implementar um sistema onde:
+1. O role é atribuído **imediatamente** após login/cadastro
+2. O `AuthContext` tem uma função para **forçar re-verificação** dos roles
+3. O redirecionamento só acontece **após** confirmar que o role foi atribuído
 
 ---
 
-### Alterações
+### Arquivos a Modificar
 
-**1. `src/pages/UserLogin.tsx`**
+**1. `src/contexts/AuthContext.tsx`**
+- Adicionar função `refreshRoles()` que pode ser chamada externamente para forçar re-verificação
+- Exportar esta função no contexto
 
-Após o login bem-sucedido (`supabase.auth.signInWithPassword`):
-- Obter o `user.id` da sessão
-- Chamar a Edge Function `assign-franqueadora-role` com o `user_id`
-- Aguardar a resposta antes de redirecionar
-- Redirecionar para `/admin/dashboard`
+**2. `src/pages/UserLogin.tsx`**
+- Após chamar a Edge Function, aguardar a resposta
+- Chamar `refreshRoles()` para atualizar o estado
+- Só então fazer o navigate
+
+**3. `src/pages/UserRegister.tsx`**
+- Mesmo ajuste: aguardar Edge Function e chamar `refreshRoles()`
+
+**4. `src/components/landing/Header.tsx`**
+- Adicionar formulário de login inline (já existe)
+- Após login bem-sucedido, chamar Edge Function + refreshRoles
+- Atualizar botão "Acessar Sistema" para verificar corretamente
 
 ---
 
-### Código a Ser Implementado
+### Implementação Detalhada
+
+**AuthContext.tsx - Adicionar refreshRoles:**
 
 ```typescript
-// UserLogin.tsx - handleSubmit
-const { data, error } = await supabase.auth.signInWithPassword({
-  email: email.trim(),
-  password,
-});
+type AuthContextType = {
+  // ... existing
+  refreshRoles: () => Promise<void>;
+};
 
-if (error) {
-  // ... tratamento de erro
-} else {
-  // Atribuir role franqueadora após login
-  if (data.user) {
-    await supabase.functions.invoke('assign-franqueadora-role', {
-      body: { user_id: data.user.id }
-    });
+// Dentro do provider:
+const refreshRoles = async () => {
+  if (user) {
+    await checkAdminStatus(user.id);
   }
+};
+
+// Exportar no value:
+<AuthContext.Provider value={{ 
+  // ... existing
+  refreshRoles
+}}>
+```
+
+**UserLogin.tsx - Aguardar e atualizar:**
+
+```typescript
+const { refreshRoles } = useAuth();
+
+// No handleSubmit:
+if (data.user) {
+  // Chamar Edge Function e aguardar
+  const { error: roleError } = await supabase.functions.invoke('assign-franqueadora-role', {
+    body: { user_id: data.user.id }
+  });
   
-  toast({ ... });
-  navigate('/admin/dashboard');
+  if (!roleError) {
+    // Forçar re-verificação dos roles
+    await refreshRoles();
+  }
 }
+
+navigate('/admin/dashboard');
+```
+
+**UserRegister.tsx - Mesmo ajuste:**
+
+```typescript
+const { refreshRoles } = useAuth();
+
+// Após signUp e chamar Edge Function:
+await refreshRoles();
+navigate('/admin/dashboard');
 ```
 
 ---
 
-### Fluxo Após Correção
+### Fluxo Corrigido
 
 ```
-Usuario faz login (/login)
+Usuario cria conta / faz login
          |
          v
-   signInWithPassword()
+   signUp() / signInWithPassword()
          |
          v
    invoke('assign-franqueadora-role')
          |
          v
-   Role inserido em user_roles
+   Aguardar resposta OK
+         |
+         v
+   refreshRoles() → checkAdminStatus()
+         |
+         v
+   isAdmin = true (franqueadora detectado)
          |
          v
    navigate('/admin/dashboard')
          |
          v
-   ProtectedRoute verifica roles
+   ProtectedRoute vê isAdmin = true
          |
          v
-   isAdmin = true (tem franqueadora)
-         |
-         v
-   Acessa Dashboard normalmente
+   Dashboard renderizado!
 ```
+
+---
+
+### Alternativa Mais Simples
+
+Se preferir uma solução mais simples, podemos:
+
+1. **Remover a verificação de role no ProtectedRoute** temporariamente
+2. **Usar apenas `requireAuth`** em vez de `requireAdmin`
+3. Isso permitiria que qualquer usuário logado acesse o dashboard
+
+Mas a solução completa (com roles) é melhor para quando você tiver diferentes tipos de usuários no futuro.
+
+---
+
+### Resultado Esperado
+
+1. Cliente acessa landing page
+2. Clica em "Criar conta"
+3. Preenche dados e clica "Criar conta"
+4. Sistema:
+   - Cria conta no Supabase Auth
+   - Atribui role `franqueadora`
+   - Atualiza estado do AuthContext
+   - Redireciona para `/admin/dashboard`
+5. Cliente acessa o painel como franqueadora
+6. Todos os dados que criar serão isolados para sua conta
 
 ---
 
@@ -90,21 +165,6 @@ Usuario faz login (/login)
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/pages/UserLogin.tsx` | Adicionar chamada à Edge Function após login |
-
----
-
-### Resultado Esperado
-
-1. Usuário faz login na página `/login`
-2. Sistema autentica o usuário
-3. Edge Function atribui o role `franqueadora` automaticamente
-4. Usuário é redirecionado para `/admin/dashboard`
-5. `ProtectedRoute` valida que `isAdmin = true`
-6. Usuário acessa o painel administrativo
-
----
-
-### Benefício Adicional
-
-Esta correção também resolve o problema de usuários antigos que foram criados antes da implementação do sistema de roles - na próxima vez que fizerem login, receberão o role automaticamente.
+| `src/contexts/AuthContext.tsx` | Adicionar função `refreshRoles()` |
+| `src/pages/UserLogin.tsx` | Aguardar Edge Function e chamar `refreshRoles()` |
+| `src/pages/UserRegister.tsx` | Aguardar Edge Function e chamar `refreshRoles()` |
