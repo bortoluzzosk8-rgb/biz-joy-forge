@@ -45,15 +45,15 @@ const LoginSelection = () => {
           </div>
         </div>
 
-        {/* Hero Section */}
+          {/* Hero Section */}
         <div className="text-center space-y-6 max-w-3xl animate-scale-in">
           {/* Título */}
           <div className="space-y-2 mb-8">
             <h1 className="text-3xl md:text-4xl font-bold text-foreground" translate="no">
-              Bem-vindo ao <span className="text-primary">Catálogo</span>
+              Bem-vindo ao <span className="text-primary">Sistema</span>
             </h1>
             <p className="text-muted-foreground text-lg">
-              Encontre os melhores produtos para sua festa
+              Gerencie suas locações de forma simples e eficiente
             </p>
           </div>
 
@@ -61,11 +61,11 @@ const LoginSelection = () => {
           <div>
             <Button 
               size="lg"
-              onClick={() => navigate("/catalog")}
+              onClick={() => navigate("/admin/dashboard")}
               className="text-xl md:text-2xl px-12 py-8 h-auto rounded-2xl gradient-coral shadow-2xl shadow-primary/30 hover:shadow-primary/40 hover:scale-105 transition-all duration-300 group border-0"
             >
               <User className="w-6 h-6 md:w-7 md:h-7 mr-3 group-hover:scale-110 transition-transform" />
-              Acessar Catálogo
+              Acessar Sistema
             </Button>
           </div>
         </div>
