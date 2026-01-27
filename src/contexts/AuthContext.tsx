@@ -13,6 +13,7 @@ type AuthContextType = {
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   isFranqueadora: boolean;
   isFranqueado: boolean;
   isVendedor: boolean;
@@ -30,6 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isFranqueadora, setIsFranqueadora] = useState(false);
   const [isFranqueado, setIsFranqueado] = useState(false);
   const [isVendedor, setIsVendedor] = useState(false);
@@ -41,12 +43,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setCheckingAdmin(true);
     try {
       // Verificar roles
-      const [franqueadoraCheck, franqueadoCheck, adminCheck, vendedorCheck, motoristaCheck] = await Promise.all([
+      const [franqueadoraCheck, franqueadoCheck, adminCheck, vendedorCheck, motoristaCheck, superAdminCheck] = await Promise.all([
         supabase.rpc('has_role', { _user_id: userId, _role: 'franqueadora' }),
         supabase.rpc('has_role', { _user_id: userId, _role: 'franqueado' }),
         supabase.rpc('has_role', { _user_id: userId, _role: 'admin' }),
         supabase.rpc('has_role', { _user_id: userId, _role: 'vendedor' }),
-        supabase.rpc('has_role', { _user_id: userId, _role: 'motorista' })
+        supabase.rpc('has_role', { _user_id: userId, _role: 'motorista' }),
+        supabase.rpc('has_role', { _user_id: userId, _role: 'super_admin' })
       ]);
       
       const isFranqueadoraRole = franqueadoraCheck.data || false;
@@ -54,12 +57,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const isAdminRole = adminCheck.data || false;
       const isVendedorRole = vendedorCheck.data || false;
       const isMotoristaRole = motoristaCheck.data || false;
+      const isSuperAdminRole = superAdminCheck.data || false;
       
+      setIsSuperAdmin(isSuperAdminRole);
       setIsFranqueadora(isFranqueadoraRole);
       setIsFranqueado(isFranqueadoRole);
       setIsVendedor(isVendedorRole);
       setIsMotorista(isMotoristaRole);
-      setIsAdmin(isAdminRole || isFranqueadoraRole || isFranqueadoRole || isVendedorRole || isMotoristaRole);
+      setIsAdmin(isAdminRole || isFranqueadoraRole || isFranqueadoRole || isVendedorRole || isMotoristaRole || isSuperAdminRole);
       
       // Buscar franchise do usuário (se franqueado ou motorista)
       if (isFranqueadoRole || isFranqueadoraRole) {
@@ -89,6 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (err) {
       console.error('Erro ao verificar roles:', err);
       setIsAdmin(false);
+      setIsSuperAdmin(false);
       setIsFranqueadora(false);
       setIsFranqueado(false);
       setIsVendedor(false);
@@ -152,6 +158,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
     setSession(null);
     setIsAdmin(false);
+    setIsSuperAdmin(false);
     setIsFranqueadora(false);
     setIsFranqueado(false);
     setIsVendedor(false);
@@ -165,6 +172,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       session, 
       loading, 
       isAdmin, 
+      isSuperAdmin,
       isFranqueadora, 
       isFranqueado, 
       isVendedor,

@@ -15,7 +15,7 @@ const navLinks = [
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, signOut, isAdmin } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleNavClick = (href: string) => {
@@ -52,11 +52,6 @@ export function Header() {
           <div className="hidden lg:flex items-center gap-4">
             {user ? (
               <>
-                {isAdmin && (
-                  <Button asChild variant="outline">
-                    <Link to="/admin">Painel Admin</Link>
-                  </Button>
-                )}
                 <Button onClick={() => navigate('/admin/dashboard')}>
                   Acessar Sistema
                 </Button>
@@ -66,11 +61,6 @@ export function Header() {
               </>
             ) : (
               <>
-                <Button variant="ghost" asChild>
-                  <Link to="/admin-login" className="text-xs text-muted-foreground">
-                    Área Admin
-                  </Link>
-                </Button>
                 <Button variant="ghost" onClick={() => navigate('/login')}>
                   LOGIN
                 </Button>
@@ -107,11 +97,6 @@ export function Header() {
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
                 {user ? (
                   <>
-                    {isAdmin && (
-                      <Button asChild variant="outline">
-                        <Link to="/admin">Painel Admin</Link>
-                      </Button>
-                    )}
                     <Button onClick={() => navigate('/admin/dashboard')}>
                       Acessar Sistema
                     </Button>
@@ -126,11 +111,6 @@ export function Header() {
                     </Button>
                     <Button onClick={() => navigate('/cadastro')}>
                       CRIAR CONTA
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to="/admin-login" className="text-xs">
-                        Área Admin
-                      </Link>
                     </Button>
                   </>
                 )}

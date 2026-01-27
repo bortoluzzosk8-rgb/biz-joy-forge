@@ -32,6 +32,7 @@ import Drivers from "./pages/admin/Drivers";
 import Monitors from "./pages/admin/Monitors";
 import Settings from "./pages/admin/Settings";
 import Logistics from "./pages/admin/Logistics";
+import SaasManagement from "./pages/admin/SaasManagement";
 import NotFound from "./pages/NotFound";
 import PublicContract from "./pages/PublicContract";
 
@@ -94,6 +95,7 @@ const App = () => (
                   <Route path="drivers" element={<Drivers />} />
                   <Route path="monitors" element={<Monitors />} />
                   <Route path="settings" element={<Settings />} />
+                  <Route path="saas-management" element={<SaasManagement />} />
                 </Route>
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

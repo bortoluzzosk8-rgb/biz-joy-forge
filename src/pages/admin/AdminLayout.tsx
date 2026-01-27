@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, UsersRound, FileSpreadsheet, UserCheck, Truck, User } from "lucide-react";
+import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, UsersRound, FileSpreadsheet, UserCheck, Truck, User, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -10,7 +10,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signOut, user, isFranqueadora, isFranqueado, isVendedor, isMotorista, userFranchise } = useAuth();
+  const { signOut, user, isFranqueadora, isFranqueado, isVendedor, isMotorista, isSuperAdmin, userFranchise } = useAuth();
   const isMobile = useIsMobile();
 
   const handleLogout = async () => {
@@ -46,19 +46,23 @@ const AdminLayout = () => {
     { value: "sellers", label: "Vendedores", icon: UserCheck, roles: ["franqueadora"] },
     { value: "franchise-report", label: "Relatório", icon: FileSpreadsheet, roles: ["franqueadora", "franqueado"] },
     { value: "settings", label: "Config", icon: Settings, roles: ["franqueadora"] },
+    { value: "saas-management", label: "Gestão SaaS", icon: Shield, roles: ["super_admin"] },
   ];
 
   // Filtrar menus baseado no role
   const visibleMenuItems = menuItems.filter((item) => {
+    // Super admin vê tudo + menu especial
+    if (isSuperAdmin && item.roles.includes("super_admin")) return true;
     if (isFranqueadora) return item.roles.includes("franqueadora");
     if (isFranqueado) return item.roles.includes("franqueado");
     if (isVendedor) return item.roles.includes("vendedor");
     if (isMotorista) return item.roles.includes("motorista");
-    return true;
+    return false;
   });
 
   // Título do painel baseado no role
   const getPanelTitle = () => {
+    if (isSuperAdmin) return "🛡️ Super Admin";
     if (isFranqueadora) return "🏢 Franqueadora";
     if (isFranqueado) return "🏪 Franqueado";
     if (isVendedor) return "👤 Vendedor";
