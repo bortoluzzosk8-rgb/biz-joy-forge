@@ -32,7 +32,7 @@ export default function UserLogin() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
@@ -46,6 +46,13 @@ export default function UserLogin() {
           variant: "destructive",
         });
       } else {
+        // Atribuir role franqueadora automaticamente após login
+        if (data.user) {
+          await supabase.functions.invoke('assign-franqueadora-role', {
+            body: { user_id: data.user.id }
+          });
+        }
+        
         toast({
           title: "Login realizado!",
           description: "Bem-vindo ao painel administrativo!",
