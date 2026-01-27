@@ -1,1 +1,4 @@
 project_id = "xpbjlcxqftopbizqcjuv"
+
+[functions.assign-franqueadora-role]
+verify_jwt = false

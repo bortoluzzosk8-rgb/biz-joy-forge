@@ -108,16 +108,37 @@ export default function UserRegister() {
 
         if (clientError) {
           console.error('Error creating client record:', clientError);
-          // Don't fail the registration if client creation fails
-          // The user can still access the system
+        }
+
+        // Assign franqueadora role via edge function
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assign-franqueadora-role`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionData.session?.access_token || ''}`,
+                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              },
+              body: JSON.stringify({ user_id: authData.user.id }),
+            }
+          );
+
+          if (!response.ok) {
+            console.error('Error assigning role:', await response.text());
+          }
+        } catch (roleError) {
+          console.error('Error calling assign-franqueadora-role:', roleError);
         }
 
         toast({
           title: "Conta criada com sucesso!",
-          description: "Você já pode acessar o sistema.",
+          description: "Bem-vindo ao painel administrativo.",
         });
         
-        navigate('/catalog');
+        navigate('/admin/dashboard');
       }
     } catch (error) {
       console.error('Registration error:', error);
