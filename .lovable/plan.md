@@ -1,155 +1,40 @@
 
 
-## Restringir Sistema para Uso Exclusivo
+## 🚀 Plano: Migrar Landing Page do PlayGestor
 
-### Objetivo
-Bloquear acesso ao catálogo e todas as funcionalidades para visitantes não autenticados. Apenas usuários cadastrados por você poderão acessar o sistema.
-
----
-
-### Fluxo Atual vs. Novo Fluxo
-
-**Hoje:**
-```
-Visitante → Landing Page → Catálogo (livre) → Pode ver tudo
-```
-
-**Depois:**
-```
-Visitante → Tela de Login → [Precisa de conta] → Catálogo
-```
+Vou integrar a landing page do outro projeto Lovable neste projeto, mantendo toda a estrutura administrativa já existente.
 
 ---
 
-### O que muda
+### 📦 O que será migrado
 
-| Rota | Antes | Depois |
-|------|-------|--------|
-| `/` | Landing page pública | Redireciona para login |
-| `/catalog` | Acesso livre | Exige login |
-| `/product/:id` | Acesso livre | Exige login |
-| `/checkout` | Acesso livre | Exige login |
-| `/contrato/:id` | Público (link WhatsApp) | **Permanece público** (cliente precisa ver) |
-| `/admin-login` | Público | Público (é a tela de login) |
-| `/admin/*` | Protegido | Protegido |
-
----
-
-### Alterações Técnicas
-
-#### 1. Atualizar ProtectedRoute.tsx
-
-Adicionar opção para proteger rotas sem exigir role de admin:
-
-```typescript
-type ProtectedRouteProps = {
-  children: React.ReactNode;
-  requireAdmin?: boolean;
-  requireAuth?: boolean;  // NOVO: apenas exige estar logado
-};
-
-const ProtectedRoute = ({ 
-  children, 
-  requireAdmin = false,
-  requireAuth = false 
-}: ProtectedRouteProps) => {
-  const { user, loading, isAdmin, checkingAdmin } = useAuth();
-
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-
-  // Se exige apenas autenticação (não admin)
-  if (requireAuth && !user) {
-    return <Navigate to="/admin-login" replace />;
-  }
-
-  // Se exige admin e não é admin
-  if (requireAdmin && !isAdmin && !checkingAdmin) {
-    return <Navigate to="/admin-login" replace />;
-  }
-
-  return <>{children}</>;
-};
-```
-
-#### 2. Atualizar App.tsx
-
-Envolver rotas do catálogo com `ProtectedRoute`:
-
-```typescript
-// Antes:
-<Route path="/catalog" element={<Catalog />} />
-<Route path="/product/:productId" element={<ProductDetail />} />
-<Route path="/checkout" element={<Checkout />} />
-
-// Depois:
-<Route path="/catalog" element={
-  <ProtectedRoute requireAuth>
-    <Catalog />
-  </ProtectedRoute>
-} />
-<Route path="/product/:productId" element={
-  <ProtectedRoute requireAuth>
-    <ProductDetail />
-  </ProtectedRoute>
-} />
-<Route path="/checkout" element={
-  <ProtectedRoute requireAuth>
-    <Checkout />
-  </ProtectedRoute>
-} />
-```
-
-#### 3. Redirecionar Landing Page
-
-Fazer a rota `/` verificar se há usuário logado:
-- Se logado → vai para `/catalog`
-- Se não logado → vai para `/admin-login`
-
-```typescript
-// App.tsx - rota raiz
-<Route path="/" element={<AuthRedirect />} />
-
-// Novo componente AuthRedirect
-const AuthRedirect = () => {
-  const { user, loading } = useAuth();
-  
-  if (loading) return <LoadingSpinner />;
-  
-  return user ? <Navigate to="/catalog" replace /> : <Navigate to="/admin-login" replace />;
-};
-```
+A landing page completa com **9 componentes**:
+1. **Header** - Menu de navegação com logo e links
+2. **Hero** - Seção principal com título, benefícios e CTAs
+3. **Segments** - Grid de segmentos atendidos (festas, móveis, equipamentos, etc.)
+4. **Problems** - Problemas que o sistema resolve
+5. **Solutions** - Funcionalidades do sistema
+6. **BeforeAfter** - Comparação antes/depois de usar o sistema
+7. **Plans** - Cards de planos (Básico, Pro, Multiusuário)
+8. **FAQ** - Perguntas frequentes com accordion
+9. **Footer** - Rodapé com links e contato WhatsApp
 
 ---
 
-### Resultado Final
+### 🔧 Adaptações necessárias
 
-**Para visitantes não logados:**
-- Qualquer URL redireciona para `/admin-login`
-- Não conseguem ver catálogo, produtos ou preços
-
-**Para usuários logados (cadastrados por você):**
-- Acesso normal ao catálogo e checkout
-- Funciona como funciona hoje
-
-**Exceção (mantida pública):**
-- `/contrato/:saleId` - Link do contrato enviado por WhatsApp continua funcionando
+- **Logo**: O Header e Footer usam `logo-playgestor.png` - vou verificar se existe no projeto atual ou usar o logo existente (`logo-engbrink.jpg`)
+- **Hook useAdmin**: O Header original usava um hook `useAdmin` que não existe. Vou adaptar para usar o `useAuth` que já existe neste projeto
+- **Navegação**: Os botões "Acessar sistema" e "Criar conta" serão linkados às rotas existentes (`/admin-login` e `/catalog`)
+- **WhatsApp**: Configurar o número real de WhatsApp para contato
 
 ---
 
-### Arquivos a Modificar
+### 🎯 Resultado esperado
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/ProtectedRoute.tsx` | Adicionar prop `requireAuth` |
-| `src/App.tsx` | Proteger rotas `/catalog`, `/product/:id`, `/checkout` e redirecionar `/` |
-
----
-
-### Observações
-
-1. **Quem pode cadastrar usuários?** Apenas você (franqueadora) através do painel admin
-2. **Clientes finais não terão conta** - Eles recebem apenas o link do contrato por WhatsApp
-3. **O login será feito na mesma tela** `/admin-login` que já existe
+- **Página inicial (/)**: Landing page completa e profissional
+- **Login admin (/admin-login)**: Mantido como está
+- **Demais rotas**: Inalteradas
+- Visitantes veem a landing page e podem se cadastrar ou fazer login
+- Usuários logados podem acessar diretamente o painel administrativo
 
