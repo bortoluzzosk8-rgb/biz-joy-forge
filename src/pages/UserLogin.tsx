@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, LogIn, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, LogIn, ArrowLeft, Mail } from 'lucide-react';
 import logoEngbrink from '@/assets/logo-engbrink.jpg';
 
 export default function UserLogin() {
@@ -15,6 +16,9 @@ export default function UserLogin() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [sendingRecovery, setSendingRecovery] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { refreshRoles } = useAuth();
@@ -73,6 +77,62 @@ export default function UserLogin() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!forgotEmail.trim()) {
+      toast({
+        title: "Email obrigatório",
+        description: "Digite seu email para recuperar a senha.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validação básica de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(forgotEmail.trim())) {
+      toast({
+        title: "Email inválido",
+        description: "Digite um email válido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingRecovery(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        forgotEmail.trim(),
+        {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }
+      );
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível enviar o email. Tente novamente.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Email enviado!",
+          description: "Verifique sua caixa de entrada para redefinir sua senha.",
+        });
+        setShowForgotPassword(false);
+        setForgotEmail('');
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao enviar o email.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingRecovery(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <div className="w-full max-w-md">
@@ -125,6 +185,18 @@ export default function UserLogin() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotEmail(email);
+                      setShowForgotPassword(true);
+                    }}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Esqueceu a senha?
+                  </button>
+                </div>
               </div>
             </CardContent>
 
@@ -160,6 +232,55 @@ export default function UserLogin() {
           </Link>
         </div>
       </div>
+
+      {/* Modal de Recuperação de Senha */}
+      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Recuperar Senha</DialogTitle>
+            <DialogDescription>
+              Digite seu email para receber um link de recuperação de senha.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                placeholder="seu@email.com"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                disabled={sendingRecovery}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowForgotPassword(false)}
+              disabled={sendingRecovery}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={sendingRecovery}
+            >
+              {sendingRecovery ? (
+                "Enviando..."
+              ) : (
+                <>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Enviar Link
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

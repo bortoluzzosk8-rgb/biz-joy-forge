@@ -35,6 +35,7 @@ import Logistics from "./pages/admin/Logistics";
 import SaasManagement from "./pages/admin/SaasManagement";
 import NotFound from "./pages/NotFound";
 import PublicContract from "./pages/PublicContract";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const App = () => (
                 
                 <Route path="/login" element={<UserLogin />} />
                 <Route path="/cadastro" element={<UserRegister />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/admin-login" element={<AdminLogin />} />
                 <Route path="/catalog" element={
                   <ProtectedRoute requireAuth>
