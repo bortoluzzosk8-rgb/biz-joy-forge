@@ -1,179 +1,128 @@
 
-## Plano: Isolar Dados Entre Clientes SaaS
+## Plano: Corrigir Página de Leads do Super Admin
 
-O problema é que cada pessoa que se cadastra pela landing page é um **cliente SaaS separado**, mas atualmente todos os dados estão misturados. A franqueadora "Oompa Brink" não deveria aparecer no painel do Bortoluzzo.
-
----
-
-### Arquitetura Correta
-
-```text
-┌────────────────────────────────────────────────────────────────┐
-│                        SUPER ADMIN                             │
-│    (bortoluzzosk8@gmail.com - você, dono do SaaS)             │
-│                                                                │
-│    Dashboard SaaS: vê TODOS os clientes que pagam             │
-│    - Lista de franqueadoras cadastradas                       │
-│    - Métricas do sistema SaaS                                  │
-└────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────┐  ┌────────────────────────────┐
-│   CLIENTE SAAS 1           │  │   CLIENTE SAAS 2           │
-│   Oompa Brink              │  │   Outro Cliente            │
-│                            │  │                            │
-│   Suas unidades:           │  │   Suas unidades:           │
-│   - Curitiba               │  │   - São Paulo              │
-│   - Londrina               │  │   - Rio de Janeiro         │
-│                            │  │                            │
-│   (não vê nada do outro)   │  │   (não vê nada do outro)   │
-└────────────────────────────┘  └────────────────────────────┘
-```
+O problema é que a página de Leads está buscando dados da tabela `clients` (clientes que alugam brinquedos), mas para o **Super Admin**, os leads são as **franqueadoras que se cadastraram no SaaS** (tabela `franchises`).
 
 ---
 
-### O Que Precisa Mudar
+### Situacao Atual
 
-#### 1. Identificar a "Franquia Raiz" do Usuário
+| Fonte Atual | O Que Mostra |
+|-------------|--------------|
+| `clients` (vazia) | Nada - tabela vazia |
 
-Quando um usuário franqueadora se cadastra, a franquia criada automaticamente é a **franquia principal** dele. Qualquer outra franquia que ele criar são unidades **filhas** dessa franquia raiz.
+### Fonte Correta
 
-Adicionar coluna `parent_franchise_id` na tabela `franchises`:
-- Se `NULL` → é uma franquia raiz (cliente SaaS principal)
-- Se preenchido → é uma unidade filha
+| Fonte Correta | O Que Mostra |
+|---------------|--------------|
+| `franchises` WHERE `parent_franchise_id IS NULL` | Clientes SaaS (Oompa Brink, etc.) |
 
 ---
 
-#### 2. Modificar a Página de Franquias
+### Dados Atuais das Franqueadoras
 
-Atualmente:
+| Nome | Email | Telefone | Status |
+|------|-------|----------|--------|
+| Franquia de Oompa Brink | oompabrink01@gmail.com | (vazio) | active |
+| Franquia Principal | bortoluzzosk8@gmail.com | (vazio) | active |
+
+---
+
+### O Que Sera Mudado
+
+#### 1. Modificar a Pagina de Leads para Super Admin
+
+A pagina `src/pages/admin/Leads.tsx` sera atualizada para:
+
+- Buscar de `franchises` (com `parent_franchise_id IS NULL`) em vez de `clients`
+- Mostrar email, telefone, cidade de cada franqueadora
+- Adicionar botao de WhatsApp (usando telefone da franquia)
+- Manter os filtros de temperatura adaptados para status do SaaS
+- Mostrar data de cadastro e ultimo acesso
+
+#### 2. Adicionar Colunas Faltantes na Franquia
+
+A tabela `franchises` ja tem `email` e `phone`, mas o telefone esta vazio. A edge function `assign-franqueadora-role` sera atualizada para salvar o telefone do usuario ao criar a franquia.
+
+#### 3. Nova Estrutura da Lista de Leads
+
+Cada lead mostrara:
+- Nome da franquia
+- Email
+- Telefone (com botao WhatsApp)
+- Cidade
+- Data de cadastro
+- Status (ativo, inativo)
+- Indicadores de atividade
+
+---
+
+### Secao Tecnica
+
+#### Modificacao no Leads.tsx
+
 ```typescript
-// Busca TODAS as franquias - ERRADO!
+// ANTES: Busca de clients (errado)
+const { data } = await supabase
+  .from("clients")
+  .select("*")
+  .order("last_access", { ascending: false });
+
+// DEPOIS: Busca de franchises (clientes SaaS)
 const { data } = await supabase
   .from("franchises")
   .select("*")
+  .is("parent_franchise_id", null)
+  .order("created_at", { ascending: false });
 ```
 
-Correto:
+#### Novo tipo Lead para Super Admin
+
 ```typescript
-// Busca apenas as franquias do usuário logado
-const { data: userFranchiseData } = await supabase
-  .from("user_franchises")
-  .select("franchise_id")
-  .eq("user_id", userId)
-  .single();
-
-// Busca a franquia raiz do usuário
-const rootFranchiseId = userFranchiseData?.franchise_id;
-
-// Busca unidades filhas dessa franquia raiz
-const { data } = await supabase
-  .from("franchises")
-  .select("*")
-  .or(`id.eq.${rootFranchiseId},parent_franchise_id.eq.${rootFranchiseId}`)
-```
-
----
-
-#### 3. Separar Dashboard SaaS do Painel Normal
-
-| Página | Quem Vê | O Que Mostra |
-|--------|---------|--------------|
-| Dashboard SaaS | Apenas super_admin | Todos os clientes SaaS (franqueadoras) |
-| Gestão de Unidades | Franqueadora | Apenas suas próprias unidades |
-| Dashboard da Franquia | Franqueadora | Dados da sua franquia |
-
----
-
-#### 4. Remover Franquias "Fantasma"
-
-A "Franquia Principal" do bortoluzzosk8 foi criada automaticamente, mas se você é o super admin do SaaS, talvez não precise aparecer como uma franquia na lista.
-
-Opções:
-- **A)** Remover a franquia do super admin (ele só gerencia o SaaS, não é um cliente)
-- **B)** Manter, mas não mostrar na lista de franquias se `parent_franchise_id IS NULL`
-
----
-
-### Arquivos a Modificar
-
-| Arquivo | Ação |
-|---------|------|
-| Migração SQL | Adicionar coluna `parent_franchise_id` em `franchises` |
-| `src/pages/admin/Franchises.tsx` | Filtrar franquias pelo usuário logado |
-| `src/pages/admin/SuperAdminDashboard.tsx` | Mostrar apenas clientes SaaS (franqueadoras) |
-| Edge Function `assign-franqueadora-role` | Marcar franquia criada como "raiz" |
-
----
-
-### Resultado Final
-
-Após implementar:
-- Cada franqueadora vê **apenas suas próprias unidades**
-- O Dashboard SaaS mostra a **lista de clientes pagantes**
-- A franquia da "Oompa Brink" **não aparece** no painel do Bortoluzzo
-- Cada cliente SaaS tem um sistema **completamente isolado**
-
----
-
-### Seção Técnica
-
-#### Migração SQL
-```sql
--- Adicionar coluna para identificar franquia pai
-ALTER TABLE franchises 
-ADD COLUMN parent_franchise_id UUID REFERENCES franchises(id);
-
--- Índice para performance
-CREATE INDEX idx_franchises_parent ON franchises(parent_franchise_id);
-```
-
-#### Modificação no Franchises.tsx
-```typescript
-const fetchFranchises = async () => {
-  // Buscar a franquia do usuário logado
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  const { data: userFranchise } = await supabase
-    .from("user_franchises")
-    .select("franchise_id")
-    .eq("user_id", user?.id)
-    .single();
-
-  const rootFranchiseId = userFranchise?.franchise_id;
-
-  // Buscar apenas unidades dessa franquia
-  const { data, error } = await supabase
-    .from("franchises")
-    .select("*")
-    .or(`id.eq.${rootFranchiseId},parent_franchise_id.eq.${rootFranchiseId}`)
-    .order("name");
-
-  setFranchises(data || []);
+type SaasLead = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  city: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
 };
 ```
 
-#### Nova lógica na Edge Function
+#### Atualizar Edge Function para Salvar Telefone
+
+Na edge function `assign-franqueadora-role`:
 ```typescript
-// Ao criar franquia para novo usuário SaaS
 const { data: franchise } = await supabaseAdmin
   .from('franchises')
   .insert({
     name: `Franquia de ${name}`,
     email: email,
-    phone: phone,
+    phone: phone, // Salvar telefone do usuario
     city: 'A definir',
     status: 'active',
-    parent_franchise_id: null // É uma franquia RAIZ
+    parent_franchise_id: null
   })
-  .select()
-  .single();
 ```
 
-#### Quando franqueadora cria nova unidade
-```typescript
-// Criar unidade filha
-await supabase.from("franchises").insert({
-  ...franchiseData,
-  parent_franchise_id: rootFranchiseId // Vincula à franquia raiz
-});
-```
+---
+
+### Arquivos a Modificar
+
+| Arquivo | Acao |
+|---------|------|
+| `src/pages/admin/Leads.tsx` | Buscar de `franchises` em vez de `clients` |
+| `supabase/functions/assign-franqueadora-role/index.ts` | Salvar telefone ao criar franquia |
+
+---
+
+### Resultado Final
+
+A pagina de Leads do Super Admin mostrara:
+- Todos os clientes SaaS (franqueadoras cadastradas)
+- Email e telefone de cada um para contato
+- Botao para abrir WhatsApp diretamente
+- Filtros por status (ativo, inativo, etc.)
+- Busca por nome, email ou telefone
