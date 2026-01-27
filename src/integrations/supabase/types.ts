@@ -165,6 +165,7 @@ export type Database = {
           name: string
           phone: string
           rg: string | null
+          user_id: string | null
           whatsapp_sent: boolean
         }
         Insert: {
@@ -185,6 +186,7 @@ export type Database = {
           name: string
           phone: string
           rg?: string | null
+          user_id?: string | null
           whatsapp_sent?: boolean
         }
         Update: {
@@ -205,6 +207,7 @@ export type Database = {
           name?: string
           phone?: string
           rg?: string | null
+          user_id?: string | null
           whatsapp_sent?: boolean
         }
         Relationships: [

@@ -10,6 +10,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 
 import LandingPage from "./pages/LandingPage";
 import AdminLogin from "./pages/AdminLogin";
+import UserLogin from "./pages/UserLogin";
+import UserRegister from "./pages/UserRegister";
 import Catalog from "./pages/Catalog";
 import ProductDetail from "./pages/ProductDetail";
 import Checkout from "./pages/Checkout";
@@ -47,6 +49,8 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 
+                <Route path="/login" element={<UserLogin />} />
+                <Route path="/cadastro" element={<UserRegister />} />
                 <Route path="/admin-login" element={<AdminLogin />} />
                 <Route path="/catalog" element={
                   <ProtectedRoute requireAuth>
