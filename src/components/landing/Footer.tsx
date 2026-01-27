@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
-import logoEngbrink from '@/assets/logo-engbrink.jpg';
+import logoPlayGestor from '@/assets/logo-playgestor.png';
 
 interface FooterProps {
   whatsappNumber?: string;
@@ -19,7 +19,7 @@ export function Footer({ whatsappNumber = '5511999999999' }: FooterProps) {
           {/* Logo and Description */}
           <div className="md:col-span-2">
             <div className="mb-4">
-              <img src={logoEngbrink} alt="Engbrink" className="h-12 rounded" />
+              <img src={logoPlayGestor} alt="PlayGestor" className="h-12 rounded" />
             </div>
             <p className="text-background/70 max-w-md">
               Sistema de gestão completo para empresas de locação.
@@ -69,7 +69,7 @@ export function Footer({ whatsappNumber = '5511999999999' }: FooterProps) {
 
         <div className="mt-12 pt-8 border-t border-background/20 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-background/50 text-sm">
-            © {new Date().getFullYear()} Engbrink. Todos os direitos reservados.
+            © {new Date().getFullYear()} PlayGestor. Todos os direitos reservados.
           </p>
           <button
             onClick={handleWhatsApp}
