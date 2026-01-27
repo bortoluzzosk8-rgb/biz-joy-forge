@@ -1,128 +1,101 @@
 
-## Plano: Corrigir Página de Leads do Super Admin
 
-O problema é que a página de Leads está buscando dados da tabela `clients` (clientes que alugam brinquedos), mas para o **Super Admin**, os leads são as **franqueadoras que se cadastraram no SaaS** (tabela `franchises`).
+## Plano: Aplicar Identidade Visual PlayGestor
 
----
-
-### Situacao Atual
-
-| Fonte Atual | O Que Mostra |
-|-------------|--------------|
-| `clients` (vazia) | Nada - tabela vazia |
-
-### Fonte Correta
-
-| Fonte Correta | O Que Mostra |
-|---------------|--------------|
-| `franchises` WHERE `parent_franchise_id IS NULL` | Clientes SaaS (Oompa Brink, etc.) |
+O sistema vai ser rebranded de "Engbrink" para **PlayGestor** com a nova paleta de cores e tipografia.
 
 ---
 
-### Dados Atuais das Franqueadoras
+### Identidade Visual PlayGestor
 
-| Nome | Email | Telefone | Status |
-|------|-------|----------|--------|
-| Franquia de Oompa Brink | oompabrink01@gmail.com | (vazio) | active |
-| Franquia Principal | bortoluzzosk8@gmail.com | (vazio) | active |
-
----
-
-### O Que Sera Mudado
-
-#### 1. Modificar a Pagina de Leads para Super Admin
-
-A pagina `src/pages/admin/Leads.tsx` sera atualizada para:
-
-- Buscar de `franchises` (com `parent_franchise_id IS NULL`) em vez de `clients`
-- Mostrar email, telefone, cidade de cada franqueadora
-- Adicionar botao de WhatsApp (usando telefone da franquia)
-- Manter os filtros de temperatura adaptados para status do SaaS
-- Mostrar data de cadastro e ultimo acesso
-
-#### 2. Adicionar Colunas Faltantes na Franquia
-
-A tabela `franchises` ja tem `email` e `phone`, mas o telefone esta vazio. A edge function `assign-franqueadora-role` sera atualizada para salvar o telefone do usuario ao criar a franquia.
-
-#### 3. Nova Estrutura da Lista de Leads
-
-Cada lead mostrara:
-- Nome da franquia
-- Email
-- Telefone (com botao WhatsApp)
-- Cidade
-- Data de cadastro
-- Status (ativo, inativo)
-- Indicadores de atividade
-
----
-
-### Secao Tecnica
-
-#### Modificacao no Leads.tsx
-
-```typescript
-// ANTES: Busca de clients (errado)
-const { data } = await supabase
-  .from("clients")
-  .select("*")
-  .order("last_access", { ascending: false });
-
-// DEPOIS: Busca de franchises (clientes SaaS)
-const { data } = await supabase
-  .from("franchises")
-  .select("*")
-  .is("parent_franchise_id", null)
-  .order("created_at", { ascending: false });
-```
-
-#### Novo tipo Lead para Super Admin
-
-```typescript
-type SaasLead = {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  city: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-};
-```
-
-#### Atualizar Edge Function para Salvar Telefone
-
-Na edge function `assign-franqueadora-role`:
-```typescript
-const { data: franchise } = await supabaseAdmin
-  .from('franchises')
-  .insert({
-    name: `Franquia de ${name}`,
-    email: email,
-    phone: phone, // Salvar telefone do usuario
-    city: 'A definir',
-    status: 'active',
-    parent_franchise_id: null
-  })
-```
+| Elemento | Valor |
+|----------|-------|
+| **Nome** | PlayGestor |
+| **Cor Primária** | #E53935 (Vermelho) |
+| **Cor Secundária** | #6C4DF6 (Roxo/Violeta) |
+| **Cor de Fundo Clara** | #F2F2F2 (Cinza claro) |
+| **Cor de Fundo Escura** | #1F1F1F (Preto/Cinza escuro) |
+| **Fonte** | Nunito Sans |
 
 ---
 
 ### Arquivos a Modificar
 
-| Arquivo | Acao |
-|---------|------|
-| `src/pages/admin/Leads.tsx` | Buscar de `franchises` em vez de `clients` |
-| `supabase/functions/assign-franqueadora-role/index.ts` | Salvar telefone ao criar franquia |
+#### 1. Logo do PlayGestor
+- Copiar a imagem enviada para `src/assets/logo-playgestor.png`
+- Substituir todas as referências de `logo-engbrink.jpg` para o novo logo
+
+#### 2. Atualizar Cores CSS (`src/index.css`)
+Converter cores HEX para HSL:
+- **#E53935** → `4 82% 55%` (vermelho - primária)
+- **#6C4DF6** → `252 90% 64%` (roxo - secundária)
+- **#F2F2F2** → `0 0% 95%` (cinza claro)
+- **#1F1F1F** → `0 0% 12%` (cinza escuro)
+
+#### 3. Adicionar Fonte Nunito Sans (`index.html`)
+```html
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+```
+
+#### 4. Atualizar Tailwind Config (`tailwind.config.ts`)
+- Trocar `font-poppins` para `font-nunito`
+
+#### 5. Atualizar Componentes Landing Page
+| Arquivo | Mudança |
+|---------|---------|
+| `Header.tsx` | Trocar logo para PlayGestor |
+| `Footer.tsx` | Trocar logo e nome para PlayGestor |
+| `Hero.tsx` | Ajustar textos se necessário |
+
+#### 6. Atualizar Páginas de Auth
+| Arquivo | Mudança |
+|---------|---------|
+| `UserLogin.tsx` | Trocar logo para PlayGestor |
+| `UserRegister.tsx` | Trocar logo para PlayGestor |
 
 ---
 
-### Resultado Final
+### Paleta de Cores Final
 
-A pagina de Leads do Super Admin mostrara:
-- Todos os clientes SaaS (franqueadoras cadastradas)
-- Email e telefone de cada um para contato
-- Botao para abrir WhatsApp diretamente
-- Filtros por status (ativo, inativo, etc.)
-- Busca por nome, email ou telefone
+```css
+:root {
+  --primary: 4 82% 55%;           /* #E53935 - Vermelho */
+  --primary-foreground: 0 0% 100%; /* Branco */
+  
+  --secondary: 252 90% 64%;       /* #6C4DF6 - Roxo */
+  --secondary-foreground: 0 0% 100%; /* Branco */
+  
+  --background: 0 0% 95%;          /* #F2F2F2 - Cinza claro */
+  --foreground: 0 0% 12%;          /* #1F1F1F - Cinza escuro */
+  
+  --accent: 252 90% 64%;           /* Roxo como accent */
+  --accent-foreground: 0 0% 100%;
+}
+```
+
+---
+
+### Resultado Visual Esperado
+
+- **Header**: Logo PlayGestor no topo
+- **Botões**: Vermelho (#E53935) como cor principal
+- **Destaques**: Roxo (#6C4DF6) como cor secundária
+- **Fundo**: Cinza claro (#F2F2F2) para áreas claras
+- **Texto**: Preto/cinza escuro (#1F1F1F)
+- **Fonte**: Nunito Sans em todo o sistema
+
+---
+
+### Arquivos Modificados
+
+| Arquivo | Ação |
+|---------|------|
+| `src/assets/logo-playgestor.png` | Novo arquivo - logo PlayGestor |
+| `src/index.css` | Atualizar variáveis de cores |
+| `tailwind.config.ts` | Adicionar fonte Nunito Sans |
+| `index.html` | Importar Google Fonts |
+| `src/components/landing/Header.tsx` | Trocar logo |
+| `src/components/landing/Footer.tsx` | Trocar logo e nome |
+| `src/pages/UserLogin.tsx` | Trocar logo |
+| `src/pages/UserRegister.tsx` | Trocar logo |
+
