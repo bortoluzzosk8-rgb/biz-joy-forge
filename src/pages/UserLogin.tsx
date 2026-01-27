@@ -48,9 +48,9 @@ export default function UserLogin() {
       } else {
         toast({
           title: "Login realizado!",
-          description: "Bem-vindo de volta!",
+          description: "Bem-vindo ao painel administrativo!",
         });
-        navigate('/catalog');
+        navigate('/admin/dashboard');
       }
     } catch (error) {
       toast({
