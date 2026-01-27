@@ -1,101 +1,62 @@
 
 
-## Plano: Aplicar Identidade Visual PlayGestor
+## Plano: Corrigir Logo PlayGestor e Escopo das Cores
 
-O sistema vai ser rebranded de "Engbrink" para **PlayGestor** com a nova paleta de cores e tipografia.
+### Problema Identificado
 
----
-
-### Identidade Visual PlayGestor
-
-| Elemento | Valor |
-|----------|-------|
-| **Nome** | PlayGestor |
-| **Cor Primária** | #E53935 (Vermelho) |
-| **Cor Secundária** | #6C4DF6 (Roxo/Violeta) |
-| **Cor de Fundo Clara** | #F2F2F2 (Cinza claro) |
-| **Cor de Fundo Escura** | #1F1F1F (Preto/Cinza escuro) |
-| **Fonte** | Nunito Sans |
+1. **Logo incorreto**: O arquivo `src/assets/logo-playgestor.png` contém a imagem completa (logo + quadrados de cores), quando deveria conter **apenas o logotipo "PlayGestor"**
+2. **Cores aplicadas no escopo errado**: As cores foram aplicadas em todo o sistema (`src/index.css`), mas deveriam ser aplicadas **apenas na landing page**
 
 ---
 
-### Arquivos a Modificar
+### Situacao Atual vs Esperada
 
-#### 1. Logo do PlayGestor
-- Copiar a imagem enviada para `src/assets/logo-playgestor.png`
-- Substituir todas as referências de `logo-engbrink.jpg` para o novo logo
-
-#### 2. Atualizar Cores CSS (`src/index.css`)
-Converter cores HEX para HSL:
-- **#E53935** → `4 82% 55%` (vermelho - primária)
-- **#6C4DF6** → `252 90% 64%` (roxo - secundária)
-- **#F2F2F2** → `0 0% 95%` (cinza claro)
-- **#1F1F1F** → `0 0% 12%` (cinza escuro)
-
-#### 3. Adicionar Fonte Nunito Sans (`index.html`)
-```html
-<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-```
-
-#### 4. Atualizar Tailwind Config (`tailwind.config.ts`)
-- Trocar `font-poppins` para `font-nunito`
-
-#### 5. Atualizar Componentes Landing Page
-| Arquivo | Mudança |
-|---------|---------|
-| `Header.tsx` | Trocar logo para PlayGestor |
-| `Footer.tsx` | Trocar logo e nome para PlayGestor |
-| `Hero.tsx` | Ajustar textos se necessário |
-
-#### 6. Atualizar Páginas de Auth
-| Arquivo | Mudança |
-|---------|---------|
-| `UserLogin.tsx` | Trocar logo para PlayGestor |
-| `UserRegister.tsx` | Trocar logo para PlayGestor |
+| Item | Atual | Esperado |
+|------|-------|----------|
+| Logo | Imagem completa com cores | Apenas "PlayGestor" (texto/logo) |
+| Cores em `index.css` | Aplicadas em todo sistema | Manter cores originais do sistema |
+| Cores na Landing Page | Herda do sistema | Usar vermelho/roxo apenas na landing page |
 
 ---
 
-### Paleta de Cores Final
+### O Que Sera Feito
 
-```css
-:root {
-  --primary: 4 82% 55%;           /* #E53935 - Vermelho */
-  --primary-foreground: 0 0% 100%; /* Branco */
-  
-  --secondary: 252 90% 64%;       /* #6C4DF6 - Roxo */
-  --secondary-foreground: 0 0% 100%; /* Branco */
-  
-  --background: 0 0% 95%;          /* #F2F2F2 - Cinza claro */
-  --foreground: 0 0% 12%;          /* #1F1F1F - Cinza escuro */
-  
-  --accent: 252 90% 64%;           /* Roxo como accent */
-  --accent-foreground: 0 0% 100%;
-}
-```
+#### 1. Substituir o Logo
 
----
+O arquivo `src/assets/logo-playgestor.png` sera substituido por uma imagem contendo **apenas o logotipo PlayGestor** (sem os quadrados de cores). 
 
-### Resultado Visual Esperado
+Voce precisara enviar uma nova imagem contendo apenas o logo, ou posso criar um logo temporario usando texto estilizado.
 
-- **Header**: Logo PlayGestor no topo
-- **Botões**: Vermelho (#E53935) como cor principal
-- **Destaques**: Roxo (#6C4DF6) como cor secundária
-- **Fundo**: Cinza claro (#F2F2F2) para áreas claras
-- **Texto**: Preto/cinza escuro (#1F1F1F)
-- **Fonte**: Nunito Sans em todo o sistema
+#### 2. Manter Cores Globais do Sistema
+
+O arquivo `src/index.css` JA esta com as cores corretas (vermelho e roxo), e como as cores combinam bem com o branding PlayGestor, elas podem permanecer. 
+
+Se preferir que o painel admin tenha cores diferentes da landing page, eu posso:
+- **Opcao A**: Manter tudo como esta (cores iguais em todo sistema)
+- **Opcao B**: Criar classes CSS especificas para landing page e reverter as cores globais para um tema neutro
+
+#### 3. Remover Logo das Paginas de Login/Registro (Opcional)
+
+Atualmente, as paginas `UserLogin.tsx` e `UserRegister.tsx` usam o logo PlayGestor. Se o logo for apenas para a landing page, elas podem voltar a usar um logo generico ou manter o PlayGestor (ja que sao paginas publicas relacionadas ao SaaS).
 
 ---
 
-### Arquivos Modificados
+### Arquivos Afetados
 
-| Arquivo | Ação |
+| Arquivo | Acao |
 |---------|------|
-| `src/assets/logo-playgestor.png` | Novo arquivo - logo PlayGestor |
-| `src/index.css` | Atualizar variáveis de cores |
-| `tailwind.config.ts` | Adicionar fonte Nunito Sans |
-| `index.html` | Importar Google Fonts |
-| `src/components/landing/Header.tsx` | Trocar logo |
-| `src/components/landing/Footer.tsx` | Trocar logo e nome |
-| `src/pages/UserLogin.tsx` | Trocar logo |
-| `src/pages/UserRegister.tsx` | Trocar logo |
+| `src/assets/logo-playgestor.png` | Substituir por imagem apenas do logo (precisa de nova imagem) |
+| `src/components/landing/Header.tsx` | Manter (ja usa logo PlayGestor) |
+| `src/components/landing/Footer.tsx` | Manter (ja usa logo PlayGestor) |
+
+---
+
+### Proximos Passos
+
+Para prosseguir, preciso saber:
+
+1. **Voce pode enviar uma imagem contendo APENAS o logotipo "PlayGestor"?** (sem os quadrados de cores)
+
+2. **As cores vermelho/roxo devem ficar apenas na landing page ou em todo o sistema?**
+   - Se apenas na landing page, eu reverto as cores globais e crio estilos especificos
 
