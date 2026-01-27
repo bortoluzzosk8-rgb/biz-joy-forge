@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import FranchiseDashboard from "./FranchiseDashboard";
 import SellerDashboard from "./SellerDashboard";
+import SuperAdminDashboard from "./SuperAdminDashboard";
 
 type SalePayment = {
   id: string;
@@ -58,21 +59,26 @@ type MonthlyData = {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { isFranqueado, isFranqueadora, isVendedor, isMotorista } = useAuth();
+  const { isFranqueado, isFranqueadora, isVendedor, isMotorista, isSuperAdmin } = useAuth();
 
   useEffect(() => {
-    if (isMotorista && !isFranqueadora && !isFranqueado && !isVendedor) {
+    if (isMotorista && !isFranqueadora && !isFranqueado && !isVendedor && !isSuperAdmin) {
       navigate("/admin/logistics", { replace: true });
     }
-  }, [isMotorista, isFranqueadora, isFranqueado, isVendedor, navigate]);
+  }, [isMotorista, isFranqueadora, isFranqueado, isVendedor, isSuperAdmin, navigate]);
 
   // Se for motorista, mostra loading enquanto redireciona
-  if (isMotorista && !isFranqueadora && !isFranqueado && !isVendedor) {
+  if (isMotorista && !isFranqueadora && !isFranqueado && !isVendedor && !isSuperAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
+  }
+
+  // Super Admin vê o dashboard do SaaS
+  if (isSuperAdmin) {
+    return <SuperAdminDashboard />;
   }
 
   if (isVendedor && !isFranqueadora && !isFranqueado) {
