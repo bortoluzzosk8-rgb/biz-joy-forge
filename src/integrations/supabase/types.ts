@@ -1969,6 +1969,7 @@ export type Database = {
         | "franqueado"
         | "vendedor"
         | "motorista"
+        | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2103,6 +2104,7 @@ export const Constants = {
         "franqueado",
         "vendedor",
         "motorista",
+        "super_admin",
       ],
     },
   },

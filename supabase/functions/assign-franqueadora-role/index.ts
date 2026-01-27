@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Email autorizado para ser Super Admin
+const SUPER_ADMIN_EMAILS = ['bortoluzzosk8@gmail.com']
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -42,6 +45,46 @@ Deno.serve(async (req) => {
       }
     )
 
+    // Buscar o email do usuário
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(user_id)
+    
+    if (userError || !userData?.user?.email) {
+      console.error('Error fetching user:', userError)
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch user data' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const userEmail = userData.user.email.toLowerCase()
+    const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(userEmail)
+
+    // Verificar se o usuário já tem o role super_admin (se aplicável)
+    if (isSuperAdmin) {
+      const { data: existingSuperAdminRole } = await supabaseAdmin
+        .from('user_roles')
+        .select('id')
+        .eq('user_id', user_id)
+        .eq('role', 'super_admin')
+        .maybeSingle()
+
+      if (!existingSuperAdminRole) {
+        // Inserir role super_admin
+        const { error: superAdminError } = await supabaseAdmin
+          .from('user_roles')
+          .insert({
+            user_id: user_id,
+            role: 'super_admin'
+          })
+
+        if (superAdminError) {
+          console.error('Error inserting super_admin role:', superAdminError)
+        } else {
+          console.log(`Successfully assigned super_admin role to user: ${user_id}`)
+        }
+      }
+    }
+
     // Check if user already has the franqueadora role
     const { data: existingRole, error: checkError } = await supabaseAdmin
       .from('user_roles')
@@ -61,7 +104,7 @@ Deno.serve(async (req) => {
     // If role already exists, return success
     if (existingRole) {
       return new Response(
-        JSON.stringify({ success: true, message: 'Role already assigned' }),
+        JSON.stringify({ success: true, message: 'Role already assigned', isSuperAdmin }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -85,7 +128,7 @@ Deno.serve(async (req) => {
     console.log(`Successfully assigned franqueadora role to user: ${user_id}`)
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Role assigned successfully' }),
+      JSON.stringify({ success: true, message: 'Role assigned successfully', isSuperAdmin }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
