@@ -1,229 +1,160 @@
 
-## Plano: Adicionar Recuperação de Senha na Tela de Login
 
-Vamos implementar um sistema completo de recuperação de senha que permite ao usuário solicitar um link para redefinir sua senha por email.
+## Plano: Separar Franqueadoras de Clientes
 
----
-
-### Como Funciona
-
-1. Usuário clica em "Esqueceu a senha?" na tela de login
-2. Uma modal/formulário aparece pedindo o email
-3. Sistema envia um link de recuperação para o email
-4. Usuário clica no link e é redirecionado para uma página de redefinição
-5. Usuário define a nova senha e faz login
+O problema é que quando alguém se cadastra como franqueadora no sistema, está sendo adicionado na tabela `clients` (que é para clientes que alugam brinquedos). Isso está misturando dois tipos completamente diferentes de pessoas.
 
 ---
 
-### Arquivos a Criar/Modificar
+### O que está acontecendo
+
+```text
+Cadastro de Franqueadora (UserRegister.tsx)
+    └── Cria usuário no auth.users
+    └── Insere na tabela "clients" com is_client = true  ← ERRO!
+    └── Atribui role "franqueadora"
+
+Página de Clientes (Clients.tsx)
+    └── Busca de "clients" WHERE is_client = true
+    └── Mostra franqueadoras + clientes misturados
+```
+
+---
+
+### Solução
+
+1. **Remover inserção na tabela `clients`** quando franqueadora se cadastra
+2. **Criar automaticamente uma franquia** para a franqueadora
+3. **Vincular o usuário à franquia** via `user_franchises`
+4. **A tabela `clients`** será usada apenas para clientes finais (quem aluga brinquedos)
+
+---
+
+### Arquivos a Modificar
 
 | Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `src/pages/UserLogin.tsx` | Modificar | Adicionar link "Esqueceu a senha?" e modal para solicitar recuperação |
-| `src/pages/ResetPassword.tsx` | Criar | Página para o usuário definir a nova senha após clicar no link do email |
-| `src/App.tsx` | Modificar | Adicionar rota `/reset-password` |
+| `src/pages/UserRegister.tsx` | Modificar | Remover inserção na tabela clients; criar franquia automaticamente |
+| `supabase/functions/assign-franqueadora-role/index.ts` | Modificar | Criar franquia e vínculo user_franchises junto com o role |
 
 ---
 
-### Fluxo Detalhado
+### Novo Fluxo de Cadastro
 
-```
-Tela de Login
-    └── Usuário clica "Esqueceu a senha?"
-         └── Abre modal com campo de email
-              └── Usuário digita email e clica "Enviar"
-                   └── Supabase envia email automático com link
-                        └── Usuário recebe email e clica no link
-                             └── Abre página /reset-password
-                                  └── Usuário digita nova senha
-                                       └── Senha atualizada - redireciona para login
+```text
+Cadastro de Franqueadora (UserRegister.tsx)
+    └── Cria usuário no auth.users
+    └── Chama edge function "assign-franqueadora-role"
+         └── Cria registro em "franchises" (nome, email, etc)
+         └── Cria vínculo em "user_franchises"
+         └── Atribui role "franqueadora"
+    └── Redireciona para dashboard
 ```
 
 ---
 
-### Sobre Confirmação de Email
+### Mudanças no UserRegister.tsx
 
-**Boa notícia**: O Supabase já tem sistema nativo de recuperação de senha que funciona da seguinte forma:
-
-- Usa a função `supabase.auth.resetPasswordForEmail(email)`
-- O Supabase envia automaticamente um email com link de recuperação
-- O link redireciona para sua aplicação com um token especial
-- A função `supabase.auth.updateUser({ password })` atualiza a senha
-
-**Não é necessário** configurar SMTP ou criar edge functions para isso - o Supabase já faz automaticamente usando os templates de email nativos.
-
----
-
-### Mudanças na Tela de Login
-
-Vamos adicionar entre a senha e o botão "Entrar":
-
-```
-Senha
-┌──────────────────────────────┐
-│ ••••••••              👁     │
-└──────────────────────────────┘
-             Esqueceu a senha?  ← Link clicável
-
-┌──────────────────────────────┐
-│          → Entrar            │
-└──────────────────────────────┘
+Remover estas linhas:
+```typescript
+// REMOVER - Franqueadoras não são clientes
+const { error: clientError } = await supabase
+  .from('clients')
+  .insert({
+    name: name.trim(),
+    email: email.trim(),
+    phone: phone.replace(/\D/g, ''),
+    user_id: authData.user.id,
+    is_client: true,
+  });
 ```
 
----
-
-### Modal de Recuperação
-
-Quando clicar em "Esqueceu a senha?", aparece:
-
-```
-┌──────────────────────────────────────────┐
-│         Recuperar Senha                  │
-├──────────────────────────────────────────┤
-│                                          │
-│  Digite seu email para receber um        │
-│  link de recuperação de senha.           │
-│                                          │
-│  Email                                   │
-│  ┌────────────────────────────────────┐  │
-│  │ seu@email.com                      │  │
-│  └────────────────────────────────────┘  │
-│                                          │
-│  ┌────────────────────────────────────┐  │
-│  │        Enviar Link                 │  │
-│  └────────────────────────────────────┘  │
-│                                          │
-│              Voltar ao login             │
-└──────────────────────────────────────────┘
+Passar mais dados para a edge function:
+```typescript
+// NOVO - Passar dados para criar franquia
+const { error: roleError } = await supabase.functions.invoke('assign-franqueadora-role', {
+  body: { 
+    user_id: authData.user.id,
+    name: name.trim(),
+    email: email.trim(),
+    phone: phone.replace(/\D/g, '')
+  }
+});
 ```
 
 ---
 
-### Página de Nova Senha
+### Mudanças na Edge Function
 
-Após clicar no link do email, o usuário vai para `/reset-password`:
+A edge function `assign-franqueadora-role` passará a:
 
-```
-┌──────────────────────────────────────────┐
-│              [LOGO]                      │
-│                                          │
-│       Definir Nova Senha                 │
-│                                          │
-│  Nova senha                              │
-│  ┌────────────────────────────────────┐  │
-│  │ ••••••••                       👁  │  │
-│  └────────────────────────────────────┘  │
-│                                          │
-│  Confirmar nova senha                    │
-│  ┌────────────────────────────────────┐  │
-│  │ ••••••••                       👁  │  │
-│  └────────────────────────────────────┘  │
-│                                          │
-│  ┌────────────────────────────────────┐  │
-│  │      Atualizar Senha               │  │
-│  └────────────────────────────────────┘  │
-└──────────────────────────────────────────┘
-```
-
----
-
-### Detalhes Técnicos
-
-**1. UserLogin.tsx - Função de recuperação:**
+1. **Verificar se é super admin** (email específico)
+2. **Criar franquia** na tabela `franchises`
+3. **Vincular usuário à franquia** na tabela `user_franchises`
+4. **Atribuir role** `franqueadora` (ou `super_admin` + `franqueadora`)
 
 ```typescript
-const handleForgotPassword = async () => {
-  if (!forgotEmail.trim()) {
-    toast({
-      title: "Email obrigatório",
-      description: "Digite seu email para recuperar a senha.",
-      variant: "destructive",
-    });
-    return;
-  }
+// Criar franquia para o novo usuário
+const { data: franchise } = await supabase
+  .from('franchises')
+  .insert({
+    name: `Franquia de ${name}`,
+    email: email,
+    phone: phone,
+    city: 'A definir',
+    status: 'active'
+  })
+  .select()
+  .single();
 
-  const { error } = await supabase.auth.resetPasswordForEmail(
-    forgotEmail.trim(),
-    {
-      redirectTo: `${window.location.origin}/reset-password`,
-    }
-  );
-
-  if (error) {
-    toast({
-      title: "Erro",
-      description: "Não foi possível enviar o email. Tente novamente.",
-      variant: "destructive",
-    });
-  } else {
-    toast({
-      title: "Email enviado!",
-      description: "Verifique sua caixa de entrada para redefinir sua senha.",
-    });
-    setShowForgotPassword(false);
-  }
-};
-```
-
-**2. ResetPassword.tsx - Atualização de senha:**
-
-```typescript
-const handleResetPassword = async () => {
-  if (password !== confirmPassword) {
-    toast({
-      title: "Senhas diferentes",
-      description: "As senhas não coincidem.",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  const { error } = await supabase.auth.updateUser({
-    password: password,
+// Vincular usuário à franquia
+await supabase
+  .from('user_franchises')
+  .insert({
+    user_id: userId,
+    franchise_id: franchise.id
   });
 
-  if (error) {
-    toast({
-      title: "Erro",
-      description: "Não foi possível atualizar a senha.",
-      variant: "destructive",
-    });
-  } else {
-    toast({
-      title: "Senha atualizada!",
-      description: "Faça login com sua nova senha.",
-    });
-    navigate('/login');
-  }
-};
-```
-
-**3. App.tsx - Nova rota:**
-
-```typescript
-import ResetPassword from "./pages/ResetPassword";
-
-// Dentro de Routes
-<Route path="/reset-password" element={<ResetPassword />} />
+// Atribuir role
+await supabase
+  .from('user_roles')
+  .insert({ user_id: userId, role: 'franqueadora' });
 ```
 
 ---
 
-### Validações de Segurança
+### Limpar Dados Existentes
 
-- Email é validado antes de enviar
-- Senha mínima de 6 caracteres
-- Confirmação de senha obrigatória
-- Token do Supabase valida automaticamente se o link é válido
-- Links expiram após um tempo definido pelo Supabase
+Precisamos remover os registros incorretos da tabela `clients`:
+
+```sql
+-- Remover franqueadoras que foram inseridas incorretamente em clients
+DELETE FROM clients 
+WHERE user_id IN (
+  SELECT user_id FROM user_roles WHERE role = 'franqueadora'
+);
+```
+
+E criar as franquias para os usuários existentes.
+
+---
+
+### Resumo das Tabelas
+
+| Tabela | Propósito | Quem vai parar lá |
+|--------|-----------|-------------------|
+| `clients` | Clientes finais que alugam brinquedos | Pessoas cadastradas manualmente pelo franqueado |
+| `franchises` | Franquias do SaaS | Empresas que usam o sistema |
+| `user_franchises` | Vínculo usuário ↔ franquia | Franqueadoras e franqueados |
+| `user_roles` | Roles de acesso | franqueadora, franqueado, vendedor, motorista, super_admin |
 
 ---
 
 ### Resultado Final
 
 Após implementar:
-- Usuário que esqueceu a senha pode recuperá-la facilmente
-- Processo seguro usando o sistema nativo do Supabase
-- Experiência intuitiva com feedback visual em cada etapa
-- Não precisa de configuração adicional de email (Supabase já envia)
+- A página "Clientes" mostrará apenas clientes finais (quem aluga brinquedos)
+- Franqueadoras terão suas próprias franquias criadas automaticamente
+- O Dashboard do Super Admin mostrará corretamente os novos cadastros de franqueadoras
+- Os dados existentes serão limpos/migrados
 
