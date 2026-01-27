@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, UsersRound, FileSpreadsheet, UserCheck, Truck, User, Shield } from "lucide-react";
+import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, UsersRound, FileSpreadsheet, UserCheck, Truck, User, Building2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -28,8 +28,15 @@ const AdminLayout = () => {
     return path;
   };
 
-  // Menu items baseados no role do usuário
-  const menuItems = [
+  // Menu items para Super Admin (gestão do SaaS)
+  const superAdminMenuItems = [
+    { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["super_admin"] },
+    { value: "leads", label: "Leads SaaS", icon: UserPlus, roles: ["super_admin"] },
+    { value: "saas-management", label: "Clientes", icon: Building2, roles: ["super_admin"] },
+  ];
+
+  // Menu items para clientes (franqueadoras, franqueados, etc)
+  const clientMenuItems = [
     { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["franqueadora", "franqueado", "vendedor"] },
     { value: "rentals", label: "Locações", icon: Calendar, roles: ["franqueadora", "franqueado", "vendedor"] },
     { value: "stock", label: "Estoque", icon: Warehouse, roles: ["franqueadora", "franqueado", "vendedor"] },
@@ -46,19 +53,24 @@ const AdminLayout = () => {
     { value: "sellers", label: "Vendedores", icon: UserCheck, roles: ["franqueadora"] },
     { value: "franchise-report", label: "Relatório", icon: FileSpreadsheet, roles: ["franqueadora", "franqueado"] },
     { value: "settings", label: "Config", icon: Settings, roles: ["franqueadora"] },
-    { value: "saas-management", label: "Gestão SaaS", icon: Shield, roles: ["super_admin"] },
   ];
 
   // Filtrar menus baseado no role
-  const visibleMenuItems = menuItems.filter((item) => {
-    // Super admin vê tudo + menu especial
-    if (isSuperAdmin && item.roles.includes("super_admin")) return true;
-    if (isFranqueadora) return item.roles.includes("franqueadora");
-    if (isFranqueado) return item.roles.includes("franqueado");
-    if (isVendedor) return item.roles.includes("vendedor");
-    if (isMotorista) return item.roles.includes("motorista");
-    return false;
-  });
+  const visibleMenuItems = (() => {
+    // Super Admin vê apenas menus do SaaS
+    if (isSuperAdmin) {
+      return superAdminMenuItems;
+    }
+    
+    // Demais roles vêem menus de cliente
+    return clientMenuItems.filter((item) => {
+      if (isFranqueadora) return item.roles.includes("franqueadora");
+      if (isFranqueado) return item.roles.includes("franqueado");
+      if (isVendedor) return item.roles.includes("vendedor");
+      if (isMotorista) return item.roles.includes("motorista");
+      return false;
+    });
+  })();
 
   // Título do painel baseado no role
   const getPanelTitle = () => {
