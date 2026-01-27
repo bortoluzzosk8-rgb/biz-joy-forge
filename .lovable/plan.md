@@ -1,39 +1,19 @@
 
-## Plano: Controle de Super Admin para o SaaS
+## Plano: Separar Dashboard do Super Admin vs Dashboard dos Clientes
 
-Vou implementar um sistema onde você (dono do SaaS) tenha acesso especial para gerenciar todos os clientes, enquanto a landing page fica limpa sem mostrar opções de admin.
-
----
-
-### O Que Será Implementado
-
-1. **Remover o botão "Área Admin" da landing page** - A landing ficará limpa, sem mostrar esse acesso
-2. **Criar role `super_admin`** - Um novo role exclusivo para você
-3. **Detectar automaticamente seu email** - O sistema reconhece quando você faz login
-4. **Menu extra no dashboard** - Opção "Gestão SaaS" aparece apenas para você
-5. **Nova página de gestão** - Para gerenciar todos os clientes/franqueadoras do sistema
+O Dashboard atual será dividido em dois: um para você gerenciar o SaaS (como na imagem que você enviou) e outro para os clientes gerenciarem suas franquias.
 
 ---
 
-### Arquitetura
+### Estrutura Nova
 
-```
-Landing Page (limpa)
-     |
-     v
-Usuario cria conta / faz login
-     |
-     v
-Sistema verifica:
-  - Email autorizado? 
-    -> Sim: Atribui role super_admin + franqueadora
-    -> Não: Atribui apenas role franqueadora
-     |
-     v
-Dashboard renderiza:
-  - Se super_admin: Menu "Gestão SaaS" visível
-  - Se franqueadora comum: Menu normal
-```
+| Usuário | O que vê no Dashboard |
+|---------|----------------------|
+| Super Admin (você) | Dashboard do SaaS - Leads, Mensagens, Novos Usuários |
+| Franqueadora (cliente) | Dashboard Financeiro - Receitas, Despesas, Vendas |
+| Franqueado | Dashboard da Franquia |
+| Vendedor | Dashboard do Vendedor |
+| Motorista | Redirecionado para Logística |
 
 ---
 
@@ -41,173 +21,180 @@ Dashboard renderiza:
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/landing/Header.tsx` | Remover botão "Área Admin" |
-| `supabase/config.toml` | Manter config da Edge Function |
-| Nova migração SQL | Adicionar `super_admin` ao enum `app_role` |
-| `src/contexts/AuthContext.tsx` | Adicionar verificação de `super_admin` |
-| `supabase/functions/assign-franqueadora-role` | Verificar se é email autorizado e atribuir `super_admin` |
-| `src/pages/admin/AdminLayout.tsx` | Adicionar menu "Gestão SaaS" para super_admin |
-| Nova página `src/pages/admin/SaasManagement.tsx` | Página para gerenciar clientes do SaaS |
-| `src/App.tsx` | Adicionar rota `/admin/saas-management` |
+| `src/pages/admin/Dashboard.tsx` | Adicionar lógica para mostrar `SuperAdminDashboard` se for super admin |
+| Novo: `src/pages/admin/SuperAdminDashboard.tsx` | Dashboard completo do SaaS (baseado na imagem) |
+| `src/pages/admin/AdminLayout.tsx` | Ajustar menu para super admin ver opções de gestão SaaS |
+
+---
+
+### O Dashboard do Super Admin terá
+
+Baseado na imagem que você enviou (PlayGestor), o dashboard terá:
+
+**Cards de Resumo:**
+- Novos Hoje - Cadastros nas últimas 24h
+- Mensagens Pendentes - Aguardando envio
+- Em Conversa - Leads sendo atendidos
+- Última Semana - Total de novos leads
+
+**Seção Leads por Status:**
+- Novos
+- Mensagem Enviada
+- Em Conversa
+- Ativando
+- Ativos
+- Inativos
+
+**Seção Últimos Cadastros:**
+- Lista dos clientes mais recentes que se cadastraram no SaaS
+
+---
+
+### Menu do Super Admin
+
+O menu lateral/tabs terá:
+- **Dashboard** (visão geral do SaaS)
+- **Leads** (leads do SaaS - pessoas que visitaram a landing)
+- **Clientes** (franqueadoras que usam o sistema)
+- **Mensagens** (comunicação com leads/clientes)
+
+Os menus atuais de "Locações", "Estoque", "Financeiro" etc. **NÃO aparecerão** para o Super Admin, pois ele não gerencia franquias diretamente.
+
+---
+
+### Fluxo Final
+
+```
+Super Admin (bortoluzzosk8@gmail.com):
+  /admin/dashboard → SuperAdminDashboard
+     - Novos cadastros hoje
+     - Leads por status  
+     - Últimos cadastros
+
+  Menu:
+     - Dashboard (SaaS)
+     - Leads (pessoas da landing)
+     - Clientes (franqueadoras)
+
+---
+
+Franqueadora (cliente comum):
+  /admin/dashboard → FinancialDashboard
+     - Receitas
+     - Despesas
+     - Vendas
+     - Gráficos
+
+  Menu:
+     - Dashboard
+     - Locações
+     - Estoque
+     - Logística
+     - Financeiro
+     - etc...
+```
 
 ---
 
 ### Detalhes Técnicos
 
-**1. Migração SQL - Adicionar novo role:**
-
-```sql
-ALTER TYPE app_role ADD VALUE 'super_admin';
-```
-
-**2. Edge Function - Verificar email autorizado:**
+**1. Dashboard.tsx - Lógica de Renderização:**
 
 ```typescript
-const SUPER_ADMIN_EMAILS = ['seu-email@gmail.com']; // Seu email
+const Dashboard = () => {
+  const { isSuperAdmin, isFranqueadora, isFranqueado, isVendedor, isMotorista } = useAuth();
 
-if (SUPER_ADMIN_EMAILS.includes(email.toLowerCase())) {
-  // Inserir role super_admin
-  await supabase.from('user_roles').insert({
-    user_id,
-    role: 'super_admin'
-  });
-}
-// Sempre inserir franqueadora também
-await supabase.from('user_roles').insert({
-  user_id,
-  role: 'franqueadora'
-});
-```
+  // Super Admin vê dashboard do SaaS
+  if (isSuperAdmin) {
+    return <SuperAdminDashboard />;
+  }
 
-**3. AuthContext - Adicionar isSuperAdmin:**
+  // Motorista redireciona
+  if (isMotorista && !isFranqueadora && !isFranqueado && !isVendedor) {
+    return <Navigate to="/admin/logistics" replace />;
+  }
 
-```typescript
-type AuthContextType = {
-  // ... existing
-  isSuperAdmin: boolean;
+  // Vendedor vê seu dashboard
+  if (isVendedor && !isFranqueadora && !isFranqueado) {
+    return <SellerDashboard />;
+  }
+
+  // Franqueado vê dashboard da franquia
+  if (isFranqueado && !isFranqueadora) {
+    return <FranchiseDashboard />;
+  }
+
+  // Franqueadora (cliente) vê dashboard financeiro
+  return <FinancialDashboard />;
 };
-
-const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-
-// Na verificação de roles:
-const superAdminCheck = await supabase.rpc('has_role', { 
-  _user_id: userId, 
-  _role: 'super_admin' 
-});
-setIsSuperAdmin(superAdminCheck.data || false);
 ```
 
-**4. AdminLayout - Menu condicional:**
+**2. SuperAdminDashboard.tsx - Componentes:**
+
+```typescript
+// Cards de estatísticas
+const statsCards = [
+  { label: "Novos Hoje", value: newTodayCount, icon: Users, description: "Cadastros nas últimas 24h" },
+  { label: "Mensagens Pendentes", value: pendingMessages, icon: MessageSquare, description: "Aguardando envio" },
+  { label: "Em Conversa", value: inConversation, icon: TrendingUp, description: "Leads sendo atendidos" },
+  { label: "Última Semana", value: lastWeekCount, icon: Clock, description: "Total de novos leads" },
+];
+
+// Leads por status
+const leadStatuses = [
+  { status: "Novos", color: "blue", count: X },
+  { status: "Mensagem Enviada", color: "yellow", count: X },
+  { status: "Em Conversa", color: "purple", count: X },
+  { status: "Ativando", color: "orange", count: X },
+  { status: "Ativos", color: "green", count: X },
+  { status: "Inativos", color: "gray", count: X },
+];
+```
+
+**3. AdminLayout.tsx - Menu Filtrado:**
 
 ```typescript
 const menuItems = [
-  // ... existing items
-  { value: "saas-management", label: "Gestão SaaS", icon: Shield, roles: ["super_admin"] },
+  // Menus do Super Admin (SaaS)
+  { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["super_admin"] },
+  { value: "leads", label: "Leads", icon: UserPlus, roles: ["super_admin"] },
+  { value: "saas-clients", label: "Clientes", icon: Building2, roles: ["super_admin"] },
+  
+  // Menus das Franqueadoras/Franqueados (sem acesso pro super admin)
+  { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["franqueadora", "franqueado", "vendedor"] },
+  { value: "rentals", label: "Locações", icon: Calendar, roles: ["franqueadora", "franqueado", "vendedor"] },
+  // ... resto dos menus
 ];
-
-// No filtro de menus visíveis:
-if (isSuperAdmin) return item.roles.includes("super_admin") || item.roles.includes("franqueadora");
-```
-
-**5. Header - Remover botão Área Admin:**
-
-Simplesmente remover estas linhas do Header:
-```tsx
-<Button variant="ghost" asChild>
-  <Link to="/admin-login" className="text-xs text-muted-foreground">
-    Área Admin
-  </Link>
-</Button>
 ```
 
 ---
 
-### Página de Gestão SaaS
+### Dados que o Super Admin verá
 
-A nova página terá:
-
-| Funcionalidade | Descrição |
-|----------------|-----------|
-| Lista de clientes | Todas as franqueadoras cadastradas |
-| Status da conta | Ativo, Inativo, Período de teste |
-| Data de cadastro | Quando criou a conta |
-| Último acesso | Data do último login |
-| Ações | Ver detalhes, Ativar/Desativar |
-
----
-
-### Fluxo de Acesso (Você)
-
-```
-Você acessa landing page
-         |
-         v
-   Faz login com seu email
-         |
-         v
-   Sistema detecta email autorizado
-         |
-         v
-   Atribui role: super_admin + franqueadora
-         |
-         v
-   Redireciona para /admin/dashboard
-         |
-         v
-   Menu mostra "Gestão SaaS" (só pra você)
-         |
-         v
-   Acessa /admin/saas-management
-         |
-         v
-   Gerencia todos os clientes do SaaS
-```
+| Métrica | De onde vem |
+|---------|-------------|
+| Novos Hoje | `user_roles` criados nas últimas 24h com role = franqueadora |
+| Mensagens Pendentes | Campo a definir (precisamos criar tabela de mensagens ou usar outro sistema) |
+| Em Conversa | Leads com status específico |
+| Última Semana | `user_roles` criados nos últimos 7 dias |
+| Leads por Status | Precisamos adicionar campo `status` na lógica de leads do SaaS |
+| Últimos Cadastros | `user_roles` ordenados por created_at |
 
 ---
 
-### Fluxo de Acesso (Clientes)
+### Observações
 
-```
-Cliente acessa landing page
-         |
-         v
-   Cria conta ou faz login
-         |
-         v
-   Atribui role: franqueadora
-         |
-         v
-   Redireciona para /admin/dashboard
-         |
-         v
-   Menu normal (sem "Gestão SaaS")
-         |
-         v
-   Usa o sistema normalmente
-```
+1. **Leads do SaaS vs Leads da Franquia**: Os "leads" que você vê como super admin são diferentes dos leads das franquias. Os seus são pessoas interessadas no SaaS, os das franquias são clientes finais que querem alugar produtos.
+
+2. **Mensagens**: Na imagem aparece "Mensagens Pendentes". Precisamos definir se isso será um sistema de mensagens interno ou integração com WhatsApp/email.
+
+3. **Status dos Leads**: Precisamos criar um sistema de status para os leads do SaaS (Novo → Mensagem Enviada → Em Conversa → Ativando → Ativo → Inativo).
 
 ---
 
-### Segurança
+### Resultado
 
-- O role `super_admin` só é atribuído para emails na lista autorizada
-- A verificação é feita no servidor (Edge Function), não no frontend
-- RLS policies podem ser adicionadas para dar acesso total ao super_admin
-- O botão "Área Admin" some da landing, mas a rota `/admin-login` ainda funciona como backup
-
----
-
-### Resultado Final
-
-1. Landing page limpa sem botão de admin
-2. Você faz login normal pela landing
-3. Sistema detecta seu email e dá poderes extras
-4. Menu "Gestão SaaS" aparece só para você
-5. Clientes usam o sistema normalmente sem ver opções de admin
-6. Você pode gerenciar todos os clientes do SaaS em uma página dedicada
-
----
-
-### Qual é o seu email?
-
-Antes de implementar, preciso saber qual email você vai usar para o acesso de super admin. Esse email será configurado na Edge Function como o único autorizado a ter poderes de super admin.
+Após implementar:
+- Você (super admin) verá o dashboard focado em gestão do SaaS
+- Seus clientes (franqueadoras) continuarão vendo o dashboard financeiro para gerenciar suas franquias
+- Cada tipo de usuário terá a experiência correta para seu papel
