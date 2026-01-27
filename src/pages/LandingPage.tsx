@@ -14,7 +14,7 @@ const WHATSAPP_NUMBER = '5511999999999'; // Configure o número real aqui
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background landing-theme">
       <Header />
       <main>
         <Hero whatsappNumber={WHATSAPP_NUMBER} />
