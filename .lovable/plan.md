@@ -1,56 +1,136 @@
 
 
-## Plano: Corrigir Redirecionamentos para o Painel Administrativo
+## Plano: Acesso Direto ao Painel Após Login na Landing
 
-Vou corrigir todos os pontos onde o sistema está redirecionando incorretamente para o catálogo em vez do painel administrativo.
-
----
-
-### Problemas Encontrados
-
-| Arquivo | Linha | Problema | Correção |
-|---------|-------|----------|----------|
-| `src/components/landing/Header.tsx` | 60 | "Acessar Sistema" → `/catalog` | Mudar para `/admin/dashboard` |
-| `src/components/landing/Header.tsx` | 115 | "Acessar Sistema" (mobile) → `/catalog` | Mudar para `/admin/dashboard` |
-| `src/pages/LoginSelection.tsx` | 64 | "Acessar Catálogo" → `/catalog` | Mudar para `/admin/dashboard` |
-| `src/components/landing/Hero.tsx` | 63 | "Criar conta" → `/admin-login` | Mudar para `/cadastro` |
-| `src/components/landing/Hero.tsx` | 71 | "Entrar no sistema" → `/admin-login` | Mudar para `/login` |
+Vou corrigir o fluxo para que quando o usuário já estiver logado na landing page e clicar em "Acessar Sistema", ele vá direto para o painel administrativo sem pedir credenciais novamente.
 
 ---
 
-### Alterações a Serem Feitas
+### Problema Atual
 
-**1. Header.tsx** - Quando usuário logado clica em "Acessar Sistema":
-- Linha 60: `navigate('/catalog')` → `navigate('/admin/dashboard')`
-- Linha 115: `navigate('/catalog')` → `navigate('/admin/dashboard')`
+O fluxo atual tem um problema de redirecionamento circular:
 
-**2. LoginSelection.tsx** - Botão principal:
-- Linha 64: `navigate("/catalog")` → `navigate("/admin/dashboard")`
-- Também atualizar o texto do botão de "Acessar Catálogo" para "Acessar Sistema"
-- Atualizar o título da página
-
-**3. Hero.tsx** - Botões de CTA na landing page:
-- Linha 63: `navigate('/admin-login')` → `navigate('/cadastro')`
-- Linha 71: `navigate('/admin-login')` → `navigate('/login')`
+1. Usuário faz login na landing page (via Header)
+2. Clica em "Acessar Sistema" 
+3. Vai para `/admin/dashboard`
+4. `ProtectedRoute` com `requireAdmin` verifica se `isAdmin === true`
+5. Se `isAdmin` ainda é `false` (role não verificado ou não atribuído), redireciona para `/admin-login`
+6. Usuário precisa fazer login novamente
 
 ---
 
-### Resultado Esperado
+### Causa Raiz
 
-Após as correções:
+1. A rota `/admin` exige `requireAdmin`, que verifica se o usuário tem role de admin/franqueadora/franqueado
+2. O `ProtectedRoute` redireciona para `/admin-login` se `isAdmin` é false
+3. Mesmo o usuário estando logado, se ele não tem role ainda, é redirecionado
 
-| Ação do Usuário | Antes | Depois |
-|-----------------|-------|--------|
-| Clicar "Criar conta" na landing | `/admin-login` | `/cadastro` |
-| Clicar "Entrar no sistema" na landing | `/admin-login` | `/login` |
-| Clicar "Acessar Sistema" (logado) | `/catalog` | `/admin/dashboard` |
-| Clicar "Acessar" na LoginSelection | `/catalog` | `/admin/dashboard` |
+---
+
+### Solução
+
+Modificar o `ProtectedRoute` para tratar usuários autenticados de forma diferente:
+
+1. Se o usuário está logado mas ainda não tem role verificado → mostrar loading (não redirecionar)
+2. Se o usuário está logado e `checkingAdmin` é true → aguardar verificação
+3. Só redirecionar para login se o usuário realmente não está autenticado
+
+---
+
+### Alterações
+
+**1. ProtectedRoute.tsx**
+
+Ajustar a lógica para:
+- Se `requireAdmin` e usuário está logado mas `checkingAdmin` é true → mostrar loading
+- Se `requireAdmin` e usuário está logado mas não é admin → redirecionar para uma página de "acesso negado" ou landing
+- Se usuário não está logado → redirecionar para `/login` (não `/admin-login`)
+
+```
+Atual:
+  Se requireAdmin e !isAdmin e !checkingAdmin → vai para /admin-login
+
+Novo:
+  Se requireAdmin e !user → vai para /login
+  Se requireAdmin e user e checkingAdmin → mostra loading
+  Se requireAdmin e user e !isAdmin e !checkingAdmin → mostra mensagem de acesso pendente
+```
+
+**2. Header.tsx**
+
+Verificar se o botão "Acessar Sistema" só aparece quando o usuário já está logado (já está assim).
+
+---
+
+### Fluxo Após Correção
+
+```
+Usuario faz login na Landing
+         |
+         v
+   isAdmin verificado?
+         |
+    +----+----+
+    |         |
+   Sim       Não (checkingAdmin=true)
+    |         |
+    v         v
+  Botão     Aguarda verificação
+"Acessar     (loading)
+ Sistema"     |
+    |         |
+    +---------+
+         |
+         v
+  /admin/dashboard
+   (acesso direto)
+```
 
 ---
 
 ### Arquivos a Modificar
 
-1. `src/components/landing/Header.tsx` - 2 alterações
-2. `src/components/landing/Hero.tsx` - 2 alterações  
-3. `src/pages/LoginSelection.tsx` - 1 alteração + ajuste de texto
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/components/ProtectedRoute.tsx` | Ajustar lógica de redirecionamento para não mandar usuário logado para login |
+
+---
+
+### Detalhes Técnicos
+
+**ProtectedRoute.tsx - Nova Lógica:**
+
+```typescript
+// Se exige admin
+if (requireAdmin) {
+  // Se não tem usuário, vai para login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  // Se ainda está verificando roles, mostra loading
+  if (checkingAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  // Se verificou e não é admin, mostra mensagem ou redireciona para home
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+}
+```
+
+---
+
+### Resultado Esperado
+
+1. Usuário faz login na landing page
+2. Clica em "Acessar Sistema"
+3. Sistema verifica roles (mostra loading se necessário)
+4. Usuário acessa `/admin/dashboard` diretamente
+5. **Não precisa fazer login novamente**
 
