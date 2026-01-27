@@ -60,7 +60,7 @@ export function Hero({ whatsappNumber = '5511999999999' }: HeroProps) {
             <Button
               size="lg"
               className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground px-8 py-6 text-lg font-semibold"
-              onClick={() => navigate('/admin-login')}
+              onClick={() => navigate('/cadastro')}
             >
               Criar conta e testar grátis
             </Button>
@@ -68,7 +68,7 @@ export function Hero({ whatsappNumber = '5511999999999' }: HeroProps) {
               size="lg"
               variant="outline"
               className="w-full sm:w-auto px-8 py-6 text-lg"
-              onClick={() => navigate('/admin-login')}
+              onClick={() => navigate('/login')}
             >
               Entrar no sistema (Login)
             </Button>

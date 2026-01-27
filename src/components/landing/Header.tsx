@@ -57,7 +57,7 @@ export function Header() {
                     <Link to="/admin">Painel Admin</Link>
                   </Button>
                 )}
-                <Button onClick={() => navigate('/catalog')}>
+                <Button onClick={() => navigate('/admin/dashboard')}>
                   Acessar Sistema
                 </Button>
                 <Button variant="ghost" onClick={() => signOut()}>
@@ -112,7 +112,7 @@ export function Header() {
                         <Link to="/admin">Painel Admin</Link>
                       </Button>
                     )}
-                    <Button onClick={() => navigate('/catalog')}>
+                    <Button onClick={() => navigate('/admin/dashboard')}>
                       Acessar Sistema
                     </Button>
                     <Button variant="ghost" onClick={() => signOut()}>
