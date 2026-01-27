@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ export default function UserLogin() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { refreshRoles } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,13 +47,14 @@ export default function UserLogin() {
             : error.message,
           variant: "destructive",
         });
-      } else {
+      } else if (data.user) {
         // Atribuir role franqueadora automaticamente após login
-        if (data.user) {
-          await supabase.functions.invoke('assign-franqueadora-role', {
-            body: { user_id: data.user.id }
-          });
-        }
+        await supabase.functions.invoke('assign-franqueadora-role', {
+          body: { user_id: data.user.id }
+        });
+        
+        // Forçar atualização dos roles antes de navegar
+        await refreshRoles();
         
         toast({
           title: "Login realizado!",

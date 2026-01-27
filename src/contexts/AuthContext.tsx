@@ -20,6 +20,7 @@ type AuthContextType = {
   userFranchise: Franchise | null;
   checkingAdmin: boolean;
   signOut: () => Promise<void>;
+  refreshRoles: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,68 +37,75 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userFranchise, setUserFranchise] = useState<Franchise | null>(null);
   const [checkingAdmin, setCheckingAdmin] = useState(false);
 
-  useEffect(() => {
-    const checkAdminStatus = async (userId: string) => {
-      setCheckingAdmin(true);
-      try {
-        // Verificar roles
-        const [franqueadoraCheck, franqueadoCheck, adminCheck, vendedorCheck, motoristaCheck] = await Promise.all([
-          supabase.rpc('has_role', { _user_id: userId, _role: 'franqueadora' }),
-          supabase.rpc('has_role', { _user_id: userId, _role: 'franqueado' }),
-          supabase.rpc('has_role', { _user_id: userId, _role: 'admin' }),
-          supabase.rpc('has_role', { _user_id: userId, _role: 'vendedor' }),
-          supabase.rpc('has_role', { _user_id: userId, _role: 'motorista' })
-        ]);
+  const checkAdminStatus = async (userId: string) => {
+    setCheckingAdmin(true);
+    try {
+      // Verificar roles
+      const [franqueadoraCheck, franqueadoCheck, adminCheck, vendedorCheck, motoristaCheck] = await Promise.all([
+        supabase.rpc('has_role', { _user_id: userId, _role: 'franqueadora' }),
+        supabase.rpc('has_role', { _user_id: userId, _role: 'franqueado' }),
+        supabase.rpc('has_role', { _user_id: userId, _role: 'admin' }),
+        supabase.rpc('has_role', { _user_id: userId, _role: 'vendedor' }),
+        supabase.rpc('has_role', { _user_id: userId, _role: 'motorista' })
+      ]);
+      
+      const isFranqueadoraRole = franqueadoraCheck.data || false;
+      const isFranqueadoRole = franqueadoCheck.data || false;
+      const isAdminRole = adminCheck.data || false;
+      const isVendedorRole = vendedorCheck.data || false;
+      const isMotoristaRole = motoristaCheck.data || false;
+      
+      setIsFranqueadora(isFranqueadoraRole);
+      setIsFranqueado(isFranqueadoRole);
+      setIsVendedor(isVendedorRole);
+      setIsMotorista(isMotoristaRole);
+      setIsAdmin(isAdminRole || isFranqueadoraRole || isFranqueadoRole || isVendedorRole || isMotoristaRole);
+      
+      // Buscar franchise do usuário (se franqueado ou motorista)
+      if (isFranqueadoRole || isFranqueadoraRole) {
+        const { data: franchiseData } = await supabase
+          .from('user_franchises')
+          .select('franchise_id, franchises(id, name, city)')
+          .eq('user_id', userId)
+          .single();
         
-        const isFranqueadoraRole = franqueadoraCheck.data || false;
-        const isFranqueadoRole = franqueadoCheck.data || false;
-        const isAdminRole = adminCheck.data || false;
-        const isVendedorRole = vendedorCheck.data || false;
-        const isMotoristaRole = motoristaCheck.data || false;
-        
-        setIsFranqueadora(isFranqueadoraRole);
-        setIsFranqueado(isFranqueadoRole);
-        setIsVendedor(isVendedorRole);
-        setIsMotorista(isMotoristaRole);
-        setIsAdmin(isAdminRole || isFranqueadoraRole || isFranqueadoRole || isVendedorRole || isMotoristaRole);
-        
-        // Buscar franchise do usuário (se franqueado ou motorista)
-        if (isFranqueadoRole || isFranqueadoraRole) {
-          const { data: franchiseData } = await supabase
-            .from('user_franchises')
-            .select('franchise_id, franchises(id, name, city)')
-            .eq('user_id', userId)
-            .single();
-          
-          if (franchiseData?.franchises) {
-            setUserFranchise(franchiseData.franchises as any);
-          }
-        } else if (isMotoristaRole) {
-          // Para motoristas, buscar a franchise da tabela drivers
-          const { data: driverData } = await supabase
-            .from('drivers')
-            .select('franchise_id, franchise:franchises(id, name, city)')
-            .eq('user_id', userId)
-            .single();
-          
-          if (driverData?.franchise) {
-            setUserFranchise(driverData.franchise as any);
-          }
-        } else {
-          setUserFranchise(null);
+        if (franchiseData?.franchises) {
+          setUserFranchise(franchiseData.franchises as any);
         }
-      } catch (err) {
-        console.error('Erro ao verificar roles:', err);
-        setIsAdmin(false);
-        setIsFranqueadora(false);
-        setIsFranqueado(false);
-        setIsVendedor(false);
-        setIsMotorista(false);
+      } else if (isMotoristaRole) {
+        // Para motoristas, buscar a franchise da tabela drivers
+        const { data: driverData } = await supabase
+          .from('drivers')
+          .select('franchise_id, franchise:franchises(id, name, city)')
+          .eq('user_id', userId)
+          .single();
+        
+        if (driverData?.franchise) {
+          setUserFranchise(driverData.franchise as any);
+        }
+      } else {
         setUserFranchise(null);
-      } finally {
-        setCheckingAdmin(false);
       }
-    };
+    } catch (err) {
+      console.error('Erro ao verificar roles:', err);
+      setIsAdmin(false);
+      setIsFranqueadora(false);
+      setIsFranqueado(false);
+      setIsVendedor(false);
+      setIsMotorista(false);
+      setUserFranchise(null);
+    } finally {
+      setCheckingAdmin(false);
+    }
+  };
+
+  const refreshRoles = async () => {
+    if (user) {
+      await checkAdminStatus(user.id);
+    }
+  };
+
+  useEffect(() => {
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -163,7 +171,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isMotorista,
       userFranchise,
       checkingAdmin, 
-      signOut 
+      signOut,
+      refreshRoles
     }}>
       {children}
     </AuthContext.Provider>
