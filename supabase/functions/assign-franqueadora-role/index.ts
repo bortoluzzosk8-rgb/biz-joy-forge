@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     }
 
     // Parse request body
-    const { user_id } = await req.json()
+    const { user_id, name, email, phone } = await req.json()
 
     if (!user_id) {
       return new Response(
@@ -109,6 +109,60 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Check if user already has a franchise
+    const { data: existingFranchise } = await supabaseAdmin
+      .from('user_franchises')
+      .select('franchise_id')
+      .eq('user_id', user_id)
+      .maybeSingle()
+
+    let franchiseId = existingFranchise?.franchise_id
+
+    // Create franchise if doesn't exist and we have the data
+    if (!franchiseId && name) {
+      const { data: franchise, error: franchiseError } = await supabaseAdmin
+        .from('franchises')
+        .insert({
+          name: `Franquia de ${name}`,
+          email: email || userEmail,
+          phone: phone || null,
+          city: 'A definir',
+          status: 'active'
+        })
+        .select()
+        .single()
+
+      if (franchiseError) {
+        console.error('Error creating franchise:', franchiseError)
+        return new Response(
+          JSON.stringify({ error: 'Failed to create franchise' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      franchiseId = franchise.id
+      console.log(`Created franchise: ${franchise.id} for user: ${user_id}`)
+
+      // Link user to franchise
+      const { error: linkError } = await supabaseAdmin
+        .from('user_franchises')
+        .insert({
+          user_id: user_id,
+          franchise_id: franchiseId,
+          name: name
+        })
+
+      if (linkError) {
+        console.error('Error linking user to franchise:', linkError)
+        return new Response(
+          JSON.stringify({ error: 'Failed to link user to franchise' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      console.log(`Linked user ${user_id} to franchise ${franchiseId}`)
+    }
+
     // Insert the franqueadora role for the user
     const { error: insertError } = await supabaseAdmin
       .from('user_roles')
@@ -128,7 +182,12 @@ Deno.serve(async (req) => {
     console.log(`Successfully assigned franqueadora role to user: ${user_id}`)
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Role assigned successfully', isSuperAdmin }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Role assigned and franchise created successfully', 
+        isSuperAdmin,
+        franchiseId 
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
