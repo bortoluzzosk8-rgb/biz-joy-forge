@@ -97,24 +97,14 @@ export default function UserRegister() {
       }
 
       if (authData.user) {
-        // Create client record linked to the user
-        const { error: clientError } = await supabase
-          .from('clients')
-          .insert({
+        // Assign franqueadora role and create franchise via edge function
+        const { error: roleError } = await supabase.functions.invoke('assign-franqueadora-role', {
+          body: { 
+            user_id: authData.user.id,
             name: name.trim(),
             email: email.trim(),
-            phone: phone.replace(/\D/g, ''),
-            user_id: authData.user.id,
-            is_client: true,
-          });
-
-        if (clientError) {
-          console.error('Error creating client record:', clientError);
-        }
-
-        // Assign franqueadora role via edge function
-        const { error: roleError } = await supabase.functions.invoke('assign-franqueadora-role', {
-          body: { user_id: authData.user.id }
+            phone: phone.replace(/\D/g, '')
+          }
         });
 
         if (roleError) {
