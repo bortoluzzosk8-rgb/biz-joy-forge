@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,7 @@ export default function UserRegister() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { refreshRoles } = useAuth();
   const { toast } = useToast();
 
   const formatPhone = (value: string) => {
@@ -111,27 +113,16 @@ export default function UserRegister() {
         }
 
         // Assign franqueadora role via edge function
-        try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const response = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assign-franqueadora-role`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionData.session?.access_token || ''}`,
-                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              },
-              body: JSON.stringify({ user_id: authData.user.id }),
-            }
-          );
+        const { error: roleError } = await supabase.functions.invoke('assign-franqueadora-role', {
+          body: { user_id: authData.user.id }
+        });
 
-          if (!response.ok) {
-            console.error('Error assigning role:', await response.text());
-          }
-        } catch (roleError) {
-          console.error('Error calling assign-franqueadora-role:', roleError);
+        if (roleError) {
+          console.error('Error assigning role:', roleError);
         }
+
+        // Force refresh roles before navigating
+        await refreshRoles();
 
         toast({
           title: "Conta criada com sucesso!",
