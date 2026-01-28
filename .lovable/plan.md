@@ -1,68 +1,71 @@
 
 
-## Plano: Adicionar Botão "+" no Dropdown de Produtos
+## Plano: Adicionar Botões "+" nos Dropdowns de Cliente e Unidade
 
 ### Objetivo
 
-Adicionar um botão "+" no final da lista de produtos do dropdown, permitindo que o usuário seja redirecionado para a página de Produtos (`/admin/products`) caso não encontre o produto desejado.
+Adicionar botões "+" nos dropdowns de seleção de **Cliente** e **Unidade** na tela de Nova Locação, permitindo que o usuário seja redirecionado para as páginas de cadastro correspondentes quando não encontrar o item desejado.
 
 ---
 
 ### Situação Atual
 
-O modal "Novo equipamento" possui um dropdown (`Select`) que lista todos os produtos cadastrados. Se o produto desejado não estiver na lista, o usuário precisa:
-1. Fechar o modal
-2. Navegar manualmente para a aba de Produtos
-3. Cadastrar o produto
-4. Voltar para o Estoque
-5. Abrir o modal novamente
+O formulário "Nova Locação" possui:
+- **Dropdown de Unidade**: Select padrão sem opção de cadastro
+- **Dropdown de Cliente**: Combobox com busca, mostrando "Nenhum cliente encontrado" quando vazio
 
 ---
 
 ### Solução
 
-Adicionar um item especial no final do dropdown com um ícone "+" que redireciona para `/admin/products`:
+Adicionar um botão "+ Cadastrar nova unidade" e "+ Cadastrar novo cliente" no final de cada lista, seguindo o mesmo padrão visual já implementado no Estoque para produtos.
+
+**Visual esperado:**
 
 ```
-+---------------------------+
-| Selecione o produto...    |
-+---------------------------+
-| Cama Elástica            |
-| Piscina de Bolinhas      |
-| Tobogã Inflável          |
-+---------------------------+
-| + Cadastrar novo produto  |  <-- NOVO
-+---------------------------+
+┌─────────────────────────────┐
+│ 🔍 Buscar cliente...        │
+├─────────────────────────────┤
+│ João Silva                  │
+│ Maria Santos                │
+├─────────────────────────────┤
+│ + Cadastrar novo cliente    │  ← botão de navegação
+└─────────────────────────────┘
 ```
 
 ---
 
 ### Alterações no Código
 
-**Arquivo:** `src/pages/admin/Stock.tsx`
+**Arquivo:** `src/pages/admin/Sales.tsx`
 
-#### 1. Importar `useNavigate` e ícone `Plus`
+#### 1. Atualizar imports
 
 ```typescript
+// Adicionar SelectSeparator ao import existente
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
+
+// Adicionar useNavigate
 import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
 ```
 
 #### 2. Criar hook de navegação
 
 ```typescript
-const navigate = useNavigate();
+const Sales = () => {
+  const navigate = useNavigate();
+  // ... resto do código
 ```
 
-#### 3. Adicionar item de "Cadastrar novo" no SelectContent
+#### 3. Adicionar botão no Dropdown de Unidade
 
-Dentro do dropdown de produtos, após listar os produtos existentes, adicionar um separador e um botão:
+Após a lista de franquias no SelectContent (linha ~2101), adicionar:
 
 ```typescript
 <SelectContent>
-  {products.map((p) => (
-    <SelectItem key={p.id} value={p.name}>
-      {p.name}
+  {franchises.map((franchise) => (
+    <SelectItem key={franchise.id} value={franchise.id}>
+      {franchise.name} - {franchise.city}
     </SelectItem>
   ))}
   <SelectSeparator />
@@ -70,25 +73,57 @@ Dentro do dropdown de produtos, após listar os produtos existentes, adicionar u
     className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-primary font-medium"
     onClick={(e) => {
       e.stopPropagation();
-      setEquipModalOpen(false);
-      navigate('/admin/products');
+      navigate('/admin/franchises');
     }}
   >
     <Plus className="absolute left-2 h-4 w-4" />
-    Cadastrar novo produto
+    Cadastrar nova unidade
   </div>
 </SelectContent>
+```
+
+#### 4. Adicionar botão no Dropdown de Cliente
+
+Dentro do CommandList, após o CommandGroup (linha ~2158), adicionar:
+
+```typescript
+<CommandList>
+  <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+  <CommandGroup>
+    {clients.map((client) => (
+      // ... itens existentes
+    ))}
+  </CommandGroup>
+  
+  {/* NOVO: Botão para cadastrar cliente */}
+  <div className="border-t px-2 py-2">
+    <div 
+      className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground text-primary font-medium"
+      onClick={() => {
+        setClientPopoverOpen(false);
+        navigate('/admin/clients');
+      }}
+    >
+      <Plus className="h-4 w-4" />
+      Cadastrar novo cliente
+    </div>
+  </div>
+</CommandList>
 ```
 
 ---
 
 ### Comportamento
 
-1. Usuário abre o dropdown "Nome do Equipamento"
-2. Vê a lista de produtos existentes
-3. Se não encontrar, clica em "+ Cadastrar novo produto"
-4. Modal fecha e usuário é redirecionado para `/admin/products`
-5. Após cadastrar o produto, pode voltar ao Estoque e criar o equipamento
+| Dropdown | Botão | Navegação |
+|----------|-------|-----------|
+| Unidade/Franquia | + Cadastrar nova unidade | `/admin/franchises` |
+| Cliente | + Cadastrar novo cliente | `/admin/clients` |
+
+Ao clicar:
+1. Dropdown/Popover fecha
+2. Usuário é redirecionado para a página de cadastro
+3. Após cadastrar, pode voltar à tela de Locações
 
 ---
 
@@ -96,27 +131,5 @@ Dentro do dropdown de produtos, após listar os produtos existentes, adicionar u
 
 | Arquivo | Ação |
 |---------|------|
-| `src/pages/admin/Stock.tsx` | Adicionar botão de cadastrar produto no dropdown |
-
----
-
-### Opcional: Aplicar no modal de Edição também
-
-O mesmo padrão pode ser aplicado no dropdown do modal de edição (linhas 1196-1200) para manter consistência.
-
----
-
-### Resultado Visual
-
-O dropdown terá um visual assim:
-
-```
-┌─────────────────────────────┐
-│ Cama Elástica               │
-│ Piscina de Bolinhas         │
-│ Tobogã Inflável             │
-├─────────────────────────────┤
-│ + Cadastrar novo produto    │  ← destaque em cor primária
-└─────────────────────────────┘
-```
+| `src/pages/admin/Sales.tsx` | Adicionar imports, hook e botões nos dropdowns |
 
