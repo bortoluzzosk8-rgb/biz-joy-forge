@@ -10,8 +10,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectSeparator,
 } from "@/components/ui/select";
 import { Plus, Edit, Trash2, Loader2, Eye, EyeOff, Package, GripVertical } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -195,6 +197,7 @@ const SortableProductItem = ({
 };
 
 const Products = () => {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
@@ -479,6 +482,17 @@ const Products = () => {
                       </SelectItem>
                     ))
                   )}
+                  <SelectSeparator />
+                  <div 
+                    className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-primary font-medium"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/admin/categories');
+                    }}
+                  >
+                    <Plus className="absolute left-2 h-4 w-4" />
+                    Cadastrar nova categoria
+                  </div>
                 </SelectContent>
               </Select>
             </div>
