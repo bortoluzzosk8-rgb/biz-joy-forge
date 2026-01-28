@@ -12,6 +12,7 @@ import LandingPage from "./pages/LandingPage";
 import AdminLogin from "./pages/AdminLogin";
 import UserLogin from "./pages/UserLogin";
 import UserRegister from "./pages/UserRegister";
+import VerifyEmail from "./pages/VerifyEmail";
 import Catalog from "./pages/Catalog";
 import ProductDetail from "./pages/ProductDetail";
 import Checkout from "./pages/Checkout";
@@ -57,6 +58,7 @@ const App = () => (
                 
                 <Route path="/login" element={<UserLogin />} />
                 <Route path="/cadastro" element={<UserRegister />} />
+                <Route path="/verificar-email" element={<VerifyEmail />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/escolher-plano" element={<ChoosePlan />} />
                 <Route path="/assinatura" element={<Subscription />} />

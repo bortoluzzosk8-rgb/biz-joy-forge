@@ -97,6 +97,18 @@ export default function UserRegister() {
       }
 
       if (authData.user) {
+        // Check if email confirmation is required (no session means email not confirmed)
+        if (!authData.session) {
+          // Email needs confirmation - redirect to verification page
+          toast({
+            title: "Quase lá!",
+            description: "Enviamos um link de confirmação para seu e-mail.",
+          });
+          navigate('/verificar-email', { state: { email: email.trim() } });
+          return;
+        }
+
+        // If we have a session, email was auto-confirmed (fallback)
         // Assign franqueadora role and create franchise via edge function
         const { error: roleError } = await supabase.functions.invoke('assign-franqueadora-role', {
           body: { 
