@@ -1,93 +1,71 @@
 
 
-## Plano: Corrigir Dropdown de Unidades na Pagina de Estoque
+## Plano: Adicionar Gerenciamento de Atualizacoes para Super Admin
 
-### Problema Identificado
+### Resumo
 
-A pagina de Estoque (`Stock.tsx`) tem o mesmo problema que o grafico de vendas:
+Modificar a pagina de Atualizacoes do Sistema (`/admin/updates`) para que o Super Admin possa adicionar, editar e excluir atualizacoes diretamente. Os demais usuarios continuarao vendo apenas a lista de atualizacoes.
 
-1. **Carrega TODAS as franquias** do banco de dados sem isolamento multi-tenant
-2. **Exibe `city || name`** o que mostra "A definir" quando city = "A definir"
+---
 
-Isso acontece em varios lugares:
-- Botoes de filtro por unidade (linha 975-984)
-- Helper function `franchiseNameById` (linha 93-94)
-- Select de franquia no modal de adicionar equipamento (linha 1172)
-- Select de franquia no modal de editar equipamento (linha 1256)
+### Situacao Atual
+
+- O componente `SystemUpdatesManager` ja existe com CRUD completo
+- Ele esta sendo usado no `SuperAdminDashboard`
+- A pagina `SystemUpdates.tsx` mostra apenas visualizacao para todos
 
 ### Solucao
 
-Aplicar o mesmo padrao usado no `SalesChart.tsx`:
-
-1. **Usar `useTenantFranchises`** para carregar apenas as franquias do tenant atual
-2. **Criar helper `getFranchiseDisplayName`** para exibir o nome corretamente
+Modificar `SystemUpdates.tsx` para:
+1. Verificar se o usuario logado e Super Admin via `useAuth()`
+2. Se for Super Admin: mostrar o `SystemUpdatesManager` (com CRUD)
+3. Se nao for: mostrar a visualizacao atual (somente leitura)
 
 ---
 
 ### Alteracoes no Codigo
 
-**Arquivo:** `src/pages/admin/Stock.tsx`
+**Arquivo:** `src/pages/admin/SystemUpdates.tsx`
 
-#### 1. Importar o hook
+#### 1. Importar dependencias necessarias
 
 ```typescript
-import { useTenantFranchises } from "@/hooks/useTenantFranchises";
+import { useAuth } from "@/contexts/AuthContext";
+import SystemUpdatesManager from "@/components/admin/SystemUpdatesManager";
 ```
 
-#### 2. Substituir o state e carregamento de franchises
+#### 2. Verificar role do usuario
 
-Remover:
 ```typescript
-const [franchises, setFranchises] = useState<Franchise[]>([]);
+const { isSuperAdmin } = useAuth();
 ```
 
-Adicionar:
-```typescript
-const { franchises } = useTenantFranchises();
-```
-
-#### 3. Criar helper function
+#### 3. Renderizar componente correto
 
 ```typescript
-const getFranchiseDisplayName = (franchise: Franchise) => {
-  return franchise.city && franchise.city !== "A definir" 
-    ? franchise.city 
-    : franchise.name;
-};
-```
+// Se for Super Admin, mostra o gerenciador
+if (isSuperAdmin) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Megaphone className="h-8 w-8 text-primary" />
+        <div>
+          <h1 className="text-2xl font-bold">Atualizacoes do Sistema</h1>
+          <p className="text-muted-foreground">
+            Gerencie as atualizacoes que aparecem para todos os usuarios
+          </p>
+        </div>
+      </div>
+      <SystemUpdatesManager />
+    </div>
+  );
+}
 
-#### 4. Atualizar o franchiseCityMap
-
-```typescript
-const franchiseCityMap = useMemo(() => 
-  new Map(franchises.map((f) => [f.id, getFranchiseDisplayName(f)])), 
-  [franchises]
+// Para outros usuarios, mostra a visualizacao normal
+return (
+  // ... codigo atual
 );
 ```
-
-#### 5. Atualizar exibicao nos botoes de filtro
-
-```typescript
-{franchises.map((f) => (
-  <Button ...>
-    {getFranchiseDisplayName(f)}
-  </Button>
-))}
-```
-
-#### 6. Atualizar exibicao nos selects dos modais
-
-```typescript
-{franchises.map((f) => (
-  <SelectItem key={f.id} value={f.id}>
-    {getFranchiseDisplayName(f)}
-  </SelectItem>
-))}
-```
-
-#### 7. Remover carregamento manual de franchises no loadData()
-
-A secao que faz query de franchises na funcao `loadData()` deve ser removida, ja que o hook cuida disso.
 
 ---
 
@@ -95,38 +73,69 @@ A secao que faz query de franchises na funcao `loadData()` deve ser removida, ja
 
 | Arquivo | Acao |
 |---------|------|
-| `src/pages/admin/Stock.tsx` | Usar `useTenantFranchises` + corrigir exibicao |
+| `src/pages/admin/SystemUpdates.tsx` | Adicionar verificacao de Super Admin e renderizar componente correto |
+
+---
+
+### Fluxo de Uso
+
+**Para o Super Admin:**
+1. Acessa "Atualizacoes" no menu
+2. Ve a lista de todas as atualizacoes (ativas e ocultas)
+3. Pode criar nova atualizacao clicando em "Nova Atualizacao"
+4. Pode editar, excluir ou ocultar/mostrar cada atualizacao
+5. Mudancas aparecem imediatamente para todos os usuarios do SaaS
+
+**Para outros usuarios (Franqueadoras, Vendedores, etc):**
+1. Acessam "Atualizacoes" no menu
+2. Veem apenas as atualizacoes ativas (is_active = true)
+3. Nao tem opcao de editar ou excluir
 
 ---
 
 ### Resultado Esperado
 
-**Antes:**
+**Tela do Super Admin:**
 ```
-[A definir] [A definir] [A definir] [A definir] [A definir] [Todas]
++----------------------------------------------------------+
+| [Megaphone] Atualizacoes do Sistema                      |
+| Gerencie as atualizacoes que aparecem para todos         |
++----------------------------------------------------------+
+| Gerenciar Atualizacoes          [+ Nova Atualizacao]     |
++----------------------------------------------------------+
+| [x] Nova funcionalidade v1.2  [Visivel] [Edit] [Delete]  |
+| [x] Correcao de bugs v1.1.5   [Visivel] [Edit] [Delete]  |
+| [ ] Teste interno v0.9        [Oculto]  [Edit] [Delete]  |
++----------------------------------------------------------+
 ```
 
-**Depois:**
+**Tela dos demais usuarios:**
 ```
-[Sua Unidade Principal] [Todas]
++----------------------------------------------------------+
+| [Megaphone] Atualizacoes do Sistema                      |
+| Confira as ultimas novidades e melhorias                 |
++----------------------------------------------------------+
+| [Card] Nova funcionalidade v1.2                          |
+|        12 de janeiro de 2026                             |
+|        Descricao da atualizacao...                       |
++----------------------------------------------------------+
+| [Card] Correcao de bugs v1.1.5                          |
+|        10 de janeiro de 2026                             |
+|        Descricao da atualizacao...                       |
++----------------------------------------------------------+
 ```
-
-O usuario vera apenas sua unidade e suas sub-unidades, com os nomes corretos exibidos.
 
 ---
 
 ### Secao Tecnica
 
-A migracao segue o mesmo padrao aplicado em `SalesChart.tsx`:
+O componente `SystemUpdatesManager` ja inclui:
+- Formulario com campos: Titulo, Versao (opcional), Descricao
+- Listagem de todas as atualizacoes (ativas e inativas)
+- Toggle para ativar/desativar visibilidade
+- Botoes de editar e excluir
+- Validacao de campos obrigatorios
+- Feedback via toast ao criar/editar/excluir
 
-1. O hook `useTenantFranchises` ja implementa:
-   - Busca a franchise_id do usuario logado via `user_franchises`
-   - Carrega a franquia raiz E sub-unidades (`parent_franchise_id`)
-   - Filtra apenas franquias ativas
-   
-2. O helper `getFranchiseDisplayName` prioriza:
-   - `city` se existir e nao for "A definir"
-   - `name` caso contrario
-
-3. Todas as exibicoes de nome de franquia usarao este helper de forma consistente.
+As policies RLS da tabela `system_updates` precisam permitir que o Super Admin faca INSERT, UPDATE e DELETE. Vou verificar se isso ja esta configurado.
 
