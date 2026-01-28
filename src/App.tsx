@@ -37,6 +37,7 @@ import NotFound from "./pages/NotFound";
 import PublicContract from "./pages/PublicContract";
 import ResetPassword from "./pages/ResetPassword";
 import ChoosePlan from "./pages/ChoosePlan";
+import Subscription from "./pages/Subscription";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => (
                 <Route path="/cadastro" element={<UserRegister />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/escolher-plano" element={<ChoosePlan />} />
+                <Route path="/assinatura" element={<Subscription />} />
                 <Route path="/admin-login" element={<AdminLogin />} />
                 <Route path="/catalog" element={
                   <ProtectedRoute requireAuth>

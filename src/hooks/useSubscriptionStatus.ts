@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export type SubscriptionStatus = {
-  status: 'trial' | 'active' | 'expired' | 'cancelled';
+  status: 'trial' | 'active' | 'past_due' | 'expired' | 'blocked' | 'cancelled';
   trialDaysLeft: number | null;
   plan: string | null;
   expiresAt: Date | null;
   franchiseId: string | null;
+  nextDueDate: Date | null;
+  paymentMethod: string | null;
+  asaasCustomerId: string | null;
+  asaasSubscriptionId: string | null;
 };
 
 export const useSubscriptionStatus = (userId: string | undefined) => {
@@ -44,8 +48,7 @@ export const useSubscriptionStatus = (userId: string | undefined) => {
           if (driverData?.franchise_id) {
             franchiseId = driverData.franchise_id;
           } else {
-            // Tentar sellers (não tem franchise_id direto, mas podemos ver pelo vendedor)
-            // Vendedores não têm franchise_id, então tratamos diferente
+            // Vendedores não têm franchise_id direto
             setSubscriptionStatus(null);
             setLoading(false);
             return;
@@ -61,7 +64,7 @@ export const useSubscriptionStatus = (userId: string | undefined) => {
         // 2. Buscar franquia
         const { data: franchise } = await supabase
           .from('franchises')
-          .select('id, parent_franchise_id, trial_ends_at, subscription_status, subscription_plan, subscription_expires_at')
+          .select('id, parent_franchise_id, trial_ends_at, subscription_status, subscription_plan, subscription_expires_at, next_due_date, payment_method, asaas_customer_id, asaas_subscription_id')
           .eq('id', franchiseId)
           .single();
         
@@ -72,11 +75,11 @@ export const useSubscriptionStatus = (userId: string | undefined) => {
         }
         
         // Se for unidade filha, buscar franquia pai (raiz)
-        let rootFranchise: typeof franchise | null = franchise;
+        let rootFranchise = franchise;
         if (franchise.parent_franchise_id) {
           const { data: parent } = await supabase
             .from('franchises')
-            .select('id, parent_franchise_id, trial_ends_at, subscription_status, subscription_plan, subscription_expires_at')
+            .select('id, parent_franchise_id, trial_ends_at, subscription_status, subscription_plan, subscription_expires_at, next_due_date, payment_method, asaas_customer_id, asaas_subscription_id')
             .eq('id', franchise.parent_franchise_id)
             .single();
           
@@ -89,6 +92,7 @@ export const useSubscriptionStatus = (userId: string | undefined) => {
         const now = new Date();
         const trialEndsAt = rootFranchise?.trial_ends_at ? new Date(rootFranchise.trial_ends_at) : null;
         const subscriptionExpiresAt = rootFranchise?.subscription_expires_at ? new Date(rootFranchise.subscription_expires_at) : null;
+        const nextDueDate = rootFranchise?.next_due_date ? new Date(rootFranchise.next_due_date) : null;
         
         // Calcular dias restantes do trial
         let trialDaysLeft: number | null = null;
@@ -98,12 +102,25 @@ export const useSubscriptionStatus = (userId: string | undefined) => {
         }
         
         // Determinar status atual
-        let status: 'trial' | 'active' | 'expired' | 'cancelled' = (rootFranchise?.subscription_status as any) || 'trial';
+        let status: 'trial' | 'active' | 'past_due' | 'expired' | 'blocked' | 'cancelled' = 
+          (rootFranchise?.subscription_status as any) || 'trial';
+        
+        // Trial expirado
         if (status === 'trial' && trialEndsAt && now > trialEndsAt) {
           status = 'expired';
         }
+        
+        // Assinatura expirada
         if (status === 'active' && subscriptionExpiresAt && now > subscriptionExpiresAt) {
           status = 'expired';
+        }
+        
+        // Past due por mais de 7 dias = blocked
+        if (status === 'past_due' && nextDueDate) {
+          const daysPastDue = Math.floor((now.getTime() - nextDueDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysPastDue > 7) {
+            status = 'blocked';
+          }
         }
         
         setSubscriptionStatus({
@@ -111,7 +128,11 @@ export const useSubscriptionStatus = (userId: string | undefined) => {
           trialDaysLeft,
           plan: rootFranchise?.subscription_plan || null,
           expiresAt: subscriptionExpiresAt,
-          franchiseId: rootFranchise?.id || null
+          franchiseId: rootFranchise?.id || null,
+          nextDueDate,
+          paymentMethod: rootFranchise?.payment_method || null,
+          asaasCustomerId: rootFranchise?.asaas_customer_id || null,
+          asaasSubscriptionId: rootFranchise?.asaas_subscription_id || null,
         });
       } catch (error) {
         console.error('Error fetching subscription status:', error);
