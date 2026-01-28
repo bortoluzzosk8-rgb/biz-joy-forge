@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Megaphone, Calendar, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import SystemUpdatesManager from "@/components/admin/SystemUpdatesManager";
 
 interface SystemUpdate {
   id: string;
@@ -17,6 +19,8 @@ interface SystemUpdate {
 }
 
 const SystemUpdates = () => {
+  const { isSuperAdmin } = useAuth();
+  
   const { data: updates, isLoading } = useQuery({
     queryKey: ['system-updates'],
     queryFn: async () => {
@@ -28,8 +32,26 @@ const SystemUpdates = () => {
       
       if (error) throw error;
       return data as SystemUpdate[];
-    }
+    },
+    enabled: !isSuperAdmin // Só carrega se NÃO for super admin
   });
+
+  if (isSuperAdmin) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Megaphone className="h-8 w-8 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Atualizações do Sistema</h1>
+            <p className="text-muted-foreground">
+              Gerencie as atualizações que aparecem para todos os usuários
+            </p>
+          </div>
+        </div>
+        <SystemUpdatesManager />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
