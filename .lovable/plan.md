@@ -1,144 +1,140 @@
 
 
-## Plano: Remover Completamente o Conceito de "Franqueado" do Sistema
+## Plano: Corrigir Dropdown de Unidades - Nome e Filtro
 
-### Contexto
+### Problema Identificado
 
-O sistema está sendo transformado de um modelo de franquias (franqueadora -> franqueados) para um modelo SaaS simples onde:
-- **Antes**: Franqueadora cria franqueados para gerenciar unidades
-- **Depois**: Cada cliente SaaS é diretamente uma "franqueadora" (dono do sistema) - sem sub-franqueados
+1. **Nome incorreto**: As franquias aparecem com o prefixo "Franquia de..." (ex: "Franquia de gg - A definir") porque a edge function `assign-franqueadora-role` cria automaticamente com esse prefixo
+2. **Sem isolamento multi-tenant**: O dropdown mostra TODAS as franquias do sistema, incluindo de outros clientes SaaS, ao inves de apenas as unidades do usuario logado
 
----
+### Solucao Proposta
 
-### Resumo das Alteracoes
+#### 1. Corrigir o Nome na Edge Function
 
-O conceito de "franqueado" será **completamente removido** do sistema:
+Quando um novo usuario se cadastra, usar apenas o nome da empresa/unidade sem o prefixo "Franquia de":
 
-1. Remover menu "Franqueados" do painel
-2. Remover a página `/admin/franchise-users`
-3. Remover a role "franqueado" de todas as verificações
-4. Excluir edge functions relacionadas a franqueados
-5. Limpar referências no contexto de autenticação
+```
+Antes:  name: `Franquia de ${name}`
+Depois: name: name  // Apenas o nome
+```
+
+#### 2. Filtrar Unidades por Cliente SaaS
+
+Modificar todas as funcoes `fetchFranchises` para buscar apenas:
+- A franquia raiz do usuario logado (onde `parent_franchise_id IS NULL`)
+- As unidades filhas dessa franquia (onde `parent_franchise_id = id_da_franquia_raiz`)
+
+Isso garante isolamento entre diferentes clientes SaaS.
 
 ---
 
 ### Arquivos a Modificar
 
-| Arquivo | Acao |
-|---------|------|
-| `src/pages/admin/AdminLayout.tsx` | Remover "franqueado" dos roles e menu "Franqueados" |
-| `src/App.tsx` | Remover rota `/admin/franchise-users` e import |
-| `src/contexts/AuthContext.tsx` | Remover estado `isFranqueado` e verificações |
-| `src/components/ProtectedRoute.tsx` | Sem alterações (já funciona sem franqueado) |
-
-### Arquivos a Excluir
-
-| Arquivo | Motivo |
-|---------|--------|
-| `src/pages/admin/FranchiseUsers.tsx` | Página de gestão de franqueados |
-| `supabase/functions/create-franchisee/` | Edge function para criar franqueado |
-| `supabase/functions/reset-franchisee-password/` | Edge function para resetar senha de franqueado |
+| Arquivo | Alteracao |
+|---------|-----------|
+| `supabase/functions/assign-franqueadora-role/index.ts` | Remover prefixo "Franquia de" no nome |
+| `src/pages/admin/Sales.tsx` | Filtrar franquias pelo `parent_franchise_id` do usuario |
+| `src/pages/admin/Logistics.tsx` | Filtrar franquias pelo `parent_franchise_id` do usuario |
+| `src/pages/admin/Clients.tsx` | Filtrar franquias pelo `parent_franchise_id` do usuario |
+| `src/pages/admin/Drivers.tsx` | Filtrar franquias pelo `parent_franchise_id` do usuario |
+| `src/pages/admin/FranchiseReport.tsx` | Filtrar franquias pelo `parent_franchise_id` do usuario |
+| `src/components/sales/ExportExcelModal.tsx` | Verificar se precisa filtro |
+| `src/pages/admin/Monitors.tsx` | Verificar se precisa filtro |
 
 ---
 
 ### Secao Tecnica
 
-#### 1. AdminLayout.tsx - Remover menu e role
+#### Edge Function - assign-franqueadora-role/index.ts
 
+Linha 126, mudar de:
 ```typescript
-// ANTES (linha 13)
-const { signOut, user, isFranqueadora, isFranqueado, isVendedor, isMotorista, isSuperAdmin, userFranchise } = useAuth();
-
-// DEPOIS
-const { signOut, user, isFranqueadora, isVendedor, isMotorista, isSuperAdmin, userFranchise } = useAuth();
-
-// ANTES (linhas 40-54) - Remover "franqueado" dos arrays de roles
-{ value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["franqueadora", "franqueado", "vendedor"] },
-
-// DEPOIS
-{ value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["franqueadora", "vendedor"] },
-
-// Remover completamente a linha do menu Franqueados:
-// { value: "franchise-users", label: "Franqueados", icon: UsersRound, roles: ["franqueadora"] },
-
-// ANTES (linhas 66-72) - Remover verificação isFranqueado
-return clientMenuItems.filter((item) => {
-  if (isFranqueadora) return item.roles.includes("franqueadora");
-  if (isFranqueado) return item.roles.includes("franqueado");
-  // ...
-});
-
-// DEPOIS - Remover linha do isFranqueado
-return clientMenuItems.filter((item) => {
-  if (isFranqueadora) return item.roles.includes("franqueadora");
-  // ... (sem isFranqueado)
-});
-
-// ANTES (linhas 76-83) - Remover título "Franqueado"
-if (isFranqueado) return "🏪 Franqueado";
-
-// DEPOIS - Remover essa linha
+name: `Franquia de ${name}`,
 ```
 
-#### 2. AuthContext.tsx - Remover isFranqueado
-
+Para:
 ```typescript
-// Remover do tipo AuthContextType:
-// isFranqueado: boolean;
-
-// Remover estado:
-// const [isFranqueado, setIsFranqueado] = useState(false);
-
-// Remover verificação no checkAdminStatus:
-// supabase.rpc('has_role', { _user_id: userId, _role: 'franqueado' }),
-// setIsFranqueado(isFranqueadoRole);
-
-// Atualizar isAdmin para não incluir franqueado:
-// setIsAdmin(... || isFranqueadoRole || ...);
-
-// Remover do context provider value:
-// isFranqueado,
+name: name,
 ```
 
-#### 3. App.tsx - Remover rota
+#### Sales.tsx - fetchFranchises (Linha 714)
 
+De:
 ```typescript
-// Remover import:
-// import FranchiseUsers from "./pages/admin/FranchiseUsers";
-
-// Remover rota:
-// <Route path="franchise-users" element={<FranchiseUsers />} />
+const fetchFranchises = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("franchises")
+      .select("id, name, city")
+      .eq("status", "active")
+      .order("name");
+    
+    if (error) throw error;
+    setFranchises(data || []);
+  } catch (error) {
+    console.error("Error fetching franchises:", error);
+    toast.error("Erro ao carregar franquias");
+  }
+};
 ```
 
-#### 4. delete-user Edge Function - Remover menções a franqueado
+Para:
+```typescript
+const fetchFranchises = async () => {
+  try {
+    // Buscar a franquia raiz do usuario logado
+    const { data: userFranchiseData } = await supabase
+      .from("user_franchises")
+      .select("franchise_id")
+      .eq("user_id", user?.id)
+      .maybeSingle();
+    
+    if (!userFranchiseData?.franchise_id) {
+      setFranchises([]);
+      return;
+    }
 
-A edge function `delete-user/index.ts` será atualizada para remover verificações relacionadas à role "franqueado", mantendo apenas:
-- super_admin
-- franqueadora
-- vendedor
+    const rootFranchiseId = userFranchiseData.franchise_id;
 
----
+    // Buscar a franquia raiz + unidades filhas
+    const { data, error } = await supabase
+      .from("franchises")
+      .select("id, name, city")
+      .eq("status", "active")
+      .or(`id.eq.${rootFranchiseId},parent_franchise_id.eq.${rootFranchiseId}`)
+      .order("name");
+    
+    if (error) throw error;
+    setFranchises(data || []);
+  } catch (error) {
+    console.error("Error fetching franchises:", error);
+    toast.error("Erro ao carregar unidades");
+  }
+};
+```
 
-### Sobre os Percentuais nas Unidades
-
-O formulário de unidades (Franchises.tsx) tem campos `franqueado_percentage` e `franqueadora_percentage`. **Esses campos permanecem** pois são usados para calcular divisão de receita entre a matriz e as filiais (unidades), independente de existir a role de franqueado.
-
-Se preferir, posso renomear para algo mais genérico como `unidade_percentage` e `matriz_percentage`.
+A mesma logica sera aplicada em todos os outros arquivos que tem `fetchFranchises`.
 
 ---
 
 ### Dados Existentes no Banco
 
-Usuarios com role "franqueado" que já existem no banco:
-- Continuarão existindo, mas **não terão mais acesso** ao painel (pois não serão reconhecidos como admin)
-- Podem ser excluídos manualmente se necessário
+As franquias existentes com "Franquia de..." no nome permanecerao com esse nome. Se desejar, posso criar uma migracao para renomear automaticamente:
+
+```sql
+UPDATE franchises 
+SET name = REPLACE(name, 'Franquia de ', '')
+WHERE name LIKE 'Franquia de %';
+```
+
+**Voce quer que eu inclua essa migracao para corrigir os nomes existentes?**
 
 ---
 
 ### Resultado Esperado
 
-1. Menu "Franqueados" não aparece mais
-2. Rota `/admin/franchise-users` não existe mais
-3. Login com role "franqueado" não dá acesso ao painel admin
-4. Sistema simplificado: apenas franqueadora, vendedor, motorista e super_admin
+1. Novos cadastros criam franquias sem o prefixo "Franquia de"
+2. Dropdown "Selecionar Unidade" mostra apenas as unidades do cliente SaaS logado
+3. Cada cliente SaaS ve apenas suas proprias unidades (isolamento multi-tenant)
+4. Outros usuarios (de outros clientes SaaS) nao veem dados de outros clientes
 
