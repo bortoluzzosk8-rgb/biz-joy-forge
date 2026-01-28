@@ -140,19 +140,33 @@ const AdminLayout = () => {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/updates')}>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigate('/admin/updates')}
+                className="text-[#6C4DF6] hover:text-[#6C4DF6] hover:bg-[#6C4DF6]/10 transition-colors"
+              >
                 <Megaphone className="w-4 h-4" />
                 <span className="hidden sm:inline ml-1">Atualizações</span>
               </Button>
               
               {isFranqueadora && (
-                <Button variant="ghost" size="sm" onClick={() => navigate('/assinatura')}>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => navigate('/assinatura')}
+                  className="text-[#6C4DF6] hover:text-[#6C4DF6] hover:bg-[#6C4DF6]/10 transition-colors"
+                >
                   <CreditCard className="w-4 h-4" />
                   <span className="hidden sm:inline ml-1">Assinaturas</span>
                 </Button>
               )}
               
-              <Button variant="outline" onClick={handleLogout}>
+              <Button 
+                variant="outline" 
+                onClick={handleLogout}
+                className="border-[#E53935] text-[#E53935] hover:bg-[#E53935] hover:text-white transition-colors"
+              >
                 <LogOut className="w-4 h-4 mr-2" />
                 Sair
               </Button>
