@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantFranchises } from "@/hooks/useTenantFranchises";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -66,7 +67,7 @@ export function SalesChart() {
   const [selectedMonth, setSelectedMonth] = useState<number | "all">(currentDate.getMonth() + 1);
   const [selectedFranchise, setSelectedFranchise] = useState<string>("all");
   const [salesData, setSalesData] = useState<SaleData[]>([]);
-  const [franchises, setFranchises] = useState<Franchise[]>([]);
+  const { franchises } = useTenantFranchises();
   const [inventoryByFranchise, setInventoryByFranchise] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
@@ -79,19 +80,12 @@ export function SalesChart() {
     return years;
   }, []);
 
-  // Load franchises
-  useEffect(() => {
-    const loadFranchises = async () => {
-      const { data } = await supabase
-        .from("franchises")
-        .select("id, name, city")
-        .eq("status", "active")
-        .order("name");
-      
-      if (data) setFranchises(data);
-    };
-    loadFranchises();
-  }, []);
+  // Helper function to get franchise display name
+  const getFranchiseDisplayName = (franchise: Franchise) => {
+    return franchise.city && franchise.city !== "A definir" 
+      ? franchise.city 
+      : franchise.name;
+  };
 
   // Load inventory data for demand index calculation
   useEffect(() => {
@@ -178,7 +172,7 @@ export function SalesChart() {
         // Group by franchise
         const franchise = franchises.find(f => f.id === sale.franchise_id);
         key = sale.franchise_id || "sem-unidade";
-        label = franchise?.city || franchise?.name || "Sem Unidade";
+        label = franchise ? getFranchiseDisplayName(franchise) : "Sem Unidade";
       } else {
         // Group by month
         if (selectedMonth === "all") {
@@ -326,7 +320,7 @@ export function SalesChart() {
                   <SelectItem value="all">Todas as Unidades</SelectItem>
                   {franchises.map((franchise) => (
                     <SelectItem key={franchise.id} value={franchise.id}>
-                      {franchise.city || franchise.name}
+                      {getFranchiseDisplayName(franchise)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -408,7 +402,10 @@ export function SalesChart() {
           <CardTitle className="text-base">
             {selectedFranchise === "all" 
               ? "Comparativo por Unidade" 
-              : `Detalhamento - ${franchises.find(f => f.id === selectedFranchise)?.city || "Unidade"}`
+              : `Detalhamento - ${(() => {
+                  const f = franchises.find(f => f.id === selectedFranchise);
+                  return f ? getFranchiseDisplayName(f) : "Unidade";
+                })()}`
             }
           </CardTitle>
         </CardHeader>
