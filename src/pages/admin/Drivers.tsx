@@ -32,7 +32,7 @@ type Franchise = {
 };
 
 const Drivers = () => {
-  const { isFranqueadora, isFranqueado, isVendedor, userFranchise } = useAuth();
+  const { isFranqueadora, isVendedor, userFranchise } = useAuth();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [franchises, setFranchises] = useState<Franchise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +61,7 @@ const Drivers = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null);
 
-  const canManageDrivers = isFranqueadora || isFranqueado || isVendedor;
+  const canManageDrivers = isFranqueadora || isVendedor;
   const userFranchiseId = userFranchise?.id;
 
   useEffect(() => {
@@ -135,11 +135,6 @@ const Drivers = () => {
         `)
         .order('created_at', { ascending: false });
 
-      // Franqueado só vê motoristas da sua franquia
-      if (isFranqueado && userFranchiseId) {
-        query = query.eq('franchise_id', userFranchiseId);
-      }
-
       const { data, error } = await query;
 
       if (error) throw error;
@@ -170,8 +165,8 @@ const Drivers = () => {
       return;
     }
 
-    // Franqueado usa automaticamente sua franquia, vendedor pode escolher
-    const franchiseToUse = isFranqueado ? userFranchiseId : (selectedFranchise === 'none' ? null : selectedFranchise || null);
+    // Vendedor e franqueadora podem escolher a franquia
+    const franchiseToUse = selectedFranchise === 'none' ? null : selectedFranchise || null;
 
     setSaving(true);
     try {
@@ -228,8 +223,8 @@ const Drivers = () => {
       return;
     }
 
-    // Franqueado não pode mudar a franquia do motorista, vendedor pode
-    const franchiseToUpdate = isFranqueado ? editingDriver.franchise_id : (editFranchise === 'none' ? null : editFranchise || null);
+    // Vendedor e franqueadora podem mudar a franquia
+    const franchiseToUpdate = editFranchise === 'none' ? null : editFranchise || null;
 
     setSaving(true);
     try {
@@ -355,11 +350,6 @@ const Drivers = () => {
         <Truck className="w-8 h-8 text-primary" />
         <div>
           <h1 className="text-3xl font-bold">Gerenciar Motoristas</h1>
-          {isFranqueado && userFranchise && (
-            <p className="text-sm text-muted-foreground">
-              Motoristas da unidade: {userFranchise.name} - {userFranchise.city}
-            </p>
-          )}
         </div>
       </div>
 

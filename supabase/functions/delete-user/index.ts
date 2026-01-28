@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if caller has franqueadora, franqueado, or vendedor role
+    // Check if caller has franqueadora or vendedor role
     const { data: roles, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
@@ -61,10 +61,9 @@ Deno.serve(async (req) => {
     const userRoles = roles?.map(r => r.role) || [];
     const isSuperAdmin = userRoles.includes('super_admin');
     const isFranqueadora = userRoles.includes('franqueadora');
-    const isFranqueado = userRoles.includes('franqueado');
     const isVendedor = userRoles.includes('vendedor');
 
-    if (!isSuperAdmin && !isFranqueadora && !isFranqueado && !isVendedor) {
+    if (!isSuperAdmin && !isFranqueadora && !isVendedor) {
       console.log('User does not have permission to delete users');
       return new Response(
         JSON.stringify({ error: 'Acesso negado. Você não tem permissão para deletar usuários.' }),
@@ -82,57 +81,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If franqueado, verify permissions for what they can delete
-    if (isFranqueado && !isFranqueadora) {
-      // SECURITY: Check if the target user has a protected role
-      const { data: targetRoles } = await supabaseAdmin
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user_id);
-
-      const targetUserRoles = targetRoles?.map(r => r.role) || [];
-      const targetIsFranqueado = targetUserRoles.includes('franqueado');
-      const targetIsFranqueadora = targetUserRoles.includes('franqueadora');
-      const targetIsVendedor = targetUserRoles.includes('vendedor');
-      const targetIsSuperAdmin = targetUserRoles.includes('super_admin');
-
-      if (targetIsFranqueado || targetIsFranqueadora || targetIsVendedor || targetIsSuperAdmin) {
-        console.log('Franqueado attempted to delete protected user:', user_id);
-        return new Response(
-          JSON.stringify({ error: 'Você não tem permissão para excluir este usuário' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Franqueado can only delete drivers from their own franchise
-      const { data: userFranchise, error: franchiseError } = await supabaseAdmin
-        .from('user_franchises')
-        .select('franchise_id')
-        .eq('user_id', caller.id)
-        .single();
-
-      if (franchiseError || !userFranchise) {
-        return new Response(
-          JSON.stringify({ error: 'Franqueado não está vinculado a nenhuma unidade' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Check if the user being deleted is a driver in the same franchise
-      const { data: driver, error: driverError } = await supabaseAdmin
-        .from('drivers')
-        .select('franchise_id')
-        .eq('user_id', user_id)
-        .single();
-
-      if (driver && driver.franchise_id !== userFranchise.franchise_id) {
-        return new Response(
-          JSON.stringify({ error: 'Você só pode deletar motoristas da sua unidade' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
     // Vendedor can delete any driver (they are global)
 
     console.log('Deleting user from auth.users:', user_id);
@@ -148,7 +96,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const deletedBy = isSuperAdmin ? 'super_admin' : (isFranqueadora ? 'franqueadora' : (isFranqueado ? 'franqueado' : 'vendedor'));
+    const deletedBy = isSuperAdmin ? 'super_admin' : (isFranqueadora ? 'franqueadora' : 'vendedor');
     console.log(`User deleted successfully: ${user_id} by ${deletedBy}`);
 
     return new Response(

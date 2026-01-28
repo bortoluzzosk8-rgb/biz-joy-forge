@@ -59,16 +59,16 @@ type MonthlyData = {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { isFranqueado, isFranqueadora, isVendedor, isMotorista, isSuperAdmin } = useAuth();
+  const { isFranqueadora, isVendedor, isMotorista, isSuperAdmin } = useAuth();
 
   useEffect(() => {
-    if (isMotorista && !isFranqueadora && !isFranqueado && !isVendedor && !isSuperAdmin) {
+    if (isMotorista && !isFranqueadora && !isVendedor && !isSuperAdmin) {
       navigate("/admin/logistics", { replace: true });
     }
-  }, [isMotorista, isFranqueadora, isFranqueado, isVendedor, isSuperAdmin, navigate]);
+  }, [isMotorista, isFranqueadora, isVendedor, isSuperAdmin, navigate]);
 
   // Se for motorista, mostra loading enquanto redireciona
-  if (isMotorista && !isFranqueadora && !isFranqueado && !isVendedor && !isSuperAdmin) {
+  if (isMotorista && !isFranqueadora && !isVendedor && !isSuperAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -81,12 +81,8 @@ const Dashboard = () => {
     return <SuperAdminDashboard />;
   }
 
-  if (isVendedor && !isFranqueadora && !isFranqueado) {
+  if (isVendedor && !isFranqueadora) {
     return <SellerDashboard />;
-  }
-
-  if (isFranqueado && !isFranqueadora) {
-    return <FranchiseDashboard />;
   }
 
   return <FinancialDashboard />;

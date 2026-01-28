@@ -52,7 +52,7 @@ interface Franchise {
 }
 
 export default function Monitors() {
-  const { isFranqueadora, isFranqueado, isVendedor, userFranchise } = useAuth();
+  const { isFranqueadora, isVendedor, userFranchise } = useAuth();
   const { toast } = useToast();
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [franchises, setFranchises] = useState<Franchise[]>([]);
@@ -77,7 +77,7 @@ export default function Monitors() {
   // Delete state
   const [deletingMonitor, setDeletingMonitor] = useState<Monitor | null>(null);
 
-  const canEdit = isFranqueadora || isFranqueado || isVendedor;
+  const canEdit = isFranqueadora || isVendedor;
 
   useEffect(() => {
     fetchData();

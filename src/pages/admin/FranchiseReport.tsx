@@ -39,7 +39,7 @@ type MonthlyData = {
 };
 
 const FranchiseReport = () => {
-  const { isFranqueadora, isFranqueado, userFranchise } = useAuth();
+  const { isFranqueadora } = useAuth();
   const [franchises, setFranchises] = useState<Franchise[]>([]);
   const [selectedFranchiseId, setSelectedFranchiseId] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -52,27 +52,13 @@ const FranchiseReport = () => {
   const years = Array.from({ length: 9 }, (_, i) => currentYear + 3 - i);
 
   useEffect(() => {
-    if (!isFranqueadora && !isFranqueado) {
+    if (!isFranqueadora) {
       toast.error("Acesso negado.");
       return;
     }
     
-    // Se for franqueado, usar a franquia do usuário diretamente
-    if (isFranqueado && userFranchise) {
-      setFranchises([{
-        id: userFranchise.id,
-        name: userFranchise.name,
-        city: userFranchise.city,
-        franqueado_percentage: (userFranchise as any).franqueado_percentage || 60,
-        franqueadora_percentage: (userFranchise as any).franqueadora_percentage || 40,
-        equilibrio_inicial: (userFranchise as any).equilibrio_inicial || 0,
-      }]);
-      setSelectedFranchiseId(userFranchise.id);
-      setLoading(false);
-    } else {
-      fetchFranchises();
-    }
-  }, [isFranqueadora, isFranqueado, userFranchise]);
+    fetchFranchises();
+  }, [isFranqueadora]);
 
   useEffect(() => {
     if (selectedFranchiseId) {
@@ -280,7 +266,7 @@ const FranchiseReport = () => {
     repasse: 0,
   });
 
-  if (!isFranqueadora && !isFranqueado) {
+  if (!isFranqueadora) {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-muted-foreground">Acesso Negado</h2>
