@@ -1,92 +1,132 @@
 
 
-## Plano: Validar Horário de Retirada vs Horário da Festa
+## Plano: Remover Campo "Recebido por" (Franqueadora/Franqueado)
 
-### Problema Identificado
+### Contexto
 
-Quando a data de retirada é igual à data da festa, o sistema permite que o horário de retirada seja antes do horário de início da festa.
-
-| Campo | Valor no Screenshot |
-|-------|---------------------|
-| Data da Festa | 28/01/2026 |
-| Data de Retirada | 28/01/2026 (mesmo dia) |
-| Horário Início Festa | 08:00 |
-| Horário Retirada | 07:00 |
-
-Isso é impossível - não se pode retirar os equipamentos antes da festa começar.
+O campo "Recebido por" com as opções "Franqueadora" e "Franqueado" não é mais necessário no sistema. Este campo existe na tabela `sale_payments` e aparece em dois componentes de pagamento.
 
 ---
 
-### Solução Proposta
-
-Implementar validação em dois pontos:
-
-1. **Validação em tempo real** - Ao alterar o horário de retirada, verificar e mostrar alerta visual
-2. **Validação no submit** - Bloquear o salvamento se a regra for violada
-
----
-
-### Regra de Negócio
-
-```text
-SE data_retirada == data_festa
-  E horario_retirada está preenchido
-  E horario_inicio_festa está preenchido
-  ENTÃO horario_retirada DEVE SER >= horario_inicio_festa
-```
-
----
-
-### Alterações de Código
+### Arquivos a Modificar
 
 | Arquivo | Ação |
 |---------|------|
-| `src/pages/admin/Sales.tsx` | Adicionar validação no `handleSubmit` |
-| `src/pages/admin/Sales.tsx` | Adicionar alerta visual no campo de horário de retirada |
+| `src/components/admin/PaymentManager.tsx` | Remover campo do formulário de adicionar, editar e exibição |
+| `src/components/admin/QuickPaymentDrawer.tsx` | Remover campo do formulário de adicionar |
 
 ---
 
-### Detalhes Técnicos
+### Alterações Detalhadas
 
-**1. Validação no handleSubmit (antes de salvar):**
+#### 1. PaymentManager.tsx
 
-Adicionar após as validações existentes (~linha 1097):
-
+**Remover do estado de novo pagamento (linha 99):**
 ```typescript
-// Validar horário de retirada quando no mesmo dia da festa
-if (formData.rental_start_date && formData.return_date && 
-    formData.rental_start_date === formData.return_date &&
-    formData.party_start_time && formData.return_time) {
-  if (formData.return_time < formData.party_start_time) {
-    toast.error("O horário de retirada não pode ser antes do horário de início da festa quando são no mesmo dia");
-    setIsSubmitting(false);
-    return;
-  }
+// ANTES
+received_by: '' as 'franqueadora' | 'franqueado' | '',
+
+// DEPOIS: remover esta linha
+```
+
+**Remover validação (linhas 147-150):**
+```typescript
+// ANTES
+if (!newPayment.received_by) {
+  toast.error('Selecione quem recebeu o pagamento');
+  return;
 }
+
+// DEPOIS: remover este bloco
 ```
 
-**2. Alerta visual no formulário:**
-
-Adicionar um Card de aviso abaixo dos campos de horário quando a condição for violada:
-
+**Remover do objeto de inserção (linhas 165-167, 201-203):**
 ```typescript
-{formData.rental_start_date === formData.return_date && 
- formData.party_start_time && formData.return_time && 
- formData.return_time < formData.party_start_time && (
-  <Card className="p-3 bg-red-50 dark:bg-red-950/20 border-red-200 mt-4">
-    <p className="text-sm text-red-900 dark:text-red-100">
-      ⚠️ O horário de retirada não pode ser anterior ao horário de início da festa no mesmo dia!
-    </p>
-  </Card>
-)}
+// Remover a linha:
+received_by: newPayment.received_by as 'franqueadora' | 'franqueado',
 ```
+
+**Remover do reset do formulário (linha 181, 221):**
+```typescript
+// Remover:
+received_by: '',
+```
+
+**Remover do estado de edição (linha 88, 440):**
+```typescript
+// Remover referências a received_by
+```
+
+**Remover do update no banco (linha 466):**
+```typescript
+// Remover:
+received_by: editPayment.received_by,
+```
+
+**Remover o campo Select do formulário de adicionar (linhas 912-923):**
+```typescript
+// Remover todo o bloco <div> com Label "Recebido por *" e Select
+```
+
+**Remover exibição na lista de pagamentos (linhas 1003-1007):**
+```typescript
+// Remover o bloco que exibe "Recebido por: Franqueadora/Franqueado"
+```
+
+**Remover o campo Select do formulário de edição (linhas 1457-1468):**
+```typescript
+// Remover todo o bloco <div> com Label "Recebido por *" e Select
+```
+
+---
+
+#### 2. QuickPaymentDrawer.tsx
+
+**Remover do tipo Payment (linha 33):**
+```typescript
+// Remover:
+received_by?: 'franqueadora' | 'franqueado';
+```
+
+**Remover do estado (linha 78):**
+```typescript
+// Remover:
+received_by: '' as 'franqueadora' | 'franqueado' | '',
+```
+
+**Remover validação (linhas 118-121):**
+```typescript
+// Remover o bloco de validação de received_by
+```
+
+**Remover do insert (linha 137):**
+```typescript
+// Remover:
+received_by: newPayment.received_by,
+```
+
+**Remover do reset (linha 156):**
+```typescript
+// Remover:
+received_by: '',
+```
+
+**Remover o campo Select do formulário (linhas 401-415):**
+```typescript
+// Remover todo o bloco <div> com Label "Recebido por *" e Select
+```
+
+---
+
+### Banco de Dados
+
+A coluna `received_by` na tabela `sale_payments` será mantida para não quebrar dados históricos. Apenas a interface será simplificada.
 
 ---
 
 ### Resultado Esperado
 
-- Se o usuário tentar colocar horário de retirada antes do horário da festa (no mesmo dia):
-  - Verá um aviso vermelho imediatamente no formulário
-  - Não conseguirá salvar a locação até corrigir
-  - Receberá mensagem de erro clara explicando o problema
+- O campo "Recebido por" não aparecerá mais nos formulários de pagamento
+- Os pagamentos serão salvos sem essa informação
+- Dados históricos com `received_by` preenchido continuarão no banco, mas não serão exibidos
 
