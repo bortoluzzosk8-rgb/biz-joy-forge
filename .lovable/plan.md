@@ -1,93 +1,101 @@
 
 
-## Plano: Corrigir Dropdown de Unidades no Gráfico de Vendas
+## Plano: Corrigir Dropdown de Unidades na Pagina de Estoque
 
 ### Problema Identificado
 
-O dropdown "Unidade" no componente `SalesChart.tsx` está mostrando várias opções "A definir" porque:
+A pagina de Estoque (`Stock.tsx`) tem o mesmo problema que o grafico de vendas:
 
-1. **Carrega TODAS as franquias** do banco de dados, sem respeitar o isolamento multi-tenant
-2. **Exibe `city` em vez de `name`** quando city = "A definir" (valor existe, não é null)
+1. **Carrega TODAS as franquias** do banco de dados sem isolamento multi-tenant
+2. **Exibe `city || name`** o que mostra "A definir" quando city = "A definir"
 
-Dados atuais no banco:
-| Nome | Cidade |
-|------|--------|
-| Franquia de gg | A definir |
-| Franquia de Oompa Brink | A definir |
-| Franquia de Rat | A definir |
-| Franquia Principal | A definir |
-| sad | A definir |
+Isso acontece em varios lugares:
+- Botoes de filtro por unidade (linha 975-984)
+- Helper function `franchiseNameById` (linha 93-94)
+- Select de franquia no modal de adicionar equipamento (linha 1172)
+- Select de franquia no modal de editar equipamento (linha 1256)
 
-### Solução
+### Solucao
 
-Corrigir o `SalesChart.tsx` para:
+Aplicar o mesmo padrao usado no `SalesChart.tsx`:
 
-1. **Usar isolamento multi-tenant** - substituir a query direta ao banco pelo hook `useTenantFranchises`
-2. **Melhorar exibição do nome** - mostrar `name` quando `city` for "A definir" ou vazia
+1. **Usar `useTenantFranchises`** para carregar apenas as franquias do tenant atual
+2. **Criar helper `getFranchiseDisplayName`** para exibir o nome corretamente
 
 ---
 
-### Alterações no Código
+### Alteracoes no Codigo
 
-**Arquivo:** `src/components/sales/SalesChart.tsx`
+**Arquivo:** `src/pages/admin/Stock.tsx`
 
-#### 1. Importar o hook de tenant
+#### 1. Importar o hook
 
 ```typescript
 import { useTenantFranchises } from "@/hooks/useTenantFranchises";
 ```
 
-#### 2. Substituir o carregamento de franchises
+#### 2. Substituir o state e carregamento de franchises
 
-**Antes:**
+Remover:
 ```typescript
 const [franchises, setFranchises] = useState<Franchise[]>([]);
-
-useEffect(() => {
-  const loadFranchises = async () => {
-    const { data } = await supabase
-      .from("franchises")
-      .select("id, name, city")
-      .eq("status", "active")
-      .order("name");
-    
-    if (data) setFranchises(data);
-  };
-  loadFranchises();
-}, []);
 ```
 
-**Depois:**
+Adicionar:
 ```typescript
 const { franchises } = useTenantFranchises();
 ```
 
-#### 3. Melhorar lógica de exibição do nome
+#### 3. Criar helper function
 
-**Antes:**
 ```typescript
-{franchise.city || franchise.name}
+const getFranchiseDisplayName = (franchise: Franchise) => {
+  return franchise.city && franchise.city !== "A definir" 
+    ? franchise.city 
+    : franchise.name;
+};
 ```
 
-**Depois:**
+#### 4. Atualizar o franchiseCityMap
+
 ```typescript
-{franchise.city && franchise.city !== "A definir" 
-  ? franchise.city 
-  : franchise.name}
+const franchiseCityMap = useMemo(() => 
+  new Map(franchises.map((f) => [f.id, getFranchiseDisplayName(f)])), 
+  [franchises]
+);
 ```
 
-Aplicar a mesma lógica em todos os lugares onde se exibe o nome da unidade:
-- Dropdown (linha 329)
-- Labels do gráfico (linha 181)
-- Tabela detalhada
+#### 5. Atualizar exibicao nos botoes de filtro
+
+```typescript
+{franchises.map((f) => (
+  <Button ...>
+    {getFranchiseDisplayName(f)}
+  </Button>
+))}
+```
+
+#### 6. Atualizar exibicao nos selects dos modais
+
+```typescript
+{franchises.map((f) => (
+  <SelectItem key={f.id} value={f.id}>
+    {getFranchiseDisplayName(f)}
+  </SelectItem>
+))}
+```
+
+#### 7. Remover carregamento manual de franchises no loadData()
+
+A secao que faz query de franchises na funcao `loadData()` deve ser removida, ja que o hook cuida disso.
 
 ---
 
 ### Arquivos a Modificar
 
-| Arquivo | Ação |
+| Arquivo | Acao |
 |---------|------|
-| `src/components/sales/SalesChart.tsx` | Usar `useTenantFranchises` + corrigir exibição do nome |
+| `src/pages/admin/Stock.tsx` | Usar `useTenantFranchises` + corrigir exibicao |
 
 ---
 
@@ -95,24 +103,30 @@ Aplicar a mesma lógica em todos os lugares onde se exibe o nome da unidade:
 
 **Antes:**
 ```
-Unidade: [Todas as Unidades ▼]
-          ✓ Todas as Unidades
-            A definir
-            A definir
-            A definir
-            A definir
-            A definir
+[A definir] [A definir] [A definir] [A definir] [A definir] [Todas]
 ```
 
 **Depois:**
 ```
-Unidade: [Todas as Unidades ▼]
-          ✓ Todas as Unidades
-            Sua Unidade Principal
+[Sua Unidade Principal] [Todas]
 ```
 
-O usuário verá apenas:
-- A franquia raiz à qual está vinculado
-- As sub-unidades dessa franquia (se houver)
-- Com o nome correto (não "A definir")
+O usuario vera apenas sua unidade e suas sub-unidades, com os nomes corretos exibidos.
+
+---
+
+### Secao Tecnica
+
+A migracao segue o mesmo padrao aplicado em `SalesChart.tsx`:
+
+1. O hook `useTenantFranchises` ja implementa:
+   - Busca a franchise_id do usuario logado via `user_franchises`
+   - Carrega a franquia raiz E sub-unidades (`parent_franchise_id`)
+   - Filtra apenas franquias ativas
+   
+2. O helper `getFranchiseDisplayName` prioriza:
+   - `city` se existir e nao for "A definir"
+   - `name` caso contrario
+
+3. Todas as exibicoes de nome de franquia usarao este helper de forma consistente.
 
