@@ -1,44 +1,200 @@
 
 
-## Plano: Adicionar Botão "Assinaturas" no Menu do Painel Administrativo
+## Plano: Painel de Atualizacoes do Sistema
 
-### O Que Será Feito
+### Resumo
 
-Adicionar um novo item de menu chamado **"Assinaturas"** ao lado de "Config" na barra de navegação do painel administrativo. Esse botão vai redirecionar para a página `/assinatura` que já existe.
+Criar um sistema de comunicados/atualizacoes do sistema onde:
+- **Super Admin** pode criar, editar e excluir atualizacoes
+- **Todos os usuarios** (franqueadoras, vendedores, motoristas) podem visualizar as atualizacoes
+- Novo botao no menu ao lado de "Assinaturas" para acessar a pagina
 
-### Localização
+---
 
-O botão ficará logo após "Config" (último item atual), visível apenas para usuários com role **franqueadora**.
+### O Que Sera Criado
 
-### Layout Visual
+#### 1. Tabela no Banco de Dados
+
+Nova tabela `system_updates` para armazenar as atualizacoes:
+
+```sql
+CREATE TABLE system_updates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text NOT NULL,
+  version text,
+  published_at timestamptz NOT NULL DEFAULT now(),
+  is_active boolean DEFAULT true,
+  created_by uuid REFERENCES auth.users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+```
+
+**Campos:**
+- `title`: Titulo da atualizacao (ex: "Nova funcionalidade de logistica")
+- `description`: Descricao detalhada do que mudou
+- `version`: Versao opcional (ex: "1.2.0")
+- `published_at`: Data de publicacao
+- `is_active`: Se esta visivel para usuarios
+
+#### 2. Politicas de Seguranca (RLS)
+
+- **Super Admin**: Pode criar, editar e excluir todas as atualizacoes
+- **Usuarios autenticados**: Podem apenas visualizar atualizacoes ativas
+
+```sql
+-- Super Admin gerencia tudo
+CREATE POLICY "Super Admin can manage all updates"
+  ON system_updates FOR ALL
+  USING (has_role(auth.uid(), 'super_admin'));
+
+-- Usuarios autenticados podem ver atualizacoes ativas
+CREATE POLICY "Authenticated users can view active updates"
+  ON system_updates FOR SELECT
+  USING (is_active = true);
+```
+
+---
+
+### Arquivos a Criar/Modificar
+
+| Arquivo | Acao |
+|---------|------|
+| `supabase/migrations/xxx_create_system_updates.sql` | Criar tabela e RLS |
+| `src/pages/admin/SystemUpdates.tsx` | Pagina para visualizar atualizacoes |
+| `src/pages/admin/SuperAdminDashboard.tsx` | Adicionar secao para gerenciar atualizacoes |
+| `src/pages/admin/AdminLayout.tsx` | Adicionar botao no menu |
+| `src/App.tsx` | Adicionar rota `/admin/updates` |
+
+---
+
+### Layout das Paginas
+
+#### Pagina de Visualizacao (todos os usuarios)
 
 ```
-[Dashboard] [Locações] [Estoque] ... [Relatório] [Config] [Assinaturas]
-                                                              ↑ NOVO
++--------------------------------------------------+
+| Atualizacoes do Sistema                          |
++--------------------------------------------------+
+| [Icone] v1.2.0 - Nova funcionalidade de logistica|
+| Data: 28/01/2026                                 |
+| Descricao: Agora voce pode arrastar entregas...  |
++--------------------------------------------------+
+| [Icone] v1.1.0 - Melhorias no financeiro         |
+| Data: 20/01/2026                                 |
+| Descricao: Adicionamos graficos de despesas...   |
++--------------------------------------------------+
 ```
 
-### Alteração Necessária
+#### Secao de Gerenciamento no Super Admin Dashboard
 
-**Arquivo:** `src/pages/admin/AdminLayout.tsx`
+```
++--------------------------------------------------+
+| Gerenciar Atualizacoes do Sistema                |
++--------------------------------------------------+
+| [+ Nova Atualizacao]                             |
++--------------------------------------------------+
+| Lista de atualizacoes com opcoes de editar/excluir|
++--------------------------------------------------+
+```
 
-1. Importar o ícone `CreditCard` do lucide-react (representa bem assinaturas/pagamentos)
+---
 
-2. Adicionar novo item no array `clientMenuItems`:
+### Botao no Menu
+
+Adicionar ao `clientMenuItems` no `AdminLayout.tsx`:
+
 ```typescript
-{ value: "subscription", label: "Assinaturas", icon: CreditCard, roles: ["franqueadora"] },
+{ value: "updates", label: "Atualizacoes", icon: Bell, roles: ["franqueadora", "vendedor", "motorista"] },
 ```
 
-3. Como a rota `/assinatura` está **fora** do `/admin/*`, o `handleTabChange` precisa ser ajustado para navegar corretamente para essa rota especial
+**Posicao:** Ao lado de "Assinaturas" (para franqueadoras) ou como ultimo item (para vendedores/motoristas)
 
-### Tratamento Especial
+---
 
-Como a página de assinatura está em `/assinatura` (e não `/admin/subscription`), será necessário:
-- Verificar se o valor clicado é "subscription"
-- Se sim, navegar para `/assinatura` em vez de `/admin/subscription`
+### Funcionalidades
+
+#### Para Super Admin:
+- Formulario para criar nova atualizacao (titulo, descricao, versao)
+- Lista de todas as atualizacoes com acoes de editar/excluir
+- Toggle para ativar/desativar visibilidade
+
+#### Para Usuarios:
+- Lista de atualizacoes ordenadas por data (mais recente primeiro)
+- Card com titulo, versao, data e descricao
+- Visual limpo e informativo
+
+---
+
+### Fluxo de Uso
+
+1. **Super Admin** acessa o Dashboard SaaS
+2. Na secao "Gerenciar Atualizacoes", clica em "Nova Atualizacao"
+3. Preenche titulo, descricao e versao opcional
+4. Salva a atualizacao
+
+5. **Usuario (franqueadora/vendedor/motorista)** ve o botao "Atualizacoes" no menu
+6. Clica e visualiza todas as atualizacoes do sistema
+7. Fica informado sobre mudancas e novidades
+
+---
+
+### Secao Tecnica
+
+#### Hook para Buscar Atualizacoes
+
+```typescript
+const useSystemUpdates = () => {
+  const { data, isLoading } = useQuery({
+    queryKey: ['system-updates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('system_updates')
+        .select('*')
+        .eq('is_active', true)
+        .order('published_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+  
+  return { updates: data, isLoading };
+};
+```
+
+#### Componente de Card de Atualizacao
+
+```typescript
+<Card>
+  <CardHeader>
+    <div className="flex items-center justify-between">
+      <CardTitle>{update.title}</CardTitle>
+      {update.version && <Badge>{update.version}</Badge>}
+    </div>
+    <p className="text-sm text-muted-foreground">
+      {format(new Date(update.published_at), "dd/MM/yyyy")}
+    </p>
+  </CardHeader>
+  <CardContent>
+    <p>{update.description}</p>
+  </CardContent>
+</Card>
+```
+
+---
+
+### Icone Sugerido
+
+Usar o icone `Bell` (sino) ou `Megaphone` do lucide-react para representar atualizacoes/notificacoes
+
+---
 
 ### Resultado Esperado
 
-- Botão "Assinaturas" aparece no menu para franqueadoras
-- Ao clicar, usuário é redirecionado para a página de gerenciamento de assinatura
-- Funciona tanto no desktop (tabs) quanto no mobile (select dropdown)
+1. Super Admin pode publicar atualizacoes do sistema de forma simples
+2. Todos os usuarios tem acesso facil as novidades
+3. Historico de atualizacoes fica disponivel permanentemente
+4. Comunicacao clara entre administrador do SaaS e clientes
 
