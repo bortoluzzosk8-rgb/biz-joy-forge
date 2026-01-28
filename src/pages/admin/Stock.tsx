@@ -23,12 +23,15 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectSeparator,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Truck, History, RefreshCw, Sparkles } from "lucide-react";
+import { Loader2, Truck, History, RefreshCw, Sparkles, Plus } from "lucide-react";
 import { autoSubstituteItems } from "@/lib/autoSubstituteItems";
+import { useNavigate } from "react-router-dom";
 
 const Stock = () => {
+  const navigate = useNavigate();
   const { isFranqueadora, isVendedor, userFranchise } = useAuth();
   const [loading, setLoading] = useState(true);
   const [loadingMovementNeeds, setLoadingMovementNeeds] = useState(false);
@@ -1112,6 +1115,18 @@ const Stock = () => {
                         {p.name}
                       </SelectItem>
                     ))}
+                    <SelectSeparator />
+                    <div 
+                      className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-primary font-medium"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEquipModalOpen(false);
+                        navigate('/admin/products');
+                      }}
+                    >
+                      <Plus className="absolute left-2 h-4 w-4" />
+                      Cadastrar novo produto
+                    </div>
                   </SelectContent>
                 </Select>
               </div>
@@ -1203,6 +1218,18 @@ const Stock = () => {
                         {p.name}
                       </SelectItem>
                     ))}
+                    <SelectSeparator />
+                    <div 
+                      className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-primary font-medium"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditModalOpen(false);
+                        navigate('/admin/products');
+                      }}
+                    >
+                      <Plus className="absolute left-2 h-4 w-4" />
+                      Cadastrar novo produto
+                    </div>
                   </SelectContent>
                 </Select>
               </div>
