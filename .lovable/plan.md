@@ -1,49 +1,41 @@
 
-## Plano: Corrigir Redirecionamento do Dashboard (Incluir Sub-rotas)
+## Plano: Dobrar o Tamanho do Logo
 
-### Diagnóstico
+### Situação Atual
 
-O redirecionamento atual só funciona para `/admin/dashboard` exato, mas você está acessando `/admin/dashboard/rentals`.
+O logo está com a classe `h-14` que equivale a **56px** de altura.
 
-| Rota Atual | Redirecionamento | Status |
-|------------|------------------|--------|
-| `/admin/dashboard` | `/admin/rentals` | Funciona |
-| `/admin/dashboard/rentals` | - | **404** (não coberta) |
-| `/admin/dashboard/qualquer-coisa` | - | **404** (não coberta) |
+### Alteração
 
-### Solução
+Dobrar o tamanho significa usar `h-28` que equivale a **112px** de altura.
 
-Usar um padrão de wildcard (`/*`) para capturar **todas** as sub-rotas do dashboard.
+| Classe | Altura | Status |
+|--------|--------|--------|
+| h-14 | 56px | Atual |
+| h-28 | 112px | **Novo (dobro)** |
 
 ---
 
 ### Arquivo a Modificar
 
-| Arquivo | Acao |
+| Arquivo | Ação |
 |---------|------|
-| `src/App.tsx` | Alterar rota de redirecionamento |
+| `src/pages/admin/AdminLayout.tsx` | Linha 132 |
 
 ---
 
-### Alteracao
+### Código
 
 ```typescript
-// ANTES (linha 91)
-<Route path="dashboard" element={<Navigate to="rentals" replace />} />
+// ANTES (linha 132)
+className="h-14 w-auto"
 
 // DEPOIS
-<Route path="dashboard/*" element={<Navigate to="/admin/rentals" replace />} />
+className="h-28 w-auto"
 ```
-
-**Mudancas:**
-1. `dashboard` → `dashboard/*` - captura todas as sub-rotas
-2. `"rentals"` → `"/admin/rentals"` - caminho absoluto para garantir redirecionamento correto
 
 ---
 
 ### Resultado
 
-Todas estas rotas serao redirecionadas para `/admin/rentals`:
-- `/admin/dashboard`
-- `/admin/dashboard/rentals`
-- `/admin/dashboard/qualquer-coisa`
+O logo do PlayGestor ficará com o dobro do tamanho atual (de 56px para 112px de altura).
