@@ -120,6 +120,9 @@ Deno.serve(async (req) => {
 
     // Create franchise if doesn't exist and we have the data
     if (!franchiseId && name) {
+      // Calcular data de fim do trial (10 dias a partir de agora)
+      const trialEndsAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
+      
       const { data: franchise, error: franchiseError } = await supabaseAdmin
         .from('franchises')
         .insert({
@@ -128,7 +131,9 @@ Deno.serve(async (req) => {
           phone: phone || null,
           city: 'A definir',
           status: 'active',
-          parent_franchise_id: null // Marca como franquia raiz (cliente SaaS)
+          parent_franchise_id: null, // Marca como franquia raiz (cliente SaaS)
+          trial_ends_at: trialEndsAt,
+          subscription_status: 'trial'
         })
         .select()
         .single()
