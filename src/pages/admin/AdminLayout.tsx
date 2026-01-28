@@ -39,7 +39,6 @@ const AdminLayout = () => {
     { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["super_admin"] },
     { value: "leads", label: "Leads SaaS", icon: UserPlus, roles: ["super_admin"] },
     { value: "saas-management", label: "Clientes", icon: Building2, roles: ["super_admin"] },
-    { value: "updates", label: "Atualizações", icon: Megaphone, roles: ["super_admin"] },
   ];
 
   // Menu items para clientes (franqueadoras, vendedores, motoristas)
@@ -59,8 +58,6 @@ const AdminLayout = () => {
     { value: "sellers", label: "Vendedores", icon: UserCheck, roles: ["franqueadora"] },
     { value: "franchise-report", label: "Relatório", icon: FileSpreadsheet, roles: ["franqueadora"] },
     { value: "settings", label: "Config", icon: Settings, roles: ["franqueadora"] },
-    { value: "subscription", label: "Assinaturas", icon: CreditCard, roles: ["franqueadora"] },
-    { value: "updates", label: "Atualizações", icon: Megaphone, roles: ["franqueadora", "vendedor", "motorista"] },
   ];
 
   // Filtrar menus baseado no role
@@ -146,10 +143,24 @@ const AdminLayout = () => {
                 </p>
               )}
             </div>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/updates')}>
+                <Megaphone className="w-4 h-4" />
+                <span className="hidden sm:inline ml-1">Atualizações</span>
+              </Button>
+              
+              {isFranqueadora && (
+                <Button variant="ghost" size="sm" onClick={() => navigate('/assinatura')}>
+                  <CreditCard className="w-4 h-4" />
+                  <span className="hidden sm:inline ml-1">Assinaturas</span>
+                </Button>
+              )}
+              
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Sair
+              </Button>
+            </div>
           </div>
 
           {isMobile ? (
