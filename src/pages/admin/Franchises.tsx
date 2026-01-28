@@ -77,13 +77,49 @@ const Franchises = () => {
 
       if (userFranchiseError) throw userFranchiseError;
 
-      if (!userFranchise?.franchise_id) {
+      let userRootFranchiseId = userFranchise?.franchise_id || null;
+
+      // Se não tem vínculo, tentar recuperar automaticamente
+      if (!userRootFranchiseId) {
+        console.log("Usuário sem vínculo em user_franchises, tentando auto-recuperação...");
+        
+        // Buscar franquias raiz (sem parent_franchise_id) que o usuário pode ter criado
+        const { data: orphanFranchises, error: orphanError } = await supabase
+          .from("franchises")
+          .select("id, name")
+          .is("parent_franchise_id", null)
+          .order("created_at", { ascending: true })
+          .limit(1);
+
+        if (!orphanError && orphanFranchises && orphanFranchises.length > 0) {
+          const firstFranchise = orphanFranchises[0];
+          
+          // Criar o vínculo automaticamente
+          const { error: insertError } = await supabase
+            .from("user_franchises")
+            .insert({
+              user_id: user.id,
+              franchise_id: firstFranchise.id,
+              name: firstFranchise.name
+            });
+
+          if (!insertError) {
+            console.log("Vínculo criado automaticamente:", firstFranchise.name);
+            userRootFranchiseId = firstFranchise.id;
+            toast.success("Sua franquia raiz foi vinculada automaticamente");
+          } else {
+            console.error("Erro ao criar vínculo:", insertError);
+          }
+        }
+      }
+
+      if (!userRootFranchiseId) {
         setFranchises([]);
         setLoading(false);
+        toast.info("Nenhuma franquia encontrada. Crie sua primeira unidade.");
         return;
       }
 
-      const userRootFranchiseId = userFranchise.franchise_id;
       setRootFranchiseId(userRootFranchiseId);
 
       // Buscar apenas a franquia raiz e suas unidades filhas
