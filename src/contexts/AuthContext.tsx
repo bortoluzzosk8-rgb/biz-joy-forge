@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userFranchise, setUserFranchise] = useState<Franchise | null>(null);
   const [checkingAdmin, setCheckingAdmin] = useState(false);
 
-  const checkAdminStatus = async (userId: string) => {
+  const checkAdminStatus = async (userId: string, userEmail?: string) => {
     setCheckingAdmin(true);
     try {
       // Verificar roles
@@ -49,11 +49,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         supabase.rpc('has_role', { _user_id: userId, _role: 'super_admin' })
       ]);
       
-      const isFranqueadoraRole = franqueadoraCheck.data || false;
-      const isAdminRole = adminCheck.data || false;
-      const isVendedorRole = vendedorCheck.data || false;
-      const isMotoristaRole = motoristaCheck.data || false;
-      const isSuperAdminRole = superAdminCheck.data || false;
+      let isFranqueadoraRole = franqueadoraCheck.data || false;
+      let isAdminRole = adminCheck.data || false;
+      let isVendedorRole = vendedorCheck.data || false;
+      let isMotoristaRole = motoristaCheck.data || false;
+      let isSuperAdminRole = superAdminCheck.data || false;
+      
+      const hasSomeRole = isFranqueadoraRole || isAdminRole || isVendedorRole || isMotoristaRole || isSuperAdminRole;
+      
+      // Se não tem nenhum role, é um usuário recém-criado que precisa da role
+      if (!hasSomeRole && userEmail) {
+        console.log('Usuário sem role detectado, atribuindo role automaticamente...');
+        
+        // Chamar edge function para atribuir role
+        const { error: assignError } = await supabase.functions.invoke('assign-franqueadora-role', {
+          body: { user_id: userId }
+        });
+        
+        if (assignError) {
+          console.error('Erro ao atribuir role:', assignError);
+        } else {
+          // Aguardar e verificar novamente
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Re-verificar após atribuição
+          const [newFranqueadoraCheck, newSuperAdminCheck] = await Promise.all([
+            supabase.rpc('has_role', { _user_id: userId, _role: 'franqueadora' }),
+            supabase.rpc('has_role', { _user_id: userId, _role: 'super_admin' })
+          ]);
+          
+          isFranqueadoraRole = newFranqueadoraCheck.data || false;
+          isSuperAdminRole = newSuperAdminCheck.data || false;
+          
+          console.log('Roles após atribuição:', { isFranqueadoraRole, isSuperAdminRole });
+        }
+      }
       
       setIsSuperAdmin(isSuperAdminRole);
       setIsFranqueadora(isFranqueadoraRole);
@@ -118,7 +148,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (session?.user) {
           // Defer the admin check to avoid blocking
           setTimeout(() => {
-            checkAdminStatus(session.user.id);
+            checkAdminStatus(session.user.id, session.user.email);
           }, 0);
         } else {
           setIsAdmin(false);
@@ -136,7 +166,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        await checkAdminStatus(session.user.id);
+        await checkAdminStatus(session.user.id, session.user.email);
       } else {
         setIsAdmin(false);
         setIsVendedor(false);
