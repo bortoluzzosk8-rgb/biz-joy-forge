@@ -33,6 +33,7 @@ import Monitors from "./pages/admin/Monitors";
 import Settings from "./pages/admin/Settings";
 import Logistics from "./pages/admin/Logistics";
 import SaasManagement from "./pages/admin/SaasManagement";
+import SystemUpdates from "./pages/admin/SystemUpdates";
 import NotFound from "./pages/NotFound";
 import PublicContract from "./pages/PublicContract";
 import ResetPassword from "./pages/ResetPassword";
@@ -102,6 +103,7 @@ const App = () => (
                   <Route path="monitors" element={<Monitors />} />
                   <Route path="settings" element={<Settings />} />
                   <Route path="saas-management" element={<SaasManagement />} />
+                  <Route path="updates" element={<SystemUpdates />} />
                 </Route>
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

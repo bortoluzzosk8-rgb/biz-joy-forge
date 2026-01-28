@@ -6,6 +6,7 @@ import { Users, MessageSquare, TrendingUp, Clock, Building2, UserPlus } from "lu
 import { format, subDays, subHours } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import SystemUpdatesManager from "@/components/admin/SystemUpdatesManager";
 
 type SaasClient = {
   user_id: string;
@@ -274,6 +275,9 @@ const SuperAdminDashboard = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Gerenciador de Atualizações */}
+      <SystemUpdatesManager />
     </div>
   );
 };
