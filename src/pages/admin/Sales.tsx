@@ -2072,7 +2072,7 @@ Obrigado pela confiança! 🙏`;
           {/* Seção 1: Informações da Venda */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="franchise_id">Unidade/Franquia que vai Atender *</Label>
+              <Label htmlFor="franchise_id">Unidade que vai Atender *</Label>
               {isFranqueado && userFranchise ? (
                 // Franqueado vê apenas sua unidade (campo fixo)
                 <div className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-muted px-3 py-2 text-sm">
