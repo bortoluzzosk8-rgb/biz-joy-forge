@@ -1,54 +1,39 @@
 
 
-## Plano: Corrigir Problema de Cadastro de Unidades
+## Plano: Validar Horário de Retirada vs Horário da Festa
 
-### Diagnóstico Detalhado
+### Problema Identificado
 
-O problema foi identificado e tem a seguinte cadeia de causa:
+Quando a data de retirada é igual à data da festa, o sistema permite que o horário de retirada seja antes do horário de início da festa.
 
-| Passo | Status | Problema |
-|-------|--------|----------|
-| 1. Buscar `user_franchises` do usuário | **Retorna vazio** | Usuário não tem vínculo |
-| 2. `rootFranchiseId` fica `null` | Falha silenciosa | Não tem franquia raiz definida |
-| 3. Nova unidade criada com `parent_franchise_id: null` | Comportamento incorreto | Cria como raiz, não como filha |
-| 4. Listagem filtra por `parent_franchise_id = null` | Não encontra nada | Filtro não funciona com `null` |
+| Campo | Valor no Screenshot |
+|-------|---------------------|
+| Data da Festa | 28/01/2026 |
+| Data de Retirada | 28/01/2026 (mesmo dia) |
+| Horário Início Festa | 08:00 |
+| Horário Retirada | 07:00 |
 
-**Evidência**: O usuário atual (`e162b3e7-f791-481a-bf6b-e8a7afe1d21a`) possui role `franqueadora` mas NÃO possui registro na tabela `user_franchises`.
+Isso é impossível - não se pode retirar os equipamentos antes da festa começar.
 
 ---
 
-### Solução em 2 Partes
+### Solução Proposta
 
-#### Parte 1: Correção de Dados (Imediata)
+Implementar validação em dois pontos:
 
-Vincular o usuário à sua franquia raiz. Existem algumas franquias órfãs criadas recentemente:
+1. **Validação em tempo real** - Ao alterar o horário de retirada, verificar e mostrar alerta visual
+2. **Validação no submit** - Bloquear o salvamento se a regra for violada
+
+---
+
+### Regra de Negócio
 
 ```text
-id: e8019f6e-fdbf-480b-916a-71f9cc52b2c6
-name: PLAY GESTOR
-city: CEDRAL
-created_at: 2026-01-28 14:50:36
+SE data_retirada == data_festa
+  E horario_retirada está preenchido
+  E horario_inicio_festa está preenchido
+  ENTÃO horario_retirada DEVE SER >= horario_inicio_festa
 ```
-
-SQL para corrigir:
-```sql
-INSERT INTO user_franchises (user_id, franchise_id, name)
-VALUES (
-  'e162b3e7-f791-481a-bf6b-e8a7afe1d21a',
-  'e8019f6e-fdbf-480b-916a-71f9cc52b2c6',
-  'Play gestor'
-);
-```
-
----
-
-#### Parte 2: Melhoria do Código (Preventiva)
-
-Modificar o arquivo `src/pages/admin/Franchises.tsx` para:
-
-1. **Detectar quando o usuário não tem franquia vinculada**
-2. **Criar automaticamente o vínculo** usando a primeira franquia criada por ele
-3. **Exibir mensagem informativa** caso não consiga recuperar automaticamente
 
 ---
 
@@ -56,30 +41,52 @@ Modificar o arquivo `src/pages/admin/Franchises.tsx` para:
 
 | Arquivo | Ação |
 |---------|------|
-| `src/pages/admin/Franchises.tsx` | Adicionar lógica de auto-recuperação |
+| `src/pages/admin/Sales.tsx` | Adicionar validação no `handleSubmit` |
+| `src/pages/admin/Sales.tsx` | Adicionar alerta visual no campo de horário de retirada |
 
 ---
 
-### Fluxo Melhorado
+### Detalhes Técnicos
 
-```text
-1. Buscar user_franchises do usuário
-2. SE vazio:
-   a. Buscar franquias com parent_franchise_id = null
-   b. SE encontrar uma franquia sem parent:
-      - Criar vínculo automaticamente em user_franchises
-      - Usar essa como rootFranchiseId
-   c. SE não encontrar:
-      - Exibir mensagem orientando o usuário
-3. Continuar fluxo normal
+**1. Validação no handleSubmit (antes de salvar):**
+
+Adicionar após as validações existentes (~linha 1097):
+
+```typescript
+// Validar horário de retirada quando no mesmo dia da festa
+if (formData.rental_start_date && formData.return_date && 
+    formData.rental_start_date === formData.return_date &&
+    formData.party_start_time && formData.return_time) {
+  if (formData.return_time < formData.party_start_time) {
+    toast.error("O horário de retirada não pode ser antes do horário de início da festa quando são no mesmo dia");
+    setIsSubmitting(false);
+    return;
+  }
+}
+```
+
+**2. Alerta visual no formulário:**
+
+Adicionar um Card de aviso abaixo dos campos de horário quando a condição for violada:
+
+```typescript
+{formData.rental_start_date === formData.return_date && 
+ formData.party_start_time && formData.return_time && 
+ formData.return_time < formData.party_start_time && (
+  <Card className="p-3 bg-red-50 dark:bg-red-950/20 border-red-200 mt-4">
+    <p className="text-sm text-red-900 dark:text-red-100">
+      ⚠️ O horário de retirada não pode ser anterior ao horário de início da festa no mesmo dia!
+    </p>
+  </Card>
+)}
 ```
 
 ---
 
 ### Resultado Esperado
 
-Após as correções:
-- Usuário verá sua franquia raiz listada
-- Novas unidades serão criadas corretamente como filhas
-- As unidades aparecerão nos selects de Estoque e Locações
+- Se o usuário tentar colocar horário de retirada antes do horário da festa (no mesmo dia):
+  - Verá um aviso vermelho imediatamente no formulário
+  - Não conseguirá salvar a locação até corrigir
+  - Receberá mensagem de erro clara explicando o problema
 
