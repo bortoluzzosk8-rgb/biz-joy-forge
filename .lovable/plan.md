@@ -1,10 +1,24 @@
 
+## Plano: Corrigir Erro 404 no /admin/dashboard
 
-## Plano: Aumentar Tamanho do Logo no Header
+### Diagnóstico
 
-### Objetivo
+O usuário está acessando `/admin/dashboard` que não existe no sistema. O Dashboard financeiro foi removido e não há redirecionamento para essa URL antiga.
 
-Aumentar o logo do PlayGestor no header do painel administrativo para ficar mais proporcional ao texto do email.
+**Rotas atuais definidas:**
+- `/admin` → redireciona para `/admin/rentals`
+- `/admin/dashboard` → **NÃO EXISTE** (causa 404)
+
+### Causa Provável
+
+O navegador pode ter:
+- Cache antigo armazenado
+- Bookmark salvo para `/admin/dashboard`
+- Link direto para essa rota
+
+### Solução
+
+Adicionar um redirecionamento de `/admin/dashboard` para `/admin/rentals` no arquivo `App.tsx`.
 
 ---
 
@@ -12,30 +26,27 @@ Aumentar o logo do PlayGestor no header do painel administrativo para ficar mais
 
 | Arquivo | Ação |
 |---------|------|
-| `src/pages/admin/AdminLayout.tsx` | Aumentar classe do logo |
+| `src/App.tsx` | Adicionar rota de redirecionamento |
 
 ---
 
 ### Alteração
 
-**Linha 130** - Alterar a classe de altura do logo:
+Adicionar nova linha dentro das rotas do admin:
 
 ```typescript
-// ANTES
-className="h-10 w-auto"
-
-// DEPOIS
-className="h-14 w-auto"
+<Route path="/admin" element={...}>
+  <Route index element={<Navigate to="rentals" replace />} />
+  <Route path="dashboard" element={<Navigate to="rentals" replace />} />  // NOVA
+  <Route path="products" element={<Products />} />
+  // ... demais rotas
+</Route>
 ```
 
-### Comparação de Tamanhos
+---
 
-| Classe | Altura | Observação |
-|--------|--------|------------|
-| h-10 | 40px | Atual (pequeno) |
-| h-12 | 48px | Médio |
-| h-14 | 56px | Recomendado |
-| h-16 | 64px | Grande |
+### Resultado
 
-Vou usar `h-14` (56px) que deve ficar proporcional ao email. Se ainda precisar ajustar, podemos aumentar ou diminuir.
-
+- Usuários que acessarem `/admin/dashboard` serão automaticamente redirecionados para `/admin/rentals`
+- Sem erro 404
+- Compatibilidade com bookmarks e links antigos
