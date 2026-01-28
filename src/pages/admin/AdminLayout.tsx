@@ -129,7 +129,7 @@ const AdminLayout = () => {
                 <img 
                   src={logoPlaygestor} 
                   alt="PlayGestor" 
-                  className="h-28 w-auto"
+                  className="h-14 w-auto"
                 />
               </div>
               <p className="text-sm text-muted-foreground">{user?.email}</p>
