@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
@@ -12,7 +13,8 @@ const ProtectedRoute = ({
   requireAdmin = false,
   requireAuth = false 
 }: ProtectedRouteProps) => {
-  const { user, loading, isAdmin, checkingAdmin } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, checkingAdmin } = useAuth();
+  const { subscriptionStatus, loading: loadingSubscription } = useSubscriptionStatus(user?.id);
 
   // Loading inicial - ainda não tem sessão confirmada
   if (loading) {
@@ -31,7 +33,7 @@ const ProtectedRoute = ({
     }
     
     // Se ainda está verificando roles, mostra loading
-    if (checkingAdmin) {
+    if (checkingAdmin || loadingSubscription) {
       return (
         <div className="min-h-screen flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -42,6 +44,11 @@ const ProtectedRoute = ({
     // Se verificou e não é admin, redireciona para home
     if (!isAdmin) {
       return <Navigate to="/" replace />;
+    }
+
+    // Super Admin nunca é bloqueado por assinatura
+    if (!isSuperAdmin && subscriptionStatus?.status === 'expired') {
+      return <Navigate to="/escolher-plano" replace />;
     }
   }
 

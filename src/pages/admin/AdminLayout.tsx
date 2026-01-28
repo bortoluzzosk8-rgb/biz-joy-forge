@@ -2,8 +2,9 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, FileSpreadsheet, UserCheck, Truck, User, Building2 } from "lucide-react";
+import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, FileSpreadsheet, UserCheck, Truck, User, Building2, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -11,6 +12,7 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut, user, isFranqueadora, isVendedor, isMotorista, isSuperAdmin, userFranchise } = useAuth();
+  const { subscriptionStatus } = useSubscriptionStatus(user?.id);
   const isMobile = useIsMobile();
 
   const handleLogout = async () => {
@@ -81,6 +83,26 @@ const AdminLayout = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Trial Banner */}
+      {subscriptionStatus?.status === 'trial' && subscriptionStatus.trialDaysLeft !== null && !isSuperAdmin && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2">
+          <div className="flex items-center justify-center gap-2 text-amber-600 dark:text-amber-400 text-sm">
+            <Clock className="h-4 w-4" />
+            <span>
+              ⏰ Você tem <strong>{subscriptionStatus.trialDaysLeft} {subscriptionStatus.trialDaysLeft === 1 ? 'dia' : 'dias'}</strong> restantes do período de teste.
+            </span>
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="text-amber-600 dark:text-amber-400 p-0 h-auto"
+              onClick={() => navigate('/escolher-plano')}
+            >
+              Escolher um plano
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="border-b bg-card">
         <div className="px-4 lg:px-8 py-4">
           <div className="flex items-center justify-between mb-4">
