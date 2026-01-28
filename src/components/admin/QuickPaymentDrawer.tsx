@@ -69,6 +69,10 @@ export const QuickPaymentDrawer = ({
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  // Estados para upload de comprovante no formulário de novo pagamento
+  const [newPaymentFile, setNewPaymentFile] = useState<File | null>(null);
+  const [newPaymentPreview, setNewPaymentPreview] = useState<string | null>(null);
+
   const [newPayment, setNewPayment] = useState({
     payment_type: '' as 'sinal' | 'pagamento' | 'complemento' | '',
     payment_method: 'pix' as 'dinheiro' | 'pix' | 'debito' | 'credito' | 'boleto',
@@ -119,6 +123,30 @@ export const QuickPaymentDrawer = ({
       return;
     }
 
+    // Se tiver arquivo, faz upload primeiro
+    let receiptUrl: string | null = null;
+    if (newPaymentFile) {
+      const fileExt = newPaymentFile.name.split('.').pop();
+      const fileName = `new-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('payment-receipts')
+        .upload(filePath, newPaymentFile);
+      
+      if (uploadError) {
+        toast.error('Erro ao enviar comprovante');
+        console.error('Upload error:', uploadError);
+        return;
+      }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('payment-receipts')
+        .getPublicUrl(filePath);
+      
+      receiptUrl = publicUrl;
+    }
+
     const { error } = await supabase
       .from('sale_payments')
       .insert({
@@ -131,6 +159,7 @@ export const QuickPaymentDrawer = ({
         card_fee: (newPayment.payment_method === 'credito' || newPayment.payment_method === 'debito')
           ? parseFloat(newPayment.card_fee) || 0
           : 0,
+        receipt_url: receiptUrl,
       });
 
     if (error) {
@@ -147,17 +176,15 @@ export const QuickPaymentDrawer = ({
       installments: '1',
       card_fee: '',
     });
+    // Limpar arquivo anexado
+    setNewPaymentFile(null);
+    setNewPaymentPreview(null);
     loadPayments();
     onPaymentAdded();
   };
 
   // Marcar como pago
   const handleMarkAsPaid = async (paymentId: string) => {
-    const payment = payments.find(p => p.id === paymentId);
-    if (!payment?.receipt_url) {
-      toast.error('Anexe o comprovante antes de confirmar o pagamento');
-      return;
-    }
 
     const { error } = await supabase
       .from('sale_payments')
@@ -426,6 +453,67 @@ export const QuickPaymentDrawer = ({
                 </div>
               )}
 
+              {/* Campo de upload de comprovante opcional */}
+              <div className="mt-3">
+                <Label className="text-xs flex items-center gap-1">
+                  <Upload className="w-3 h-3" />
+                  Comprovante (opcional)
+                </Label>
+                {!newPaymentPreview ? (
+                  <div 
+                    className="mt-1 border-2 border-dashed border-muted-foreground/25 rounded-lg p-3 text-center cursor-pointer hover:bg-muted/50 hover:border-primary/50 transition-all"
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const file = e.dataTransfer.files?.[0];
+                      if (file && file.type.startsWith('image/')) {
+                        setNewPaymentFile(file);
+                        setNewPaymentPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*';
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) {
+                          setNewPaymentFile(file);
+                          setNewPaymentPreview(URL.createObjectURL(file));
+                        }
+                      };
+                      input.click();
+                    }}
+                  >
+                    <Upload className="mx-auto h-5 w-5 text-muted-foreground mb-1" />
+                    <p className="text-xs text-muted-foreground">Arraste ou clique para anexar</p>
+                  </div>
+                ) : (
+                  <div className="mt-1 flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
+                    <img 
+                      src={newPaymentPreview} 
+                      alt="Preview" 
+                      className="w-10 h-10 object-cover rounded"
+                    />
+                    <span className="text-xs text-muted-foreground flex-1 truncate">
+                      {newPaymentFile?.name}
+                    </span>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm"
+                      className="h-7"
+                      onClick={() => {
+                        setNewPaymentFile(null);
+                        setNewPaymentPreview(null);
+                      }}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               <Button
                 onClick={handleAddPayment}
                 className="w-full mt-4"
@@ -500,17 +588,15 @@ export const QuickPaymentDrawer = ({
                               <Upload className="w-3 h-3 mr-1" />
                               {payment.receipt_url ? 'Trocar' : 'Comprovante'}
                             </Button>
-                            {payment.receipt_url && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleMarkAsPaid(payment.id)}
-                                className="h-7 text-xs"
-                              >
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                Confirmar
-                              </Button>
-                            )}
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleMarkAsPaid(payment.id)}
+                              className="h-7 text-xs"
+                            >
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Confirmar
+                            </Button>
                           </>
                         )}
                         <Button

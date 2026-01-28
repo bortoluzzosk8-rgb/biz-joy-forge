@@ -97,6 +97,10 @@ export const PaymentManager = ({
     notes: '',
     card_fee: '',
   });
+  
+  // Estados para upload de comprovante no formulário de novo pagamento
+  const [newPaymentFile, setNewPaymentFile] = useState<File | null>(null);
+  const [newPaymentPreview, setNewPaymentPreview] = useState<string | null>(null);
 
   // Estados Asaas
   const [asaasModalOpen, setAsaasModalOpen] = useState(false);
@@ -160,6 +164,9 @@ export const PaymentManager = ({
         status: 'pending',
         card_fee: newPayment.payment_method === 'credito' ? parseFloat(newPayment.card_fee) || 0 : 0,
         created_at: new Date().toISOString(),
+        // Se tem arquivo anexado, adiciona ao pagamento local
+        localReceiptFile: newPaymentFile || undefined,
+        localReceiptPreview: newPaymentPreview || undefined,
       };
       
       onLocalPaymentsChange?.([...localPayments, localPayment]);
@@ -172,6 +179,9 @@ export const PaymentManager = ({
         notes: '',
         card_fee: '',
       });
+      // Limpar arquivo anexado
+      setNewPaymentFile(null);
+      setNewPaymentPreview(null);
       setShowAddForm(false);
       return;
     }
@@ -182,6 +192,30 @@ export const PaymentManager = ({
       return;
     }
     
+    // Se tiver arquivo, faz upload primeiro
+    let receiptUrl: string | null = null;
+    if (newPaymentFile) {
+      const fileExt = newPaymentFile.name.split('.').pop();
+      const fileName = `new-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('payment-receipts')
+        .upload(filePath, newPaymentFile);
+      
+      if (uploadError) {
+        toast.error('Erro ao enviar comprovante');
+        console.error('Upload error:', uploadError);
+        return;
+      }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('payment-receipts')
+        .getPublicUrl(filePath);
+      
+      receiptUrl = publicUrl;
+    }
+
     const { error } = await supabase
       .from('sale_payments')
       .insert({
@@ -193,6 +227,7 @@ export const PaymentManager = ({
         notes: newPayment.notes || null,
         status: 'pending',
         card_fee: newPayment.payment_method === 'credito' ? parseFloat(newPayment.card_fee) || 0 : 0,
+        receipt_url: receiptUrl,
       });
     
     if (error) {
@@ -210,6 +245,9 @@ export const PaymentManager = ({
       notes: '',
       card_fee: '',
     });
+    // Limpar arquivo anexado
+    setNewPaymentFile(null);
+    setNewPaymentPreview(null);
     setShowAddForm(false);
     loadPayments();
     onPaymentsChange?.();
@@ -261,11 +299,6 @@ export const PaymentManager = ({
   const handleLocalMarkAsPaid = (paymentId: string) => {
     const payment = localPayments.find(p => p.id === paymentId);
     
-    if (!payment?.localReceiptPreview) {
-      toast.error('Anexe o comprovante antes de confirmar');
-      return;
-    }
-    
     const updatedPayments = localPayments.map(p => {
       if (p.id === paymentId) {
         return {
@@ -283,12 +316,6 @@ export const PaymentManager = ({
 
   // Marcar como pago (banco)
   const handleMarkAsPaid = async (paymentId: string) => {
-    // Verificar se tem comprovante
-    const payment = payments.find(p => p.id === paymentId);
-    if (!payment?.receipt_url) {
-      toast.error('Anexe o comprovante antes de confirmar o pagamento');
-      return;
-    }
 
     const { error } = await supabase
       .from('sale_payments')
@@ -908,6 +935,66 @@ export const PaymentManager = ({
               />
             </div>
 
+            {/* Campo de upload de comprovante opcional */}
+            <div>
+              <Label className="flex items-center gap-1">
+                <Upload className="w-3 h-3" />
+                Comprovante (opcional)
+              </Label>
+              {!newPaymentPreview ? (
+                <div 
+                  className="mt-1 border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 hover:border-primary/50 transition-all"
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file && file.type.startsWith('image/')) {
+                      setNewPaymentFile(file);
+                      setNewPaymentPreview(URL.createObjectURL(file));
+                    }
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        setNewPaymentFile(file);
+                        setNewPaymentPreview(URL.createObjectURL(file));
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Arraste ou clique para anexar</p>
+                </div>
+              ) : (
+                <div className="mt-1 flex items-center gap-3 p-2 bg-muted/30 rounded-lg">
+                  <img 
+                    src={newPaymentPreview} 
+                    alt="Preview" 
+                    className="w-12 h-12 object-cover rounded"
+                  />
+                  <span className="text-sm text-muted-foreground flex-1 truncate">
+                    {newPaymentFile?.name}
+                  </span>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setNewPaymentFile(null);
+                      setNewPaymentPreview(null);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-2">
               <Button type="button" onClick={handleAddPayment} className="flex-1">
                 Adicionar Pagamento
@@ -1025,9 +1112,7 @@ export const PaymentManager = ({
                           type="button"
                           size="sm" 
                           variant="outline"
-                          disabled={!payment.localReceiptPreview}
                           onClick={() => handleLocalMarkAsPaid(payment.id)}
-                          title={!payment.localReceiptPreview ? 'Anexe o comprovante primeiro' : ''}
                         >
                           <CheckCircle className="w-3 h-3 mr-1" />
                           Confirmar
@@ -1042,12 +1127,6 @@ export const PaymentManager = ({
                           <Upload className="w-3 h-3 mr-1" />
                           Comprovante
                         </Button>
-                        
-                        {!payment.localReceiptPreview && (
-                          <p className="text-xs text-amber-600">
-                            ⚠️ Anexe o comprovante
-                          </p>
-                        )}
                       </>
                     )}
                     
@@ -1133,18 +1212,11 @@ export const PaymentManager = ({
                           type="button"
                           size="sm" 
                           variant="outline"
-                          disabled={!payment.receipt_url}
                           onClick={() => handleMarkAsPaid(payment.id)}
-                          title={!payment.receipt_url ? 'Anexe o comprovante primeiro' : ''}
                         >
                           <CheckCircle className="w-3 h-3 mr-1" />
                           Confirmar
                         </Button>
-                        {!payment.receipt_url && !payment.asaas_payment_id && (
-                          <p className="text-xs text-amber-600">
-                            ⚠️ Anexe comprovante ou gere cobrança Asaas
-                          </p>
-                        )}
                         
                         <Button 
                           type="button"
