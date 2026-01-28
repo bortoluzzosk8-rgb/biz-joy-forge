@@ -5,7 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
+import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -143,6 +144,7 @@ const ITEMS_STORAGE_KEY = 'rentals_items_draft';
 const FRANCHISE_STORAGE_KEY = 'rentals_franchise_draft';
 
 const Sales = () => {
+  const navigate = useNavigate();
   const { isFranqueadora, isFranqueado, userFranchise, user } = useAuth();
   const [sales, setSales] = useState<Sale[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -2099,6 +2101,17 @@ Obrigado pela confiança! 🙏`;
                         {franchise.name} - {franchise.city}
                       </SelectItem>
                     ))}
+                    <SelectSeparator />
+                    <div 
+                      className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-primary font-medium"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/admin/franchises');
+                      }}
+                    >
+                      <Plus className="absolute left-2 h-4 w-4" />
+                      Cadastrar nova unidade
+                    </div>
                   </SelectContent>
                 </Select>
               )}
@@ -2156,6 +2169,18 @@ Obrigado pela confiança! 🙏`;
                           </CommandItem>
                         ))}
                       </CommandGroup>
+                      <div className="border-t px-2 py-2">
+                        <div 
+                          className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground text-primary font-medium"
+                          onClick={() => {
+                            setClientPopoverOpen(false);
+                            navigate('/admin/clients');
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Cadastrar novo cliente
+                        </div>
+                      </div>
                     </CommandList>
                   </Command>
                 </PopoverContent>
