@@ -582,6 +582,8 @@ export type Database = {
       franchises: {
         Row: {
           address: string | null
+          asaas_customer_id: string | null
+          asaas_subscription_id: string | null
           cep: string | null
           city: string
           cnpj: string | null
@@ -592,7 +594,9 @@ export type Database = {
           franqueadora_percentage: number | null
           id: string
           name: string
+          next_due_date: string | null
           parent_franchise_id: string | null
+          payment_method: string | null
           phone: string | null
           state: string | null
           status: string
@@ -604,6 +608,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
           cep?: string | null
           city: string
           cnpj?: string | null
@@ -614,7 +620,9 @@ export type Database = {
           franqueadora_percentage?: number | null
           id?: string
           name: string
+          next_due_date?: string | null
           parent_franchise_id?: string | null
+          payment_method?: string | null
           phone?: string | null
           state?: string | null
           status?: string
@@ -626,6 +634,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
           cep?: string | null
           city?: string
           cnpj?: string | null
@@ -636,7 +646,9 @@ export type Database = {
           franqueadora_percentage?: number | null
           id?: string
           name?: string
+          next_due_date?: string | null
           parent_franchise_id?: string | null
+          payment_method?: string | null
           phone?: string | null
           state?: string | null
           status?: string
@@ -1811,6 +1823,68 @@ export type Database = {
           whatsapp_number?: string | null
         }
         Relationships: []
+      }
+      subscription_payments: {
+        Row: {
+          asaas_payment_id: string
+          billing_type: string
+          boleto_barcode: string | null
+          boleto_url: string | null
+          created_at: string | null
+          due_date: string
+          franchise_id: string
+          id: string
+          payment_date: string | null
+          pix_expiration_date: string | null
+          pix_qrcode: string | null
+          pix_qrcode_image: string | null
+          status: string
+          updated_at: string | null
+          value: number
+        }
+        Insert: {
+          asaas_payment_id: string
+          billing_type: string
+          boleto_barcode?: string | null
+          boleto_url?: string | null
+          created_at?: string | null
+          due_date: string
+          franchise_id: string
+          id?: string
+          payment_date?: string | null
+          pix_expiration_date?: string | null
+          pix_qrcode?: string | null
+          pix_qrcode_image?: string | null
+          status?: string
+          updated_at?: string | null
+          value: number
+        }
+        Update: {
+          asaas_payment_id?: string
+          billing_type?: string
+          boleto_barcode?: string | null
+          boleto_url?: string | null
+          created_at?: string | null
+          due_date?: string
+          franchise_id?: string
+          id?: string
+          payment_date?: string | null
+          pix_expiration_date?: string | null
+          pix_qrcode?: string | null
+          pix_qrcode_image?: string | null
+          status?: string
+          updated_at?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_payments_franchise_id_fkey"
+            columns: ["franchise_id"]
+            isOneToOne: false
+            referencedRelation: "franchises"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_franchises: {
         Row: {

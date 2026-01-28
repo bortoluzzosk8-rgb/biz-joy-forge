@@ -47,8 +47,13 @@ const ProtectedRoute = ({
     }
 
     // Super Admin nunca é bloqueado por assinatura
-    if (!isSuperAdmin && subscriptionStatus?.status === 'expired') {
-      return <Navigate to="/escolher-plano" replace />;
+    const isBlocked = 
+      subscriptionStatus?.status === 'expired' ||
+      subscriptionStatus?.status === 'blocked' ||
+      subscriptionStatus?.status === 'cancelled';
+
+    if (!isSuperAdmin && isBlocked) {
+      return <Navigate to="/assinatura" replace />;
     }
   }
 

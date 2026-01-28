@@ -95,9 +95,29 @@ const AdminLayout = () => {
               variant="link" 
               size="sm" 
               className="text-amber-600 dark:text-amber-400 p-0 h-auto"
-              onClick={() => navigate('/escolher-plano')}
+              onClick={() => navigate('/assinatura')}
             >
-              Escolher um plano
+              Gerenciar assinatura
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Past Due Banner */}
+      {subscriptionStatus?.status === 'past_due' && !isSuperAdmin && (
+        <div className="bg-red-500/10 border-b border-red-500/30 px-4 py-2">
+          <div className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 text-sm">
+            <Clock className="h-4 w-4" />
+            <span>
+              ⚠️ Identificamos um <strong>pagamento em aberto</strong>. Regularize para evitar bloqueio.
+            </span>
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="text-red-600 dark:text-red-400 p-0 h-auto"
+              onClick={() => navigate('/assinatura')}
+            >
+              Ver cobrança
             </Button>
           </div>
         </div>
