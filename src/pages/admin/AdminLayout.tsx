@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, FileSpreadsheet, UserCheck, Truck, User, Building2, Clock, CreditCard } from "lucide-react";
+import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, FileSpreadsheet, UserCheck, Truck, User, Building2, Clock, CreditCard, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { toast } from "sonner";
@@ -39,6 +39,7 @@ const AdminLayout = () => {
     { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["super_admin"] },
     { value: "leads", label: "Leads SaaS", icon: UserPlus, roles: ["super_admin"] },
     { value: "saas-management", label: "Clientes", icon: Building2, roles: ["super_admin"] },
+    { value: "updates", label: "Atualizações", icon: Megaphone, roles: ["super_admin"] },
   ];
 
   // Menu items para clientes (franqueadoras, vendedores, motoristas)
@@ -59,6 +60,7 @@ const AdminLayout = () => {
     { value: "franchise-report", label: "Relatório", icon: FileSpreadsheet, roles: ["franqueadora"] },
     { value: "settings", label: "Config", icon: Settings, roles: ["franqueadora"] },
     { value: "subscription", label: "Assinaturas", icon: CreditCard, roles: ["franqueadora"] },
+    { value: "updates", label: "Atualizações", icon: Megaphone, roles: ["franqueadora", "vendedor", "motorista"] },
   ];
 
   // Filtrar menus baseado no role
