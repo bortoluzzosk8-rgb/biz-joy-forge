@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, UserCheck, Truck, User, Building2, Clock, CreditCard, Megaphone, ShoppingBag } from "lucide-react";
+import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, Store, UserCheck, Truck, User, Building2, Clock, CreditCard, Megaphone, ShoppingBag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { toast } from "sonner";
@@ -32,20 +32,18 @@ const AdminLayout = () => {
   };
 
   const getCurrentTab = () => {
-    const path = location.pathname.split("/admin/")[1] || "dashboard";
+    const path = location.pathname.split("/admin/")[1] || "rentals";
     return path;
   };
 
   // Menu items para Super Admin (gestão do SaaS)
   const superAdminMenuItems = [
-    { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["super_admin"] },
     { value: "leads", label: "Leads SaaS", icon: UserPlus, roles: ["super_admin"] },
     { value: "saas-management", label: "Clientes", icon: Building2, roles: ["super_admin"] },
   ];
 
   // Menu items para clientes (franqueadoras, vendedores, motoristas)
   const clientMenuItems = [
-    { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["franqueadora", "vendedor"] },
     { value: "rentals", label: "Locações", icon: Calendar, roles: ["franqueadora", "vendedor"] },
     { value: "stock", label: "Estoque", icon: Warehouse, roles: ["franqueadora", "vendedor"] },
     { value: "logistics", label: "Logística", icon: Truck, roles: ["franqueadora", "vendedor", "motorista"] },
