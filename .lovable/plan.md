@@ -1,41 +1,41 @@
 
-## Plano: Dobrar o Tamanho do Logo
+
+## Plano: Substituir Logo do PlayGestor
 
 ### Situação Atual
 
-O logo está com a classe `h-14` que equivale a **56px** de altura.
+O sistema usa o logo antigo localizado em `src/assets/logo-playgestor-header.png`.
 
-### Alteração
+### Alterações Necessárias
 
-Dobrar o tamanho significa usar `h-28` que equivale a **112px** de altura.
-
-| Classe | Altura | Status |
-|--------|--------|--------|
-| h-14 | 56px | Atual |
-| h-28 | 112px | **Novo (dobro)** |
+| Etapa | Ação |
+|-------|------|
+| 1 | Copiar a nova imagem para `src/assets/` |
+| 2 | Atualizar o import no `AdminLayout.tsx` |
 
 ---
 
-### Arquivo a Modificar
+### Detalhes Técnicos
 
-| Arquivo | Ação |
-|---------|------|
-| `src/pages/admin/AdminLayout.tsx` | Linha 132 |
+**1. Copiar a imagem:**
+```
+user-uploads://image-34.png → src/assets/logo-playgestor-novo.png
+```
 
----
-
-### Código
+**2. Atualizar o import no AdminLayout.tsx:**
 
 ```typescript
-// ANTES (linha 132)
-className="h-14 w-auto"
+// ANTES
+import logoPlaygestor from "@/assets/logo-playgestor-header.png";
 
 // DEPOIS
-className="h-28 w-auto"
+import logoPlaygestor from "@/assets/logo-playgestor-novo.png";
 ```
 
 ---
 
 ### Resultado
 
-O logo do PlayGestor ficará com o dobro do tamanho atual (de 56px para 112px de altura).
+- O novo logo colorido com o ícone de play sorridente será exibido no cabeçalho do sistema
+- O tamanho permanece em `h-28` (112px) como você aprovou
+
