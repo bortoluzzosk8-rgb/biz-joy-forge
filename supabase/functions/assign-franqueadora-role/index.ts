@@ -85,48 +85,31 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Check if user already has the franqueadora role
-    const { data: existingRole, error: checkError } = await supabaseAdmin
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', user_id)
-      .eq('role', 'franqueadora')
-      .maybeSingle()
-
-    if (checkError) {
-      console.error('Error checking existing role:', checkError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to check existing role' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // If role already exists, return success
-    if (existingRole) {
-      return new Response(
-        JSON.stringify({ success: true, message: 'Role already assigned', isSuperAdmin }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Check if user already has a franchise
-    const { data: existingFranchise } = await supabaseAdmin
+    // PRIMEIRO: Verificar se usuário já tem franquia vinculada
+    const { data: existingFranchise, error: franchiseCheckError } = await supabaseAdmin
       .from('user_franchises')
       .select('franchise_id')
       .eq('user_id', user_id)
       .maybeSingle()
 
+    if (franchiseCheckError) {
+      console.error('Error checking existing franchise:', franchiseCheckError)
+    }
+
     let franchiseId = existingFranchise?.franchise_id
 
-    // Create franchise if doesn't exist and we have the data
-    if (!franchiseId && name) {
+    // Criar franquia se não existir (independente se role já existe)
+    if (!franchiseId) {
+      // Buscar nome do user_metadata se não foi passado
+      const userName = name || userData.user.user_metadata?.name || 'Franquia'
+      
       // Calcular data de fim do trial (10 dias a partir de agora)
       const trialEndsAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
       
       const { data: franchise, error: franchiseError } = await supabaseAdmin
         .from('franchises')
         .insert({
-          name: name,
+          name: userName,
           email: email || userEmail,
           phone: phone || null,
           city: 'A definir',
@@ -155,7 +138,7 @@ Deno.serve(async (req) => {
         .insert({
           user_id: user_id,
           franchise_id: franchiseId,
-          name: name
+          name: userName
         })
 
       if (linkError) {
@@ -169,28 +152,46 @@ Deno.serve(async (req) => {
       console.log(`Linked user ${user_id} to franchise ${franchiseId}`)
     }
 
-    // Insert the franqueadora role for the user
-    const { error: insertError } = await supabaseAdmin
+    // SEGUNDO: Verificar e criar role franqueadora se necessário
+    const { data: existingRole, error: checkError } = await supabaseAdmin
       .from('user_roles')
-      .insert({
-        user_id: user_id,
-        role: 'franqueadora'
-      })
+      .select('id')
+      .eq('user_id', user_id)
+      .eq('role', 'franqueadora')
+      .maybeSingle()
 
-    if (insertError) {
-      console.error('Error inserting role:', insertError)
+    if (checkError) {
+      console.error('Error checking existing role:', checkError)
       return new Response(
-        JSON.stringify({ error: 'Failed to assign role' }),
+        JSON.stringify({ error: 'Failed to check existing role' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log(`Successfully assigned franqueadora role to user: ${user_id}`)
+    // Se role não existe, criar
+    if (!existingRole) {
+      const { error: insertError } = await supabaseAdmin
+        .from('user_roles')
+        .insert({
+          user_id: user_id,
+          role: 'franqueadora'
+        })
+
+      if (insertError) {
+        console.error('Error inserting role:', insertError)
+        return new Response(
+          JSON.stringify({ error: 'Failed to assign role' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      console.log(`Successfully assigned franqueadora role to user: ${user_id}`)
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Role assigned and franchise created successfully', 
+        message: 'Role assigned and franchise ensured successfully', 
         isSuperAdmin,
         franchiseId 
       }),
