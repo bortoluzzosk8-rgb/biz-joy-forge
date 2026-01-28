@@ -1,10 +1,17 @@
 
 
-## Plano: Remover Campo "Recebido por" (Franqueadora/Franqueado)
+## Plano: Anexar Comprovante ao Adicionar Pagamento (Opcional)
 
-### Contexto
+### Situação Atual
 
-O campo "Recebido por" com as opções "Franqueadora" e "Franqueado" não é mais necessário no sistema. Este campo existe na tabela `sale_payments` e aparece em dois componentes de pagamento.
+Atualmente, o fluxo é:
+1. Adicionar pagamento → Pagamento criado como "Pendente"
+2. Clicar em "Comprovante" na lista → Anexar comprovante
+3. Clicar em "Confirmar" → **Só funciona se tiver comprovante**
+
+O usuário quer poder:
+- Anexar comprovante **diretamente** ao adicionar o pagamento
+- Confirmar pagamento **com ou sem** comprovante (opcional)
 
 ---
 
@@ -12,8 +19,8 @@ O campo "Recebido por" com as opções "Franqueadora" e "Franqueado" não é mai
 
 | Arquivo | Ação |
 |---------|------|
-| `src/components/admin/PaymentManager.tsx` | Remover campo do formulário de adicionar, editar e exibição |
-| `src/components/admin/QuickPaymentDrawer.tsx` | Remover campo do formulário de adicionar |
+| `src/components/admin/PaymentManager.tsx` | Adicionar campo de upload no formulário + tornar comprovante opcional |
+| `src/components/admin/QuickPaymentDrawer.tsx` | Adicionar campo de upload no formulário + tornar comprovante opcional |
 
 ---
 
@@ -21,112 +28,83 @@ O campo "Recebido por" com as opções "Franqueadora" e "Franqueado" não é mai
 
 #### 1. PaymentManager.tsx
 
-**Remover do estado de novo pagamento (linha 99):**
+**Adicionar estado para arquivo no formulário:**
 ```typescript
-// ANTES
-received_by: '' as 'franqueadora' | 'franqueado' | '',
-
-// DEPOIS: remover esta linha
+const [newPaymentFile, setNewPaymentFile] = useState<File | null>(null);
+const [newPaymentPreview, setNewPaymentPreview] = useState<string | null>(null);
 ```
 
-**Remover validação (linhas 147-150):**
-```typescript
-// ANTES
-if (!newPayment.received_by) {
-  toast.error('Selecione quem recebeu o pagamento');
-  return;
-}
+**Adicionar seção de upload no formulário de novo pagamento (após "Observações"):**
+- Área de drag & drop ou clique para selecionar imagem
+- Preview da imagem selecionada
+- Botão para remover o arquivo se quiser
 
-// DEPOIS: remover este bloco
-```
+**Modificar `handleAddPayment` para:**
+- Se tiver arquivo selecionado, fazer upload para storage
+- Salvar pagamento já com `receipt_url` preenchido
+- Limpar estado do arquivo após adicionar
 
-**Remover do objeto de inserção (linhas 165-167, 201-203):**
-```typescript
-// Remover a linha:
-received_by: newPayment.received_by as 'franqueadora' | 'franqueado',
-```
+**Tornar comprovante opcional:**
+- Remover validação que exige `receipt_url` em `handleMarkAsPaid`
+- Remover validação que exige `localReceiptPreview` em `handleLocalMarkAsPaid`
+- Manter o botão "Comprovante" visível para quem quiser anexar depois
 
-**Remover do reset do formulário (linha 181, 221):**
-```typescript
-// Remover:
-received_by: '',
-```
-
-**Remover do estado de edição (linha 88, 440):**
-```typescript
-// Remover referências a received_by
-```
-
-**Remover do update no banco (linha 466):**
-```typescript
-// Remover:
-received_by: editPayment.received_by,
-```
-
-**Remover o campo Select do formulário de adicionar (linhas 912-923):**
-```typescript
-// Remover todo o bloco <div> com Label "Recebido por *" e Select
-```
-
-**Remover exibição na lista de pagamentos (linhas 1003-1007):**
-```typescript
-// Remover o bloco que exibe "Recebido por: Franqueadora/Franqueado"
-```
-
-**Remover o campo Select do formulário de edição (linhas 1457-1468):**
-```typescript
-// Remover todo o bloco <div> com Label "Recebido por *" e Select
-```
+**Remover mensagens de "Anexe o comprovante":**
+- Remover a mensagem "⚠️ Anexe o comprovante" da lista de pagamentos
+- O botão "Confirmar" ficará sempre habilitado (sem `disabled`)
 
 ---
 
 #### 2. QuickPaymentDrawer.tsx
 
-**Remover do tipo Payment (linha 33):**
+Mesmas alterações:
+
+**Adicionar estado para arquivo:**
 ```typescript
-// Remover:
-received_by?: 'franqueadora' | 'franqueado';
+const [newPaymentFile, setNewPaymentFile] = useState<File | null>(null);
+const [newPaymentPreview, setNewPaymentPreview] = useState<string | null>(null);
 ```
 
-**Remover do estado (linha 78):**
-```typescript
-// Remover:
-received_by: '' as 'franqueadora' | 'franqueado' | '',
-```
+**Adicionar área de upload no formulário de adicionar pagamento**
 
-**Remover validação (linhas 118-121):**
-```typescript
-// Remover o bloco de validação de received_by
-```
+**Modificar `handleAddPayment`:**
+- Fazer upload se tiver arquivo
+- Salvar com `receipt_url` se aplicável
 
-**Remover do insert (linha 137):**
-```typescript
-// Remover:
-received_by: newPayment.received_by,
-```
-
-**Remover do reset (linha 156):**
-```typescript
-// Remover:
-received_by: '',
-```
-
-**Remover o campo Select do formulário (linhas 401-415):**
-```typescript
-// Remover todo o bloco <div> com Label "Recebido por *" e Select
-```
+**Tornar comprovante opcional em `handleMarkAsPaid`:**
+- Remover a verificação `if (!payment?.receipt_url)`
 
 ---
 
-### Banco de Dados
+### Interface do Campo de Upload
 
-A coluna `received_by` na tabela `sale_payments` será mantida para não quebrar dados históricos. Apenas a interface será simplificada.
+O campo de upload no formulário ficará assim:
+
+```text
+┌─────────────────────────────────────────────────┐
+│  📎 Comprovante (opcional)                      │
+│  ┌───────────────────────────────────────────┐  │
+│  │                                           │  │
+│  │   [Ícone Upload]                          │  │
+│  │   Arraste uma imagem ou clique            │  │
+│  │                                           │  │
+│  └───────────────────────────────────────────┘  │
+│                                                 │
+│  (ou se tiver preview)                          │
+│  ┌──────┐                                       │
+│  │ img  │  [X] Remover                          │
+│  └──────┘                                       │
+└─────────────────────────────────────────────────┘
+```
 
 ---
 
 ### Resultado Esperado
 
-- O campo "Recebido por" não aparecerá mais nos formulários de pagamento
-- Os pagamentos serão salvos sem essa informação
-- Dados históricos com `received_by` preenchido continuarão no banco, mas não serão exibidos
+Após as alterações:
+- Ao adicionar um pagamento, haverá um campo opcional para anexar comprovante
+- Se anexar, o pagamento já será salvo com o comprovante
+- Se não anexar, pode confirmar o pagamento do mesmo jeito
+- O botão "Comprovante" na lista continua disponível para anexar depois, se quiser
+- Não haverá mais bloqueio ou mensagem de erro pedindo comprovante
 
