@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, FileSpreadsheet, UserCheck, Truck, User, Building2, Clock, CreditCard, Megaphone } from "lucide-react";
+import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, FileSpreadsheet, UserCheck, Truck, User, Building2, Clock, CreditCard, Megaphone, ShoppingBag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { toast } from "sonner";
@@ -24,6 +24,8 @@ const AdminLayout = () => {
   const handleTabChange = (value: string) => {
     if (value === "subscription") {
       navigate("/assinatura");
+    } else if (value === "catalog") {
+      navigate("/catalog");
     } else {
       navigate(`/admin/${value}`);
     }
@@ -50,6 +52,7 @@ const AdminLayout = () => {
     { value: "clients", label: "Clientes", icon: Users, roles: ["franqueadora", "vendedor"] },
     { value: "monitors", label: "Monitores", icon: User, roles: ["franqueadora", "vendedor"] },
     { value: "drivers", label: "Motoristas", icon: Truck, roles: ["franqueadora", "vendedor"] },
+    { value: "catalog", label: "Catálogo", icon: ShoppingBag, roles: ["franqueadora", "vendedor"] },
     { value: "products", label: "Produtos", icon: Package, roles: ["franqueadora"] },
     { value: "categories", label: "Categorias", icon: Tag, roles: ["franqueadora"] },
     { value: "financial", label: "Financeiro", icon: DollarSign, roles: ["franqueadora"] },
