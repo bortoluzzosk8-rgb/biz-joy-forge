@@ -1,71 +1,24 @@
 
 
-## Plano: Corrigir Seguranca da Exclusao de Franqueados
+## Plano: Remover Completamente o Conceito de "Franqueado" do Sistema
 
-### Problema Identificado
+### Contexto
 
-A edge function `delete-user/index.ts` permite que **franqueados** excluam usuarios, mas a verificacao de seguranca so valida se eles estao excluindo **motoristas** da mesma unidade. Isso cria uma vulnerabilidade onde:
-
-1. Um **franqueado** poderia tentar excluir **outros franqueados** do sistema
-2. A funcao nao verifica se o usuario sendo excluido e realmente um motorista vs um franqueado
-
-### Analise do Codigo Atual
-
-```typescript
-// Linha 64-67 - Permite franqueado excluir
-const isFranqueado = userRoles.includes('franqueado');
-
-if (!isSuperAdmin && !isFranqueadora && !isFranqueado && !isVendedor) {
-  // bloqueia apenas se NAO for nenhum desses
-}
-
-// Linha 85-112 - So valida motoristas
-if (isFranqueado && !isFranqueadora) {
-  // Verifica apenas se o usuario sendo excluido e um DRIVER
-  const { data: driver } = await supabaseAdmin
-    .from('drivers')
-    .select('franchise_id')
-    .eq('user_id', user_id)
-    .single();
-  // NAO verifica se o usuario e outro FRANQUEADO!
-}
-```
+O sistema está sendo transformado de um modelo de franquias (franqueadora -> franqueados) para um modelo SaaS simples onde:
+- **Antes**: Franqueadora cria franqueados para gerenciar unidades
+- **Depois**: Cada cliente SaaS é diretamente uma "franqueadora" (dono do sistema) - sem sub-franqueados
 
 ---
 
-### Solucao Proposta
+### Resumo das Alteracoes
 
-#### 1. Edge Function `delete-user/index.ts`
+O conceito de "franqueado" será **completamente removido** do sistema:
 
-Adicionar verificacao para impedir que franqueados excluam outros franqueados:
-
-```typescript
-// Se o caller e franqueado, verificar o que ele esta tentando excluir
-if (isFranqueado && !isFranqueadora) {
-  // Verificar se o usuario sendo excluido tem role de franqueado
-  const { data: targetRoles } = await supabaseAdmin
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', user_id);
-  
-  const targetIsFranqueado = targetRoles?.some(r => r.role === 'franqueado');
-  const targetIsFranqueadora = targetRoles?.some(r => r.role === 'franqueadora');
-  
-  if (targetIsFranqueado || targetIsFranqueadora) {
-    return new Response(
-      JSON.stringify({ error: 'Franqueados nao podem excluir outros franqueados' }),
-      { status: 403, ... }
-    );
-  }
-  
-  // Verificar se e um motorista da mesma unidade (logica existente)
-  // ...
-}
-```
-
-#### 2. Frontend `FranchiseUsers.tsx`
-
-A pagina ja esta protegida com `isFranqueadora` no frontend (linha 42, 71-74, 346-356), entao apenas franqueadoras podem ver esta pagina. Isso e bom, mas a protecao backend e essencial.
+1. Remover menu "Franqueados" do painel
+2. Remover a página `/admin/franchise-users`
+3. Remover a role "franqueado" de todas as verificações
+4. Excluir edge functions relacionadas a franqueados
+5. Limpar referências no contexto de autenticação
 
 ---
 
@@ -73,51 +26,119 @@ A pagina ja esta protegida com `isFranqueadora` no frontend (linha 42, 71-74, 34
 
 | Arquivo | Acao |
 |---------|------|
-| `supabase/functions/delete-user/index.ts` | Adicionar verificacao para impedir franqueados de excluir outros franqueados |
+| `src/pages/admin/AdminLayout.tsx` | Remover "franqueado" dos roles e menu "Franqueados" |
+| `src/App.tsx` | Remover rota `/admin/franchise-users` e import |
+| `src/contexts/AuthContext.tsx` | Remover estado `isFranqueado` e verificações |
+| `src/components/ProtectedRoute.tsx` | Sem alterações (já funciona sem franqueado) |
+
+### Arquivos a Excluir
+
+| Arquivo | Motivo |
+|---------|--------|
+| `src/pages/admin/FranchiseUsers.tsx` | Página de gestão de franqueados |
+| `supabase/functions/create-franchisee/` | Edge function para criar franqueado |
+| `supabase/functions/reset-franchisee-password/` | Edge function para resetar senha de franqueado |
 
 ---
 
-### Codigo Final da Correcao
+### Secao Tecnica
+
+#### 1. AdminLayout.tsx - Remover menu e role
 
 ```typescript
-// Se franqueado, verificar permissoes especificas
-if (isFranqueado && !isFranqueadora) {
-  // NOVA VERIFICACAO: Impedir que franqueado exclua outros franqueados
-  const { data: targetRoles } = await supabaseAdmin
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', user_id);
-  
-  const targetUserRoles = targetRoles?.map(r => r.role) || [];
-  const targetIsFranqueado = targetUserRoles.includes('franqueado');
-  const targetIsFranqueadora = targetUserRoles.includes('franqueadora');
-  const targetIsVendedor = targetUserRoles.includes('vendedor');
-  
-  if (targetIsFranqueado || targetIsFranqueadora || targetIsVendedor) {
-    console.log('Franqueado tentou excluir usuario protegido');
-    return new Response(
-      JSON.stringify({ error: 'Voce nao tem permissao para excluir este usuario' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-  
-  // Franqueado so pode excluir motoristas da sua propria unidade
-  const { data: userFranchise } = await supabaseAdmin
-    .from('user_franchises')
-    .select('franchise_id')
-    .eq('user_id', caller.id)
-    .single();
-  
-  // ... resto da logica existente
-}
+// ANTES (linha 13)
+const { signOut, user, isFranqueadora, isFranqueado, isVendedor, isMotorista, isSuperAdmin, userFranchise } = useAuth();
+
+// DEPOIS
+const { signOut, user, isFranqueadora, isVendedor, isMotorista, isSuperAdmin, userFranchise } = useAuth();
+
+// ANTES (linhas 40-54) - Remover "franqueado" dos arrays de roles
+{ value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["franqueadora", "franqueado", "vendedor"] },
+
+// DEPOIS
+{ value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["franqueadora", "vendedor"] },
+
+// Remover completamente a linha do menu Franqueados:
+// { value: "franchise-users", label: "Franqueados", icon: UsersRound, roles: ["franqueadora"] },
+
+// ANTES (linhas 66-72) - Remover verificação isFranqueado
+return clientMenuItems.filter((item) => {
+  if (isFranqueadora) return item.roles.includes("franqueadora");
+  if (isFranqueado) return item.roles.includes("franqueado");
+  // ...
+});
+
+// DEPOIS - Remover linha do isFranqueado
+return clientMenuItems.filter((item) => {
+  if (isFranqueadora) return item.roles.includes("franqueadora");
+  // ... (sem isFranqueado)
+});
+
+// ANTES (linhas 76-83) - Remover título "Franqueado"
+if (isFranqueado) return "🏪 Franqueado";
+
+// DEPOIS - Remover essa linha
 ```
+
+#### 2. AuthContext.tsx - Remover isFranqueado
+
+```typescript
+// Remover do tipo AuthContextType:
+// isFranqueado: boolean;
+
+// Remover estado:
+// const [isFranqueado, setIsFranqueado] = useState(false);
+
+// Remover verificação no checkAdminStatus:
+// supabase.rpc('has_role', { _user_id: userId, _role: 'franqueado' }),
+// setIsFranqueado(isFranqueadoRole);
+
+// Atualizar isAdmin para não incluir franqueado:
+// setIsAdmin(... || isFranqueadoRole || ...);
+
+// Remover do context provider value:
+// isFranqueado,
+```
+
+#### 3. App.tsx - Remover rota
+
+```typescript
+// Remover import:
+// import FranchiseUsers from "./pages/admin/FranchiseUsers";
+
+// Remover rota:
+// <Route path="franchise-users" element={<FranchiseUsers />} />
+```
+
+#### 4. delete-user Edge Function - Remover menções a franqueado
+
+A edge function `delete-user/index.ts` será atualizada para remover verificações relacionadas à role "franqueado", mantendo apenas:
+- super_admin
+- franqueadora
+- vendedor
+
+---
+
+### Sobre os Percentuais nas Unidades
+
+O formulário de unidades (Franchises.tsx) tem campos `franqueado_percentage` e `franqueadora_percentage`. **Esses campos permanecem** pois são usados para calcular divisão de receita entre a matriz e as filiais (unidades), independente de existir a role de franqueado.
+
+Se preferir, posso renomear para algo mais genérico como `unidade_percentage` e `matriz_percentage`.
+
+---
+
+### Dados Existentes no Banco
+
+Usuarios com role "franqueado" que já existem no banco:
+- Continuarão existindo, mas **não terão mais acesso** ao painel (pois não serão reconhecidos como admin)
+- Podem ser excluídos manualmente se necessário
 
 ---
 
 ### Resultado Esperado
 
-1. **Franqueadora**: Pode excluir qualquer franqueado (comportamento atual mantido)
-2. **Franqueado**: So pode excluir motoristas da sua propria unidade (nao pode excluir outros franqueados)
-3. **Vendedor**: Pode excluir motoristas (comportamento atual mantido)
-4. **Super Admin**: Pode excluir qualquer usuario
+1. Menu "Franqueados" não aparece mais
+2. Rota `/admin/franchise-users` não existe mais
+3. Login com role "franqueado" não dá acesso ao painel admin
+4. Sistema simplificado: apenas franqueadora, vendedor, motorista e super_admin
 
