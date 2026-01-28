@@ -39,6 +39,7 @@ import PublicContract from "./pages/PublicContract";
 import ResetPassword from "./pages/ResetPassword";
 import ChoosePlan from "./pages/ChoosePlan";
 import Subscription from "./pages/Subscription";
+import PublicCatalog from "./pages/PublicCatalog";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +77,7 @@ const App = () => (
                   </ProtectedRoute>
                 } />
                 <Route path="/contrato/:saleId" element={<PublicContract />} />
+                <Route path="/catalogo/:franchiseId" element={<PublicCatalog />} />
                 <Route
                   path="/admin"
                   element={

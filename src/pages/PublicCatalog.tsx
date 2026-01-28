@@ -16,13 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Package, LogOut, Trash2, Plus, Sparkles, Loader2, MessageCircle, ArrowLeft, Link2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Package, Plus, Loader2, MessageCircle } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useSettings } from "@/hooks/useSettings";
-import { useAuth } from "@/contexts/AuthContext";
 
 type Category = { 
   id: string; 
@@ -45,46 +42,83 @@ type Product = {
   display_order: number;
 };
 
-type CartItem = { product: Product; quantity: number };
+type Settings = {
+  catalogHeaderTitle: string;
+  catalogSubtitle: string;
+  logoUrl: string;
+  primaryColor: string;
+  secondaryColor: string;
+  whatsappNumber: string;
+};
 
 const formatCurrency = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const Catalog = () => {
+const PublicCatalog = () => {
+  const { franchiseId } = useParams<{ franchiseId: string }>();
   const navigate = useNavigate();
-  const { settings, loading: settingsLoading } = useSettings();
-  const { isAdmin, userFranchise } = useAuth();
-  const [clientName] = useState(() => localStorage.getItem('clientName') || '');
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | "all">("all");
-  const [cartExpanded, setCartExpanded] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const { cart, addToCart, removeFromCart, cartTotal } = useCart();
+  const [franchiseName, setFranchiseName] = useState<string>("");
+  const [settings, setSettings] = useState<Settings>({
+    catalogHeaderTitle: "Catálogo",
+    catalogSubtitle: "Confira nossos produtos!",
+    logoUrl: "/placeholder.svg",
+    primaryColor: "#6366f1",
+    secondaryColor: "#8b5cf6",
+    whatsappNumber: "",
+  });
 
   useEffect(() => {
-    loadCategories();
-    loadProducts();
+    if (franchiseId) {
+      loadFranchise();
+      loadCategories();
+      loadProducts();
+      loadSettings();
+    }
+  }, [franchiseId]);
 
-    const productsChannel = supabase
-      .channel('products-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        loadProducts();
-      })
-      .subscribe();
+  const loadFranchise = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("franchises")
+        .select("name, city")
+        .eq("id", franchiseId)
+        .maybeSingle();
+      
+      if (error) throw error;
+      if (data) {
+        setFranchiseName(`${data.name} - ${data.city}`);
+      }
+    } catch (error: any) {
+      console.error("Erro ao carregar franquia:", error);
+    }
+  };
 
-    const categoriesChannel = supabase
-      .channel('categories-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
-        loadCategories();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(productsChannel);
-      supabase.removeChannel(categoriesChannel);
-    };
-  }, []);
+  const loadSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("settings")
+        .select("*")
+        .maybeSingle();
+      
+      if (error) throw error;
+      if (data) {
+        setSettings({
+          catalogHeaderTitle: data.catalog_header_title || "Catálogo",
+          catalogSubtitle: data.catalog_subtitle || "Confira nossos produtos!",
+          logoUrl: data.logo_url || "/placeholder.svg",
+          primaryColor: data.primary_color || "#6366f1",
+          secondaryColor: data.secondary_color || "#8b5cf6",
+          whatsappNumber: data.whatsapp_number || "",
+        });
+      }
+    } catch (error: any) {
+      console.error("Erro ao carregar configurações:", error);
+    }
+  };
 
   const loadCategories = async () => {
     try {
@@ -102,16 +136,15 @@ const Catalog = () => {
 
   const loadProducts = async () => {
     try {
-      // Só mostra loading se ainda não tem produtos carregados
-      if (products.length === 0) {
-        setLoading(true);
-      }
+      setLoading(true);
       const { data, error } = await supabase
         .from("products")
         .select("*")
+        .eq("franchise_id", franchiseId)
         .eq("visible", true)
         .order("display_order", { ascending: true })
         .order("created_at", { ascending: false });
+      
       if (error) throw error;
       setProducts(data || []);
     } catch (error: any) {
@@ -122,38 +155,9 @@ const Catalog = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('clientName');
-    localStorage.removeItem('clientPhone');
-    toast.success("Logout realizado com sucesso");
-    navigate('/');
-  };
-
-  const handleCopyLink = () => {
-    if (userFranchise) {
-      const publicLink = `${window.location.origin}/catalogo/${userFranchise.id}`;
-      navigator.clipboard.writeText(publicLink);
-      toast.success("Link copiado! Envie para seus clientes.");
-    }
-  };
-
-  const handleAddToCart = (product: Product) => {
-    const existing = cart.find((i) => i.product.id === product.id);
-    const stock = product.stock_qty ?? 0;
-    if (stock > 0 && existing && existing.quantity >= stock) {
-      toast.error("Quantidade máxima em estoque atingida");
-      return;
-    }
-    addToCart(product);
-  };
-
   const filteredProducts = activeCategory === "all" ? products : products.filter((p) => p.category_id === activeCategory);
   const getCategoryInfo = (categoryId: string | null) => categories.find((c) => c.id === categoryId);
   const productCount = (catId: string) => products.filter((p) => p.category_id === catId).length;
-  
-  const getGradientStyle = () => ({
-    background: `linear-gradient(135deg, ${settings.primaryColor} 0%, ${settings.secondaryColor} 100%)`
-  });
 
   // Componente para renderizar imagem do produto com carousel se necessário
   const ProductImage = ({ product, categoryInfo }: { product: Product; categoryInfo: Category | undefined }) => {
@@ -162,7 +166,7 @@ const Catalog = () => {
 
     if (images.length === 0) {
       return (
-          <div className={`aspect-[3/4] ${categoryInfo?.color || 'gradient-primary'} relative flex items-center justify-center overflow-hidden`}>
+        <div className={`aspect-[3/4] ${categoryInfo?.color || 'gradient-primary'} relative flex items-center justify-center overflow-hidden`}>
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iYSIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoNDUpIj48cGF0aCBkPSJNLTEwIDMwaDYwdjJoLTYweiIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNhKSIvPjwvc3ZnPg==')] opacity-50"></div>
           <span className="text-7xl relative z-10 animate-pulse">
             {categoryInfo?.icon || '🎪'}
@@ -190,11 +194,9 @@ const Catalog = () => {
             </CarouselContent>
             <CarouselPrevious 
               className="left-1 h-6 w-6 md:h-8 md:w-8" 
-              onClick={(e) => e.stopPropagation()} 
             />
             <CarouselNext 
               className="right-1 h-6 w-6 md:h-8 md:w-8" 
-              onClick={(e) => e.stopPropagation()} 
             />
           </Carousel>
         </div>
@@ -212,10 +214,30 @@ const Catalog = () => {
     );
   };
 
+  const getGradientStyle = () => ({
+    background: `linear-gradient(135deg, ${settings.primaryColor} 0%, ${settings.secondaryColor} 100%)`
+  });
+
+  if (!franchiseId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="p-12 text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h3 className="text-2xl font-bold text-foreground mb-2">
+            Catálogo não encontrado
+          </h3>
+          <p className="text-muted-foreground">
+            O link do catálogo parece estar incorreto.
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background pattern-dots">
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-7xl">
-        {/* Premium Header - Compact on Mobile */}
+        {/* Premium Header */}
         <header 
           className="relative mb-4 sm:mb-8 overflow-hidden rounded-xl sm:rounded-2xl p-4 sm:p-8 shadow-xl sm:shadow-2xl animate-fade-in"
           style={{
@@ -225,7 +247,6 @@ const Catalog = () => {
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iYSIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoNDUpIj48cGF0aCBkPSJNLTEwIDMwaDYwdjJoLTYweiIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMDUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjYSkiLz48L3N2Zz4=')] opacity-30"></div>
           <div className="relative flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              {/* Logo no Header */}
               <img 
                 src={settings.logoUrl} 
                 alt="Logo" 
@@ -236,52 +257,14 @@ const Catalog = () => {
                   {settings.catalogHeaderTitle}
                 </h1>
                 <p className="text-white/80 text-xs sm:text-sm font-medium truncate">
-                  {clientName 
-                    ? <>{settings.catalogSubtitle.replace(/!$/, '')}, <span className="font-bold">{clientName}</span>!</>
-                    : <>{settings.catalogSubtitle}</>
-                  }
+                  {franchiseName || settings.catalogSubtitle}
                 </p>
               </div>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-2">
-              {isAdmin && (
-                <>
-                  <Button 
-                    variant="secondary" 
-                    size="sm"
-                    onClick={() => navigate('/admin/dashboard')}
-                    className="bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-sm transition-all duration-300 hover:scale-105 shrink-0 h-8 sm:h-9 px-2 sm:px-3"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span className="hidden sm:inline ml-1">Voltar</span>
-                  </Button>
-                  {userFranchise && (
-                    <Button 
-                      variant="secondary" 
-                      size="sm"
-                      onClick={handleCopyLink}
-                      className="bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-sm transition-all duration-300 hover:scale-105 shrink-0 h-8 sm:h-9 px-2 sm:px-3"
-                    >
-                      <Link2 className="w-4 h-4" />
-                      <span className="hidden sm:inline ml-1">Copiar Link</span>
-                    </Button>
-                  )}
-                </>
-              )}
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={handleLogout}
-                className="bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-sm transition-all duration-300 hover:scale-105 shrink-0 h-8 sm:h-9 px-2 sm:px-3"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline ml-1">Sair</span>
-              </Button>
             </div>
           </div>
         </header>
 
-        {/* Dropdown de Categorias - Compact */}
+        {/* Dropdown de Categorias */}
         <Card className="p-3 sm:p-6 mb-4 sm:mb-8 shadow-lg border-2 animate-scale-in">
           <div className="flex items-center gap-2 sm:gap-4">
             <Package className="w-5 h-5 sm:w-6 sm:h-6 text-primary shrink-0" />
@@ -326,10 +309,12 @@ const Catalog = () => {
           <Card className="p-12 text-center animate-fade-in">
             <div className="text-6xl mb-4">🎪</div>
             <h3 className="text-2xl font-bold text-foreground mb-2">
-              Nenhum produto nesta categoria
+              {products.length === 0 ? "Nenhum produto disponível" : "Nenhum produto nesta categoria"}
             </h3>
             <p className="text-muted-foreground">
-              Selecione outra categoria para ver nossos produtos incríveis!
+              {products.length === 0 
+                ? "Este catálogo ainda não possui produtos cadastrados."
+                : "Selecione outra categoria para ver nossos produtos incríveis!"}
             </p>
           </Card>
         ) : (
@@ -337,30 +322,16 @@ const Catalog = () => {
             {filteredProducts.map((product, index) => {
               const categoryInfo = getCategoryInfo(product.category_id);
               const inStock = product.stock_qty > 0;
-              const cartItem = cart.find((i) => i.product.id === product.id);
-              const inCart = !!cartItem;
               
               return (
                 <Card 
                   key={product.id} 
-                  className="overflow-hidden hover-lift shadow-lg border-2 hover:border-primary/50 animate-fade-in cursor-pointer"
+                  className="overflow-hidden hover-lift shadow-lg border-2 hover:border-primary/50 animate-fade-in"
                   style={{ animationDelay: `${index * 0.05}s` }}
-                  onClick={() => navigate(`/product/${product.id}`)}
                 >
                   {/* Product Image */}
                   <div className="relative">
                     <ProductImage product={product} categoryInfo={categoryInfo} />
-                    
-                    
-                    {/* In Cart Badge */}
-                    {inCart && (
-                      <Badge 
-                        className="absolute top-2 left-2 z-10 gradient-accent border-0 text-white shadow-lg px-1.5 py-0.5 text-[10px] sm:text-xs font-bold animate-pulse"
-                      >
-                        <ShoppingCart className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
-                        {cartItem.quantity}x
-                      </Badge>
-                    )}
                   </div>
                   
                   <div className="p-2 sm:p-3 flex flex-col flex-1">
@@ -379,7 +350,11 @@ const Catalog = () => {
                         </p>
                       </div>
                       <Button
-                        onClick={(e) => { e.stopPropagation(); handleAddToCart(product); }}
+                        onClick={() => {
+                          const message = `Olá! Tenho interesse no produto: ${product.name} - ${formatCurrency(product.sale_price)}`;
+                          const whatsappUrl = `https://wa.me/55${settings.whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+                          window.open(whatsappUrl, '_blank');
+                        }}
                         style={inStock ? getGradientStyle() : undefined}
                         className={`
                           w-full font-bold text-xs sm:text-sm py-1.5 sm:py-3 rounded-lg transition-all duration-300 hover:scale-105 shadow-lg
@@ -388,9 +363,10 @@ const Catalog = () => {
                             : 'gradient-warning border-0 text-white'
                           }
                         `}
+                        disabled={!settings.whatsappNumber}
                       >
-                        <Plus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
-                        <span className="hidden sm:inline">{inStock ? "Comprar" : "Encomendar"}</span>
+                        <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                        <span className="hidden sm:inline">{inStock ? "Quero esse!" : "Encomendar"}</span>
                       </Button>
                     </div>
                   </div>
@@ -398,82 +374,6 @@ const Catalog = () => {
               );
             })}
           </div>
-        )}
-
-        {/* Enhanced Floating Cart */}
-        {cart.length > 0 && (
-          <Card className="fixed bottom-6 right-6 w-80 md:w-96 shadow-2xl border-2 border-primary/30 overflow-hidden z-50 animate-scale-in">
-            <div 
-              className="gradient-primary p-4 cursor-pointer transition-all duration-300 hover:opacity-90"
-              onClick={() => setCartExpanded(!cartExpanded)}
-            >
-              <div className="flex items-center justify-between text-white">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <ShoppingCart className="w-6 h-6" />
-                    <Badge className="absolute -top-2 -right-2 bg-secondary text-white border-0 w-5 h-5 p-0 flex items-center justify-center text-xs font-bold animate-pulse">
-                      {cart.length}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="font-bold text-lg">Meu Carrinho</p>
-                    <p className="text-xs text-white/80">{cart.length} {cart.length === 1 ? 'item' : 'itens'}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-black">{formatCurrency(cartTotal())}</p>
-                </div>
-              </div>
-            </div>
-            
-            {cartExpanded && (
-              <div className="p-4 bg-card max-h-64 overflow-y-auto animate-fade-in">
-                <div className="space-y-3">
-                  {cart.map((item) => (
-                    <div 
-                      key={item.product.id} 
-                      className="flex items-center justify-between gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-foreground truncate">
-                          {item.product.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.quantity}x {formatCurrency(item.product.sale_price)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-primary whitespace-nowrap">
-                          {formatCurrency(item.product.sale_price * item.quantity)}
-                        </p>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            removeFromCart(item.product.id);
-                            toast.success(`${item.product.name} removido`);
-                          }}
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            <div className="p-4 bg-card border-t">
-              <Button 
-                onClick={() => navigate("/checkout")} 
-                className="w-full gradient-success text-white font-bold text-lg py-6 rounded-xl shadow-lg hover:scale-105 transition-all duration-300 border-0"
-              >
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                Finalizar Compra
-              </Button>
-            </div>
-          </Card>
         )}
 
         {/* Botão flutuante do WhatsApp */}
@@ -493,4 +393,4 @@ const Catalog = () => {
   );
 };
 
-export default Catalog;
+export default PublicCatalog;
