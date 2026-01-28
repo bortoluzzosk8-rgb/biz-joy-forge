@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Equipment, ArchivedEquipment, Franchise, MovementHistory, MovementNeed } from "@/types/inventory";
+import { useTenantFranchises } from "@/hooks/useTenantFranchises";
 import { Dashboard } from "@/components/inventory/Dashboard";
 import { KanbanBoard } from "@/components/inventory/KanbanBoard";
 import { DeletedEquipmentTable } from "@/components/inventory/DeletedEquipmentTable";
@@ -33,7 +34,7 @@ const Stock = () => {
   const [loadingMovementNeeds, setLoadingMovementNeeds] = useState(false);
   const [movementNeedsLoaded, setMovementNeedsLoaded] = useState(false);
 
-  const [franchises, setFranchises] = useState<Franchise[]>([]);
+  const { franchises } = useTenantFranchises();
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [archived, setArchived] = useState<ArchivedEquipment[]>([]);
   const [products, setProducts] = useState<{id: string; name: string}[]>([]);
@@ -90,7 +91,13 @@ const Stock = () => {
   const [permDelModalOpen, setPermDelModalOpen] = useState(false);
   const [permDelTarget, setPermDelTarget] = useState<ArchivedEquipment | null>(null);
 
-  const franchiseCityMap = useMemo(() => new Map(franchises.map((f) => [f.id, f.city || f.name])), [franchises]);
+  const getFranchiseDisplayName = (franchise: Franchise) => {
+    return franchise.city && franchise.city !== "A definir" 
+      ? franchise.city 
+      : franchise.name;
+  };
+
+  const franchiseCityMap = useMemo(() => new Map(franchises.map((f) => [f.id, getFranchiseDisplayName(f)])), [franchises]);
   const franchiseNameById = (id: string) => franchiseCityMap.get(id) || "—";
 
   const { filtered, columns, totals } = useMemo(() => {
@@ -124,21 +131,7 @@ const Stock = () => {
     try {
       setLoading(true);
 
-      // Load franchises - vendedor vê todas, franqueado só a sua
-      let franchisesQuery = supabase.from("franchises").select("*");
-      if (!isFranqueadora && !isVendedor && userFranchise) {
-        franchisesQuery = franchisesQuery.eq("id", userFranchise.id);
-      }
-      const { data: franchisesData, error: franchisesError } = await franchisesQuery;
-      if (franchisesError) throw franchisesError;
-
-      const franchisesList: Franchise[] = (franchisesData || []).map((f: any) => ({
-        id: f.id,
-        name: f.name,
-        city: f.city || "",
-      }));
-      setFranchises(franchisesList);
-
+      // Franchises are now loaded from useTenantFranchises hook
       if (!isFranqueadora && !isVendedor && userFranchise) {
         setActiveFranchise(userFranchise.id);
         setEquipFranchiseId(userFranchise.id);
@@ -980,7 +973,7 @@ const Stock = () => {
               onClick={() => setActiveFranchise(f.id)}
               className="rounded-full"
             >
-              {f.city || f.name}
+              {getFranchiseDisplayName(f)}
             </Button>
           ))}
           {franchises.length > 1 && (
@@ -1171,7 +1164,7 @@ const Stock = () => {
                   <SelectContent>
                     {franchises.map((f) => (
                       <SelectItem key={f.id} value={f.id}>
-                        {f.name} - {f.city}
+                        {getFranchiseDisplayName(f)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1255,7 +1248,7 @@ const Stock = () => {
                   <SelectContent>
                     {franchises.map((f) => (
                     <SelectItem key={f.id} value={f.id}>
-                      {f.city || f.name}
+                      {getFranchiseDisplayName(f)}
                     </SelectItem>
                     ))}
                   </SelectContent>
