@@ -1096,6 +1096,17 @@ const Sales = () => {
       return;
     }
 
+    // Validar horário de retirada quando no mesmo dia da festa
+    if (formData.rental_start_date && formData.return_date && 
+        formData.rental_start_date === formData.return_date &&
+        formData.party_start_time && formData.return_time) {
+      if (formData.return_time < formData.party_start_time) {
+        toast.error("O horário de retirada não pode ser antes do horário de início da festa quando são no mesmo dia");
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     // Verificar se há itens de outras franquias
     const itemsFromOtherFranchises = saleItems.filter(item => {
       const invItem = availableInventory.find(i => i.id === item.inventory_item_id);
@@ -2310,6 +2321,15 @@ Obrigado pela confiança! 🙏`;
                 <p className="text-xs text-muted-foreground">
                   ℹ️ Horário em que o equipamento será recolhido
                 </p>
+                {formData.rental_start_date === formData.return_date && 
+                 formData.party_start_time && formData.return_time && 
+                 formData.return_time < formData.party_start_time && (
+                  <Card className="p-3 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 mt-2">
+                    <p className="text-sm text-red-900 dark:text-red-100">
+                      ⚠️ O horário de retirada não pode ser anterior ao horário de início da festa no mesmo dia!
+                    </p>
+                  </Card>
+                )}
               </div>
             </div>
 
