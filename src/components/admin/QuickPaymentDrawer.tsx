@@ -30,7 +30,6 @@ type Payment = {
   status: 'pending' | 'paid' | 'cancelled';
   receipt_url?: string;
   notes?: string;
-  received_by?: 'franqueadora' | 'franqueado';
   created_at: string;
   card_fee?: number;
 };
@@ -75,7 +74,6 @@ export const QuickPaymentDrawer = ({
     payment_method: 'pix' as 'dinheiro' | 'pix' | 'debito' | 'credito' | 'boleto',
     amount: '',
     installments: '1',
-    received_by: '' as 'franqueadora' | 'franqueado' | '',
     card_fee: '',
   });
 
@@ -115,11 +113,6 @@ export const QuickPaymentDrawer = ({
       return;
     }
 
-    if (!newPayment.received_by) {
-      toast.error('Selecione quem recebeu o pagamento');
-      return;
-    }
-
     const amount = parseFloat(newPayment.amount);
     if (!amount || amount <= 0) {
       toast.error('Informe um valor válido');
@@ -134,7 +127,6 @@ export const QuickPaymentDrawer = ({
         payment_method: newPayment.payment_method,
         amount,
         installments: parseInt(newPayment.installments),
-        received_by: newPayment.received_by,
         status: 'pending',
         card_fee: (newPayment.payment_method === 'credito' || newPayment.payment_method === 'debito')
           ? parseFloat(newPayment.card_fee) || 0
@@ -153,7 +145,6 @@ export const QuickPaymentDrawer = ({
       payment_method: 'pix',
       amount: '',
       installments: '1',
-      received_by: '',
       card_fee: '',
     });
     loadPayments();
@@ -398,21 +389,6 @@ export const QuickPaymentDrawer = ({
                   />
                 </div>
 
-                <div>
-                  <Label className="text-xs">Recebido por *</Label>
-                  <Select
-                    value={newPayment.received_by}
-                    onValueChange={(v) => setNewPayment({ ...newPayment, received_by: v as any })}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="franqueadora">Franqueadora</SelectItem>
-                      <SelectItem value="franqueado">Franqueado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               {/* Campos extras para cartão */}

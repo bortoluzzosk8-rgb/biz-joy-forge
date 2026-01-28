@@ -85,7 +85,6 @@ export const PaymentManager = ({
     due_date: '',
     payment_date: '',
     notes: '',
-    received_by: 'franqueadora' as 'franqueadora' | 'franqueado',
     status: 'pending' as 'pending' | 'paid' | 'cancelled',
     card_fee: '',
   });
@@ -96,7 +95,6 @@ export const PaymentManager = ({
     amount: '',
     installments: '1',
     notes: '',
-    received_by: '' as 'franqueadora' | 'franqueado' | '',
     card_fee: '',
   });
 
@@ -144,11 +142,6 @@ export const PaymentManager = ({
       return;
     }
     
-    if (!newPayment.received_by) {
-      toast.error('Selecione quem recebeu o pagamento');
-      return;
-    }
-    
     const amount = parseFloat(newPayment.amount);
     if (!amount || amount <= 0) {
       toast.error('Informe um valor válido');
@@ -164,7 +157,6 @@ export const PaymentManager = ({
         amount,
         installments: parseInt(newPayment.installments),
         notes: newPayment.notes || undefined,
-        received_by: newPayment.received_by as 'franqueadora' | 'franqueado',
         status: 'pending',
         card_fee: newPayment.payment_method === 'credito' ? parseFloat(newPayment.card_fee) || 0 : 0,
         created_at: new Date().toISOString(),
@@ -178,7 +170,6 @@ export const PaymentManager = ({
         amount: '',
         installments: '1',
         notes: '',
-        received_by: '',
         card_fee: '',
       });
       setShowAddForm(false);
@@ -200,7 +191,6 @@ export const PaymentManager = ({
         amount,
         installments: parseInt(newPayment.installments),
         notes: newPayment.notes || null,
-        received_by: newPayment.received_by as 'franqueadora' | 'franqueado',
         status: 'pending',
         card_fee: newPayment.payment_method === 'credito' ? parseFloat(newPayment.card_fee) || 0 : 0,
       });
@@ -218,7 +208,6 @@ export const PaymentManager = ({
       amount: '',
       installments: '1',
       notes: '',
-      received_by: '',
       card_fee: '',
     });
     setShowAddForm(false);
@@ -437,7 +426,6 @@ export const PaymentManager = ({
       due_date: payment.due_date || '',
       payment_date: payment.payment_date || '',
       notes: payment.notes || '',
-      received_by: payment.received_by || 'franqueadora',
       status: payment.status,
       card_fee: String(payment.card_fee || ''),
     });
@@ -463,7 +451,6 @@ export const PaymentManager = ({
         due_date: editPayment.due_date || null,
         payment_date: editPayment.payment_date || null,
         notes: editPayment.notes || null,
-        received_by: editPayment.received_by,
         status: editPayment.status,
         card_fee: editPayment.payment_method === 'credito' ? parseFloat(editPayment.card_fee) || 0 : 0,
       })
@@ -909,18 +896,6 @@ export const PaymentManager = ({
               )}
             </div>
 
-            <div>
-              <Label>Recebido por *</Label>
-              <Select value={newPayment.received_by} onValueChange={(v: any) => setNewPayment({...newPayment, received_by: v})}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Selecione quem recebeu" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="franqueadora">🏢 Franqueadora</SelectItem>
-                  <SelectItem value="franqueado">👤 Franqueado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
             <div>
               <Label>Observações</Label>
@@ -1000,11 +975,6 @@ export const PaymentManager = ({
                       <p className="text-xs text-muted-foreground mt-1 italic">{payment.notes}</p>
                     )}
                     
-                    {payment.received_by && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Recebido por: {payment.received_by === 'franqueadora' ? '🏢 Franqueadora' : '👤 Franqueado'}
-                      </p>
-                    )}
                     
                     {payment.payment_method === 'credito' && payment.card_fee && payment.card_fee > 0 && (
                       <p className="text-xs text-orange-600 mt-1">
@@ -1450,19 +1420,6 @@ export const PaymentManager = ({
                     <SelectItem value="pending">⏳ Pendente</SelectItem>
                     <SelectItem value="paid">✅ Pago</SelectItem>
                     <SelectItem value="cancelled">❌ Cancelado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Recebido por *</Label>
-                <Select value={editPayment.received_by} onValueChange={(v: any) => setEditPayment({...editPayment, received_by: v})}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="franqueadora">🏢 Franqueadora</SelectItem>
-                    <SelectItem value="franqueado">👤 Franqueado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
