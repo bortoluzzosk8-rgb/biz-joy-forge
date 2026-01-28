@@ -26,9 +26,6 @@ type Franchise = {
   phone?: string;
   email?: string;
   status: string;
-  franqueado_percentage?: number;
-  franqueadora_percentage?: number;
-  equilibrio_inicial?: number;
   parent_franchise_id?: string | null;
   created_at: string;
 };
@@ -55,9 +52,6 @@ const Franchises = () => {
     phone: "",
     email: "",
     status: "active",
-    franqueado_percentage: 60,
-    franqueadora_percentage: 40,
-    equilibrio_inicial: 0,
   });
 
   const isEditing = formData.id !== "";
@@ -128,9 +122,6 @@ const Franchises = () => {
         phone: formData.phone || null,
         email: formData.email || null,
         status: formData.status,
-        franqueado_percentage: formData.franqueado_percentage,
-        franqueadora_percentage: formData.franqueadora_percentage,
-        equilibrio_inicial: formData.equilibrio_inicial,
       };
 
       if (isEditing) {
@@ -174,9 +165,6 @@ const Franchises = () => {
       phone: franchise.phone || "",
       email: franchise.email || "",
       status: franchise.status,
-      franqueado_percentage: franchise.franqueado_percentage || 60,
-      franqueadora_percentage: franchise.franqueadora_percentage || 40,
-      equilibrio_inicial: franchise.equilibrio_inicial || 0,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -211,9 +199,6 @@ const Franchises = () => {
       phone: "",
       email: "",
       status: "active",
-      franqueado_percentage: 60,
-      franqueadora_percentage: 40,
-      equilibrio_inicial: 0,
     });
   };
 
@@ -365,46 +350,6 @@ const Franchises = () => {
                 onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
                 placeholder="00000-000"
               />
-            </div>
-          </div>
-
-          <div className="border-t pt-4 mt-4">
-            <h4 className="font-semibold mb-4 text-sm text-muted-foreground">Configuração de Divisão de Lucros</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="franqueado_percentage">% Franqueado</Label>
-                <Input
-                  id="franqueado_percentage"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={formData.franqueado_percentage}
-                  onChange={(e) => setFormData({ ...formData, franqueado_percentage: Number(e.target.value) })}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="franqueadora_percentage">% Franqueadora</Label>
-                <Input
-                  id="franqueadora_percentage"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={formData.franqueadora_percentage}
-                  onChange={(e) => setFormData({ ...formData, franqueadora_percentage: Number(e.target.value) })}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="equilibrio_inicial">Equilíbrio Inicial (R$)</Label>
-                <Input
-                  id="equilibrio_inicial"
-                  type="number"
-                  step="0.01"
-                  value={formData.equilibrio_inicial}
-                  onChange={(e) => setFormData({ ...formData, equilibrio_inicial: Number(e.target.value) })}
-                />
-              </div>
             </div>
           </div>
 
