@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, FileSpreadsheet, UserCheck, Truck, User, Building2, Clock } from "lucide-react";
+import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, FileSpreadsheet, UserCheck, Truck, User, Building2, Clock, CreditCard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { toast } from "sonner";
@@ -22,7 +22,11 @@ const AdminLayout = () => {
   };
 
   const handleTabChange = (value: string) => {
-    navigate(`/admin/${value}`);
+    if (value === "subscription") {
+      navigate("/assinatura");
+    } else {
+      navigate(`/admin/${value}`);
+    }
   };
 
   const getCurrentTab = () => {
@@ -54,6 +58,7 @@ const AdminLayout = () => {
     { value: "sellers", label: "Vendedores", icon: UserCheck, roles: ["franqueadora"] },
     { value: "franchise-report", label: "Relatório", icon: FileSpreadsheet, roles: ["franqueadora"] },
     { value: "settings", label: "Config", icon: Settings, roles: ["franqueadora"] },
+    { value: "subscription", label: "Assinaturas", icon: CreditCard, roles: ["franqueadora"] },
   ];
 
   // Filtrar menus baseado no role
