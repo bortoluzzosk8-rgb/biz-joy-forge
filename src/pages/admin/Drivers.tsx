@@ -111,10 +111,32 @@ const Drivers = () => {
 
   async function fetchFranchises() {
     try {
+      // Buscar a franquia do usuário logado primeiro
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser?.id) {
+        setFranchises([]);
+        return;
+      }
+
+      const { data: userFranchiseData } = await supabase
+        .from("user_franchises")
+        .select("franchise_id")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+
+      if (!userFranchiseData?.franchise_id) {
+        setFranchises([]);
+        return;
+      }
+
+      const rootFranchiseId = userFranchiseData.franchise_id;
+
+      // Buscar a franquia raiz + unidades filhas (isolamento multi-tenant)
       const { data, error } = await supabase
         .from('franchises')
         .select('id, name, city')
         .eq('status', 'active')
+        .or(`id.eq.${rootFranchiseId},parent_franchise_id.eq.${rootFranchiseId}`)
         .order('name');
 
       if (error) throw error;
