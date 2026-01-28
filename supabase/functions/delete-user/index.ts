@@ -82,8 +82,29 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If franqueado, verify the driver belongs to their franchise
+    // If franqueado, verify permissions for what they can delete
     if (isFranqueado && !isFranqueadora) {
+      // SECURITY: Check if the target user has a protected role
+      const { data: targetRoles } = await supabaseAdmin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user_id);
+
+      const targetUserRoles = targetRoles?.map(r => r.role) || [];
+      const targetIsFranqueado = targetUserRoles.includes('franqueado');
+      const targetIsFranqueadora = targetUserRoles.includes('franqueadora');
+      const targetIsVendedor = targetUserRoles.includes('vendedor');
+      const targetIsSuperAdmin = targetUserRoles.includes('super_admin');
+
+      if (targetIsFranqueado || targetIsFranqueadora || targetIsVendedor || targetIsSuperAdmin) {
+        console.log('Franqueado attempted to delete protected user:', user_id);
+        return new Response(
+          JSON.stringify({ error: 'Você não tem permissão para excluir este usuário' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Franqueado can only delete drivers from their own franchise
       const { data: userFranchise, error: franchiseError } = await supabaseAdmin
         .from('user_franchises')
         .select('franchise_id')
