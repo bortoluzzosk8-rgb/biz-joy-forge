@@ -111,15 +111,36 @@ export default function UserRegister() {
           console.error('Error assigning role:', roleError);
         }
 
-        // Force refresh roles before navigating
+        // Wait for role to be assigned before checking
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Verify role was assigned successfully directly from database
+        const { data: hasRole } = await supabase.rpc('has_role', { 
+          _user_id: authData.user.id, 
+          _role: 'franqueadora' 
+        });
+
+        // Update auth context
         await refreshRoles();
 
-        toast({
-          title: "Conta criada com sucesso!",
-          description: "Bem-vindo ao painel administrativo.",
-        });
-        
-        navigate('/admin/dashboard');
+        if (hasRole) {
+          toast({
+            title: "Conta criada com sucesso!",
+            description: "Bem-vindo ao painel administrativo.",
+          });
+          navigate('/admin/dashboard');
+        } else {
+          // Fallback - role might take longer
+          toast({
+            title: "Conta criada!",
+            description: "Aguarde enquanto configuramos seu acesso...",
+          });
+          // Retry after 1 second
+          setTimeout(async () => {
+            await refreshRoles();
+            navigate('/admin/dashboard');
+          }, 1000);
+        }
       }
     } catch (error) {
       console.error('Registration error:', error);

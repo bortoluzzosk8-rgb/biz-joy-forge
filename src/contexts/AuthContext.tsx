@@ -21,7 +21,7 @@ type AuthContextType = {
   userFranchise: Franchise | null;
   checkingAdmin: boolean;
   signOut: () => Promise<void>;
-  refreshRoles: () => Promise<void>;
+  refreshRoles: () => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -105,10 +105,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const refreshRoles = async () => {
+  const refreshRoles = async (): Promise<boolean> => {
     if (user) {
       await checkAdminStatus(user.id);
+      return true;
     }
+    return false;
   };
 
   useEffect(() => {
