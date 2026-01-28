@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
       const { data: franchise, error: franchiseError } = await supabaseAdmin
         .from('franchises')
         .insert({
-          name: `Franquia de ${name}`,
+          name: name,
           email: email || userEmail,
           phone: phone || null,
           city: 'A definir',

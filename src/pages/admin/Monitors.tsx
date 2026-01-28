@@ -100,14 +100,30 @@ export default function Monitors() {
 
       // Fetch franchises for the dropdown (for franqueadora and vendedor)
       if (isFranqueadora || isVendedor) {
-        const { data: franchisesData, error: franchisesError } = await supabase
-          .from("franchises")
-          .select("id, name, city")
-          .eq("status", "active")
-          .order("name");
+        // Buscar a franquia do usuário logado primeiro
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          const { data: userFranchiseData } = await supabase
+            .from("user_franchises")
+            .select("franchise_id")
+            .eq("user_id", user.id)
+            .maybeSingle();
 
-        if (franchisesError) throw franchisesError;
-        setFranchises(franchisesData || []);
+          if (userFranchiseData?.franchise_id) {
+            const rootFranchiseId = userFranchiseData.franchise_id;
+
+            // Buscar a franquia raiz + unidades filhas (isolamento multi-tenant)
+            const { data: franchisesData, error: franchisesError } = await supabase
+              .from("franchises")
+              .select("id, name, city")
+              .eq("status", "active")
+              .or(`id.eq.${rootFranchiseId},parent_franchise_id.eq.${rootFranchiseId}`)
+              .order("name");
+
+            if (franchisesError) throw franchisesError;
+            setFranchises(franchisesData || []);
+          }
+        }
       }
     } catch (error: any) {
       toast({

@@ -157,26 +157,48 @@ const Logistics = () => {
   // Carregar franquias
   useEffect(() => {
     const fetchFranchises = async () => {
-      const { data, error } = await supabase
-        .from("franchises")
-        .select("id, name, city")
-        .eq("status", "active");
+      if (!user?.id) return;
 
-      if (error) {
+      try {
+        // Buscar a franquia raiz do usuário logado
+        const { data: userFranchiseData } = await supabase
+          .from("user_franchises")
+          .select("franchise_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!userFranchiseData?.franchise_id) {
+          setFranchises([]);
+          return;
+        }
+
+        const rootFranchiseId = userFranchiseData.franchise_id;
+
+        // Buscar a franquia raiz + unidades filhas (isolamento multi-tenant)
+        const { data, error } = await supabase
+          .from("franchises")
+          .select("id, name, city")
+          .eq("status", "active")
+          .or(`id.eq.${rootFranchiseId},parent_franchise_id.eq.${rootFranchiseId}`);
+
+        if (error) {
+          console.error("Error fetching franchises:", error);
+          return;
+        }
+
+        setFranchises(data || []);
+
+        // Se não é franqueadora, setar a franquia do usuário
+        if (!isFranqueadora && userFranchise) {
+          setSelectedFranchise(userFranchise.id);
+        }
+      } catch (error) {
         console.error("Error fetching franchises:", error);
-        return;
-      }
-
-      setFranchises(data || []);
-
-      // Se não é franqueadora, setar a franquia do usuário
-      if (!isFranqueadora && userFranchise) {
-        setSelectedFranchise(userFranchise.id);
       }
     };
 
     fetchFranchises();
-  }, [isFranqueadora, userFranchise]);
+  }, [isFranqueadora, userFranchise, user?.id]);
 
   // Carregar veículos e locações
   useEffect(() => {
