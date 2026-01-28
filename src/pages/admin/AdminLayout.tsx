@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, UsersRound, FileSpreadsheet, UserCheck, Truck, User, Building2 } from "lucide-react";
+import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, BarChart3, Store, FileSpreadsheet, UserCheck, Truck, User, Building2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -10,7 +10,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signOut, user, isFranqueadora, isFranqueado, isVendedor, isMotorista, isSuperAdmin, userFranchise } = useAuth();
+  const { signOut, user, isFranqueadora, isVendedor, isMotorista, isSuperAdmin, userFranchise } = useAuth();
   const isMobile = useIsMobile();
 
   const handleLogout = async () => {
@@ -35,23 +35,22 @@ const AdminLayout = () => {
     { value: "saas-management", label: "Clientes", icon: Building2, roles: ["super_admin"] },
   ];
 
-  // Menu items para clientes (franqueadoras, franqueados, etc)
+  // Menu items para clientes (franqueadoras, vendedores, motoristas)
   const clientMenuItems = [
-    { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["franqueadora", "franqueado", "vendedor"] },
-    { value: "rentals", label: "Locações", icon: Calendar, roles: ["franqueadora", "franqueado", "vendedor"] },
-    { value: "stock", label: "Estoque", icon: Warehouse, roles: ["franqueadora", "franqueado", "vendedor"] },
-    { value: "logistics", label: "Logística", icon: Truck, roles: ["franqueadora", "franqueado", "vendedor", "motorista"] },
-    { value: "clients", label: "Clientes", icon: Users, roles: ["franqueadora", "franqueado", "vendedor"] },
-    { value: "monitors", label: "Monitores", icon: User, roles: ["franqueadora", "franqueado", "vendedor"] },
-    { value: "drivers", label: "Motoristas", icon: Truck, roles: ["franqueadora", "franqueado", "vendedor"] },
+    { value: "dashboard", label: "Dashboard", icon: BarChart3, roles: ["franqueadora", "vendedor"] },
+    { value: "rentals", label: "Locações", icon: Calendar, roles: ["franqueadora", "vendedor"] },
+    { value: "stock", label: "Estoque", icon: Warehouse, roles: ["franqueadora", "vendedor"] },
+    { value: "logistics", label: "Logística", icon: Truck, roles: ["franqueadora", "vendedor", "motorista"] },
+    { value: "clients", label: "Clientes", icon: Users, roles: ["franqueadora", "vendedor"] },
+    { value: "monitors", label: "Monitores", icon: User, roles: ["franqueadora", "vendedor"] },
+    { value: "drivers", label: "Motoristas", icon: Truck, roles: ["franqueadora", "vendedor"] },
     { value: "products", label: "Produtos", icon: Package, roles: ["franqueadora"] },
     { value: "categories", label: "Categorias", icon: Tag, roles: ["franqueadora"] },
-    { value: "financial", label: "Financeiro", icon: DollarSign, roles: ["franqueadora", "franqueado"] },
+    { value: "financial", label: "Financeiro", icon: DollarSign, roles: ["franqueadora"] },
     { value: "leads", label: "Leads", icon: UserPlus, roles: ["franqueadora"] },
     { value: "franchises", label: "Unidades", icon: Store, roles: ["franqueadora"] },
-    { value: "franchise-users", label: "Franqueados", icon: UsersRound, roles: ["franqueadora"] },
     { value: "sellers", label: "Vendedores", icon: UserCheck, roles: ["franqueadora"] },
-    { value: "franchise-report", label: "Relatório", icon: FileSpreadsheet, roles: ["franqueadora", "franqueado"] },
+    { value: "franchise-report", label: "Relatório", icon: FileSpreadsheet, roles: ["franqueadora"] },
     { value: "settings", label: "Config", icon: Settings, roles: ["franqueadora"] },
   ];
 
@@ -65,7 +64,6 @@ const AdminLayout = () => {
     // Demais roles vêem menus de cliente
     return clientMenuItems.filter((item) => {
       if (isFranqueadora) return item.roles.includes("franqueadora");
-      if (isFranqueado) return item.roles.includes("franqueado");
       if (isVendedor) return item.roles.includes("vendedor");
       if (isMotorista) return item.roles.includes("motorista");
       return false;
@@ -75,8 +73,7 @@ const AdminLayout = () => {
   // Título do painel baseado no role
   const getPanelTitle = () => {
     if (isSuperAdmin) return "🛡️ Super Admin";
-    if (isFranqueadora) return "🏢 Franqueadora";
-    if (isFranqueado) return "🏪 Franqueado";
+    if (isFranqueadora) return "🏢 Painel Administrativo";
     if (isVendedor) return "👤 Vendedor";
     if (isMotorista) return "🚚 Motorista";
     return "Painel Administrativo";

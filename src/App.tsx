@@ -25,7 +25,7 @@ import Stock from "./pages/admin/Stock";
 import Leads from "./pages/admin/Leads";
 import Clients from "./pages/admin/Clients";
 import Franchises from "./pages/admin/Franchises";
-import FranchiseUsers from "./pages/admin/FranchiseUsers";
+
 import FranchiseReport from "./pages/admin/FranchiseReport";
 import Sellers from "./pages/admin/Sellers";
 import Drivers from "./pages/admin/Drivers";
@@ -91,7 +91,7 @@ const App = () => (
                   <Route path="leads" element={<Leads />} />
                   <Route path="clients" element={<Clients />} />
                   <Route path="franchises" element={<Franchises />} />
-                  <Route path="franchise-users" element={<FranchiseUsers />} />
+                  
                   <Route path="franchise-report" element={<FranchiseReport />} />
                   <Route path="sellers" element={<Sellers />} />
                   <Route path="drivers" element={<Drivers />} />

@@ -28,7 +28,7 @@ import { Loader2, Truck, History, RefreshCw, Sparkles } from "lucide-react";
 import { autoSubstituteItems } from "@/lib/autoSubstituteItems";
 
 const Stock = () => {
-  const { isFranqueadora, isFranqueado, isVendedor, userFranchise } = useAuth();
+  const { isFranqueadora, isVendedor, userFranchise } = useAuth();
   const [loading, setLoading] = useState(true);
   const [loadingMovementNeeds, setLoadingMovementNeeds] = useState(false);
   const [movementNeedsLoaded, setMovementNeedsLoaded] = useState(false);
@@ -1001,7 +1001,7 @@ const Stock = () => {
             onChange={(e) => setSearch(e.target.value)}
             className="w-64"
           />
-          {(isFranqueadora || isFranqueado) && (
+          {isFranqueadora && (
             <Button
               onClick={() => {
                 resetEquipForm();
