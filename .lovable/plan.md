@@ -1,52 +1,49 @@
 
-## Plano: Corrigir Erro 404 no /admin/dashboard
+## Plano: Corrigir Redirecionamento do Dashboard (Incluir Sub-rotas)
 
 ### Diagnóstico
 
-O usuário está acessando `/admin/dashboard` que não existe no sistema. O Dashboard financeiro foi removido e não há redirecionamento para essa URL antiga.
+O redirecionamento atual só funciona para `/admin/dashboard` exato, mas você está acessando `/admin/dashboard/rentals`.
 
-**Rotas atuais definidas:**
-- `/admin` → redireciona para `/admin/rentals`
-- `/admin/dashboard` → **NÃO EXISTE** (causa 404)
-
-### Causa Provável
-
-O navegador pode ter:
-- Cache antigo armazenado
-- Bookmark salvo para `/admin/dashboard`
-- Link direto para essa rota
+| Rota Atual | Redirecionamento | Status |
+|------------|------------------|--------|
+| `/admin/dashboard` | `/admin/rentals` | Funciona |
+| `/admin/dashboard/rentals` | - | **404** (não coberta) |
+| `/admin/dashboard/qualquer-coisa` | - | **404** (não coberta) |
 
 ### Solução
 
-Adicionar um redirecionamento de `/admin/dashboard` para `/admin/rentals` no arquivo `App.tsx`.
+Usar um padrão de wildcard (`/*`) para capturar **todas** as sub-rotas do dashboard.
 
 ---
 
 ### Arquivo a Modificar
 
-| Arquivo | Ação |
+| Arquivo | Acao |
 |---------|------|
-| `src/App.tsx` | Adicionar rota de redirecionamento |
+| `src/App.tsx` | Alterar rota de redirecionamento |
 
 ---
 
-### Alteração
-
-Adicionar nova linha dentro das rotas do admin:
+### Alteracao
 
 ```typescript
-<Route path="/admin" element={...}>
-  <Route index element={<Navigate to="rentals" replace />} />
-  <Route path="dashboard" element={<Navigate to="rentals" replace />} />  // NOVA
-  <Route path="products" element={<Products />} />
-  // ... demais rotas
-</Route>
+// ANTES (linha 91)
+<Route path="dashboard" element={<Navigate to="rentals" replace />} />
+
+// DEPOIS
+<Route path="dashboard/*" element={<Navigate to="/admin/rentals" replace />} />
 ```
+
+**Mudancas:**
+1. `dashboard` → `dashboard/*` - captura todas as sub-rotas
+2. `"rentals"` → `"/admin/rentals"` - caminho absoluto para garantir redirecionamento correto
 
 ---
 
 ### Resultado
 
-- Usuários que acessarem `/admin/dashboard` serão automaticamente redirecionados para `/admin/rentals`
-- Sem erro 404
-- Compatibilidade com bookmarks e links antigos
+Todas estas rotas serao redirecionadas para `/admin/rentals`:
+- `/admin/dashboard`
+- `/admin/dashboard/rentals`
+- `/admin/dashboard/qualquer-coisa`
