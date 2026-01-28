@@ -1,43 +1,75 @@
 
 
-## Plano: Reduzir Logo pela Metade
+## Plano: Corrigir Erro de RLS na Tabela Categories
 
-### Situação Atual
+### Diagnóstico
 
-O logo está com a classe `h-28` que equivale a **112px** de altura.
+O erro ocorre porque:
 
-### Alteração
+| Situação | Valor |
+|----------|-------|
+| Política RLS requer | `admin` role |
+| Usuários têm | `franqueadora`, `super_admin`, `vendedor` |
+| Role `admin` existe | Sim, mas ninguém a possui |
 
-Reduzir pela metade significa usar `h-14` que equivale a **56px** de altura.
+### Solução
 
-| Classe | Altura | Status |
-|--------|--------|--------|
-| h-28 | 112px | Atual |
-| h-14 | 56px | **Novo (metade)** |
-
----
-
-### Arquivo a Modificar
-
-| Arquivo | Ação |
-|---------|------|
-| `src/pages/admin/AdminLayout.tsx` | Linha 132 |
+Atualizar as políticas RLS para permitir que `franqueadora` e `super_admin` gerenciem categorias.
 
 ---
 
-### Código
+### Alterações Necessárias
 
-```typescript
-// ANTES
-className="h-28 w-auto"
+| Política | Ação |
+|----------|------|
+| INSERT | Permitir `franqueadora` e `super_admin` |
+| UPDATE | Permitir `franqueadora` e `super_admin` |
+| DELETE | Permitir `franqueadora` e `super_admin` |
 
-// DEPOIS
-className="h-14 w-auto"
+---
+
+### Detalhes Técnicos
+
+**SQL a ser executado via migration:**
+
+```sql
+-- Remover políticas antigas
+DROP POLICY IF EXISTS "Only admins can insert categories" ON public.categories;
+DROP POLICY IF EXISTS "Only admins can update categories" ON public.categories;
+DROP POLICY IF EXISTS "Only admins can delete categories" ON public.categories;
+
+-- Criar novas políticas
+CREATE POLICY "Franqueadora and super_admin can insert categories"
+ON public.categories FOR INSERT
+TO authenticated
+WITH CHECK (
+  has_role(auth.uid(), 'franqueadora'::app_role) OR 
+  has_role(auth.uid(), 'super_admin'::app_role)
+);
+
+CREATE POLICY "Franqueadora and super_admin can update categories"
+ON public.categories FOR UPDATE
+TO authenticated
+USING (
+  has_role(auth.uid(), 'franqueadora'::app_role) OR 
+  has_role(auth.uid(), 'super_admin'::app_role)
+);
+
+CREATE POLICY "Franqueadora and super_admin can delete categories"
+ON public.categories FOR DELETE
+TO authenticated
+USING (
+  has_role(auth.uid(), 'franqueadora'::app_role) OR 
+  has_role(auth.uid(), 'super_admin'::app_role)
+);
 ```
 
 ---
 
 ### Resultado
 
-O logo do PlayGestor ficará com a metade do tamanho atual (de 112px para 56px de altura), mantendo a proporção original.
+Após a correção:
+- Usuários com role `franqueadora` poderão criar/editar/deletar categorias
+- Usuários com role `super_admin` poderão criar/editar/deletar categorias
+- A visualização (SELECT) permanece pública para todos
 
