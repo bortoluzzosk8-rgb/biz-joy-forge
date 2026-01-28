@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, Store, UserCheck, Truck, User, Building2, Clock, CreditCard, Megaphone, ShoppingBag } from "lucide-react";
+import logoPlaygestor from "@/assets/logo-playgestor-header.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { toast } from "sonner";
@@ -76,14 +77,7 @@ const AdminLayout = () => {
     });
   })();
 
-  // Título do painel baseado no role
-  const getPanelTitle = () => {
-    if (isSuperAdmin) return "🛡️ Super Admin";
-    if (isFranqueadora) return "🏢 Painel Administrativo";
-    if (isVendedor) return "👤 Vendedor";
-    if (isMotorista) return "🚚 Motorista";
-    return "Painel Administrativo";
-  };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -131,10 +125,12 @@ const AdminLayout = () => {
         <div className="px-4 lg:px-8 py-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-foreground">
-                  {getPanelTitle()}
-                </h1>
+              <div className="flex items-center gap-3">
+                <img 
+                  src={logoPlaygestor} 
+                  alt="PlayGestor" 
+                  className="h-10 w-auto"
+                />
               </div>
               <p className="text-sm text-muted-foreground">{user?.email}</p>
               {userFranchise && (
