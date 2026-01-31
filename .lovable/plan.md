@@ -1,185 +1,104 @@
 
 
-## Plano: Tornar Ícone e Cor Opcionais com Paleta de Cores Completa
+## Plano: Adicionar Coluna "Festas" na Lista de Monitores
 
-### Alterações Solicitadas
+### Objetivo
 
-| Campo | Situação Atual | Nova Situação |
-|-------|----------------|---------------|
-| **Ícone** | Obrigatório (valor padrão "📦") | Opcional - pode deixar vazio |
-| **Cor** | 5 cores pré-definidas (gradientes) | Paleta completa + opcional |
+Exibir na tabela de monitores cadastrados a quantidade de festas/locações em que cada monitor participou, funcionando como um ranking de participação.
+
+---
+
+### Como Funciona a Relação
+
+```text
+┌─────────────┐         ┌────────────────────────┐         ┌─────────┐
+│   monitors  │────────▶│  sale_monitoring_slots │◀────────│  sales  │
+└─────────────┘         └────────────────────────┘         └─────────┘
+       │                          │                              │
+   monitor_id              monitor_id + sale_id              locações
+```
+
+- Quando uma locação é criada e um monitor é selecionado, ele é registrado na tabela `sale_monitoring_slots`
+- Contando os registros por `monitor_id`, obtemos quantas festas cada monitor participou
 
 ---
 
 ### Arquivo a Modificar
 
-`src/pages/admin/Categories.tsx`
+`src/pages/admin/Monitors.tsx`
 
 ---
 
 ### Alterações Detalhadas
 
-#### 1. Ícone Opcional
+#### 1. Adicionar Estado para Contagem de Festas
 
-**Estado inicial (linha 47-48):**
 ```tsx
-// Antes:
-icon: "📦",
-
-// Depois:
-icon: "",
+// Novo estado para armazenar contagem de festas por monitor
+const [monitorPartyCounts, setMonitorPartyCounts] = useState<Record<string, number>>({});
 ```
 
-**Opções de ícone - adicionar opção "Nenhum" (linha 28-31):**
-```tsx
-// Antes:
-const iconOptions = [
-  '🎪', '🎈', '⚙️', '🎁', '🎯', '🎨', '🎮', '🎸', 
-  '📦', '🛠️', '🏗️', '🚚', '💡', '⭐', '🔥', '✨'
-];
-
-// Depois:
-const iconOptions = [
-  '', // Opção "Nenhum"
-  '🎪', '🎈', '⚙️', '🎁', '🎯', '🎨', '🎮', '🎸', 
-  '📦', '🛠️', '🏗️', '🚚', '💡', '⭐', '🔥', '✨'
-];
-```
-
-**Select de ícone - exibir "Nenhum" quando vazio:**
-```tsx
-<SelectItem key="none" value="">
-  <span className="text-muted-foreground">Nenhum</span>
-</SelectItem>
-```
-
----
-
-#### 2. Cor com Paleta Completa e Opcional
-
-**Substituir Select por Input type="color":**
+#### 2. Buscar Contagem de Festas na Função `fetchData`
 
 ```tsx
-// Antes (linhas 202-219):
-<div className="space-y-2">
-  <Label htmlFor="color">Cor</Label>
-  <div className="flex gap-2">
-    <Select value={form.color} onValueChange={...}>
-      ...5 opções fixas...
-    </Select>
-    <div className="w-16 h-10 rounded-md ..." />
-  </div>
-</div>
+// Dentro de fetchData(), após buscar monitores:
+// Buscar contagem de festas por monitor
+const { data: partyCountsData, error: partyCountsError } = await supabase
+  .from("sale_monitoring_slots")
+  .select("monitor_id");
 
-// Depois:
-<div className="space-y-2">
-  <Label htmlFor="color">Cor (opcional)</Label>
-  <div className="flex gap-2 items-center">
-    <Input
-      type="color"
-      id="color"
-      value={form.color || "#6366f1"}
-      onChange={(e) => handleChangeForm("color", e.target.value)}
-      className="w-16 h-10 p-1 cursor-pointer"
-    />
-    {form.color && (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={() => handleChangeForm("color", "")}
-      >
-        Remover cor
-      </Button>
-    )}
-    {!form.color && (
-      <span className="text-sm text-muted-foreground">Sem cor definida</span>
-    )}
-  </div>
-</div>
-```
-
----
-
-#### 3. Atualizar Estado Inicial
-
-```tsx
-// Linha 44-49:
-const [form, setForm] = useState<FormState>({
-  id: null,
-  name: "",
-  icon: "",      // Vazio = sem ícone
-  color: ""      // Vazio = sem cor
-});
-
-// Linha 77-84 (resetForm):
-const resetForm = () => {
-  setForm({
-    id: null,
-    name: "",
-    icon: "",
-    color: ""
+if (!partyCountsError && partyCountsData) {
+  // Contar ocorrências por monitor_id
+  const counts: Record<string, number> = {};
+  partyCountsData.forEach(slot => {
+    if (slot.monitor_id) {
+      counts[slot.monitor_id] = (counts[slot.monitor_id] || 0) + 1;
+    }
   });
-};
+  setMonitorPartyCounts(counts);
+}
 ```
 
----
+#### 3. Adicionar Coluna no Cabeçalho da Tabela
 
-#### 4. Atualizar Exibição na Tabela
-
-**Ícone na tabela - exibir "-" quando vazio:**
 ```tsx
-<TableCell>
-  {category.icon ? (
-    <span className="text-2xl">{category.icon}</span>
-  ) : (
-    <span className="text-muted-foreground">-</span>
-  )}
-</TableCell>
+// Antes da coluna "Unidade" (linha ~395):
+<TableHead>Festas</TableHead>
 ```
 
-**Cor na tabela - exibir o hex ou "-" quando vazio:**
+#### 4. Adicionar Célula na Linha do Monitor
+
 ```tsx
+// Antes da célula de Unidade (linha ~433):
 <TableCell>
-  {category.color ? (
-    <div 
-      className="h-8 w-full rounded-md" 
-      style={{ backgroundColor: category.color }} 
-    />
-  ) : (
-    <span className="text-muted-foreground">Sem cor</span>
-  )}
+  <div className="flex items-center gap-2">
+    <span className="font-semibold text-primary">
+      {monitorPartyCounts[monitor.id] || 0}
+    </span>
+  </div>
 </TableCell>
 ```
 
 ---
 
-#### 5. Remover Função `getColorPreview` (não será mais necessária)
-
-Como agora usamos cores hex diretas ao invés de classes de gradiente pré-definidas, essa função pode ser removida.
-
----
-
-### Layout Visual do Formulário
+### Layout Visual da Tabela
 
 ```text
-+------------------+  +----------------+  +---------------------------+
-| Nome da Categoria|  | Ícone          |  | Cor (opcional)            |
-+------------------+  +----------------+  +---------------------------+
-| [______________] |  | [Nenhum     v] |  | [🎨] Remover cor          |
-+------------------+  +----------------+  +---------------------------+
-
-Opções de ícone:              Color picker nativo:
-- Nenhum                      - Abre paleta completa
-- 🎪 🎈 ⚙️ 🎁 ...             - Botão para remover
+┌─────────┬────────────┬──────────┬─────────────┬────────┬──────────────────────┬────────┐
+│  Nome   │  Telefone  │ Endereço │ Observações │ Festas │       Unidade        │ Ações  │
+├─────────┼────────────┼──────────┼─────────────┼────────┼──────────────────────┼────────┤
+│ 👤 Gui  │ 📞 1111... │ 📍 1111  │     -       │   10   │ 🏢 PLAY GESTOR-CEDRAL│ ✏️ 🗑️  │
+│ 👤 Ana  │ 📞 2222... │ 📍 ...   │     -       │   8    │ 🏢 PLAY GESTOR-SP    │ ✏️ 🗑️  │
+│ 👤 João │ 📞 3333... │ 📍 ...   │     -       │   3    │ 🏢 PLAY GESTOR-RJ    │ ✏️ 🗑️  │
+└─────────┴────────────┴──────────┴─────────────┴────────┴──────────────────────┴────────┘
 ```
 
 ---
 
 ### Resultado Esperado
 
-- **Ícone**: Dropdown com opção "Nenhum" no topo
-- **Cor**: Input nativo de cor (color picker) com toda paleta disponível
-- **Ambos opcionais**: Categorias podem ser criadas sem ícone e/ou sem cor
-- **Tabela**: Exibe "-" ou "Sem cor" quando campos estão vazios
+- Nova coluna "Festas" exibindo a quantidade de vezes que cada monitor foi utilizado em locações
+- Atualização automática conforme novas locações são criadas com monitores
+- Valor 0 exibido para monitores que ainda não participaram de nenhuma festa
+- Possibilidade futura de ordenar por esta coluna para criar um ranking
 
