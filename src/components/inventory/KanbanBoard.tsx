@@ -69,7 +69,7 @@ export const KanbanBoard = ({
 
         <div className="space-y-1 text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Franquia:</span>
+            <span className="text-muted-foreground">Unidade:</span>
             <Badge variant="outline">{franchiseNameById(eq.franchiseId)}</Badge>
           </div>
           {eq.manufactureDate && (
