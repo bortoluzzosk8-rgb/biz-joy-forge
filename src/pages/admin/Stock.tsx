@@ -26,7 +26,7 @@ import {
   SelectSeparator,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Truck, History, RefreshCw, Sparkles, Plus } from "lucide-react";
+import { Loader2, RefreshCw, Sparkles, Plus } from "lucide-react";
 import { autoSubstituteItems } from "@/lib/autoSubstituteItems";
 import { useNavigate } from "react-router-dom";
 
@@ -908,14 +908,14 @@ const Stock = () => {
             variant={activeTab === "ativos" ? "default" : "outline"}
             onClick={() => setActiveTab("ativos")}
           >
-            Ativos
+            📦 Ativos
           </Button>
           {(isFranqueadora || isVendedor) && (
             <Button
               variant={activeTab === "consulta" ? "default" : "outline"}
               onClick={() => setActiveTab("consulta")}
             >
-              📋 Consulta
+              🔍 Consulta
             </Button>
           )}
           {isFranqueadora && (
@@ -924,15 +924,14 @@ const Stock = () => {
                 variant={activeTab === "excluidos" ? "default" : "outline"}
                 onClick={() => setActiveTab("excluidos")}
               >
-                Excluídos
+                🗑️ Excluídos
               </Button>
               <Button
                 variant={activeTab === "movimentacoes" ? "default" : "outline"}
                 onClick={() => setActiveTab("movimentacoes")}
                 className="relative"
               >
-                <Truck className="w-4 h-4 mr-1" />
-                Movimentações
+                🚚 Movimentações
                 {movementNeeds.length > 0 && (
                   <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-xs">
                     {movementNeeds.length}
@@ -943,7 +942,7 @@ const Stock = () => {
                 variant={activeTab === "dashboard" ? "default" : "outline"}
                 onClick={() => setActiveTab("dashboard")}
               >
-                Dashboard
+                📊 Dashboard
               </Button>
               <Button
                 variant={activeTab === "historico" ? "default" : "outline"}
@@ -952,14 +951,13 @@ const Stock = () => {
                   loadGlobalMovementHistory();
                 }}
               >
-                <History className="w-4 h-4 mr-1" />
-                Histórico
+                🕐 Histórico
               </Button>
               <Button
                 variant={activeTab === "analise" ? "default" : "outline"}
                 onClick={() => setActiveTab("analise")}
               >
-                📊 Análise
+                📈 Análise
               </Button>
             </>
           )}

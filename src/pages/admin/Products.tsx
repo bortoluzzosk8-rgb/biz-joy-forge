@@ -16,6 +16,7 @@ import { Plus, Edit, Trash2, Loader2, Eye, EyeOff, Package, GripVertical } from 
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DndContext,
   closestCenter,
@@ -198,6 +199,7 @@ const SortableProductItem = ({
 
 const Products = () => {
   const navigate = useNavigate();
+  const { userFranchise } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
@@ -319,6 +321,11 @@ const Products = () => {
       return;
     }
 
+    if (!userFranchise?.id) {
+      toast.error("Franquia não encontrada. Faça login novamente.");
+      return;
+    }
+
     const productData = {
       name: form.name,
       description: form.description || null,
@@ -326,6 +333,7 @@ const Products = () => {
       sale_price: sale,
       image_url: form.imageUrls.length > 0 ? form.imageUrls : null,
       category_id: categoryId,
+      franchise_id: userFranchise.id,
     };
 
     try {
