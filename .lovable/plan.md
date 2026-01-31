@@ -1,74 +1,107 @@
 
-## Plano: Remover Card de "Diferença" do Gráfico de Vendas
+## Plano: Atualizar Valores Padrão do Catálogo para PlayGestor
 
-### Componente Identificado
+### Problema Identificado
 
-O card de "Diferença" está localizado no arquivo `src/components/sales/SalesChart.tsx` nas linhas 365-382.
+A tabela `settings` no banco de dados está **vazia**, então o sistema está usando os valores padrão definidos no código. Esses valores padrão ainda são os antigos da marca "ENGBRINK":
 
-### Layout Atual
+| Campo | Valor Atual (Incorreto) | Valor Correto |
+|-------|------------------------|---------------|
+| `logoUrl` | `/src/assets/logo-engbrink.jpg` | `/src/assets/logo-playgestor-novo.png` |
+| `catalogHeaderTitle` | `Catálogo ENGBRINK` | `Catálogo` |
+| `companyName` | `ENGBRINK` | `PlayGestor` |
 
-```
-Grid com 4 cards:
-[ Realizado ] [ Vendido ] [ Diferença ] [ Ticket Médio ]
-```
+---
 
-### Layout Após Remoção
+### Arquivos Afetados
 
-```
-Grid com 3 cards:
-[ Realizado ] [ Vendido ] [ Ticket Médio ]
-```
+Os valores padrão estão definidos em dois lugares:
+
+1. **`src/hooks/useSettings.tsx`** - Hook que fornece configurações para toda a aplicação
+2. **`src/pages/admin/Settings.tsx`** - Página de configurações
 
 ---
 
 ### Alterações Necessárias
 
-#### 1. Remover o card de "Diferença" (linhas 365-382)
+#### 1. `src/hooks/useSettings.tsx`
 
-Remover completamente o seguinte bloco:
-```tsx
-<Card>
-  <CardContent className="pt-4">
-    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-      {isPositiveDiff ? (
-        <TrendingUp className="h-4 w-4 text-green-500" />
-      ) : (
-        <TrendingDown className="h-4 w-4 text-red-500" />
-      )}
-      Diferença
-    </div>
-    <div className={`text-2xl font-bold ${isPositiveDiff ? "text-green-600" : "text-red-600"}`}>
-      {isPositiveDiff ? "+" : ""}{formatCurrency(difference)}
-    </div>
-    <div className="text-xs text-muted-foreground mt-1">
-      vendas antecipadas
-    </div>
-  </CardContent>
-</Card>
-```
-
-#### 2. Ajustar o grid de 4 para 3 colunas (linha 334)
+Atualizar os valores padrão do estado inicial (linha 27-35):
 
 ```tsx
 // Antes:
-<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+logoUrl: '/src/assets/logo-engbrink.jpg',
+catalogTitle: 'Brinquedos Infláveis',
+catalogSubtitle: 'Bem-vindo ao nosso catálogo!',
+catalogHeaderTitle: 'Catálogo ENGBRINK',
 
 // Depois:
-<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+logoUrl: '/src/assets/logo-playgestor-novo.png',
+catalogTitle: 'Catálogo de Produtos',
+catalogSubtitle: 'Bem-vindo ao nosso catálogo!',
+catalogHeaderTitle: 'Catálogo',
 ```
 
----
+Atualizar também os fallbacks na função `loadSettings()` (linhas 55-62):
 
-### Arquivo a Modificar
+```tsx
+// Antes:
+logoUrl: data.logo_url || '/src/assets/logo-engbrink.jpg',
+catalogHeaderTitle: data.catalog_header_title || 'Catálogo ENGBRINK',
 
-| Arquivo | Alterações |
-|---------|------------|
-| `src/components/sales/SalesChart.tsx` | Remover card de Diferença e ajustar grid layout |
+// Depois:
+logoUrl: data.logo_url || '/src/assets/logo-playgestor-novo.png',
+catalogHeaderTitle: data.catalog_header_title || 'Catálogo',
+```
+
+#### 2. `src/pages/admin/Settings.tsx`
+
+Atualizar os valores padrão do estado inicial (linhas 23-26):
+
+```tsx
+// Antes:
+catalogTitle: "Brinquedos Infláveis",
+catalogSubtitle: "Bem-vindo ao nosso catálogo!",
+catalogHeaderTitle: "Catálogo ENGBRINK",
+companyName: "ENGBRINK",
+
+// Depois:
+catalogTitle: "Catálogo de Produtos",
+catalogSubtitle: "Bem-vindo ao nosso catálogo!",
+catalogHeaderTitle: "Catálogo",
+companyName: "PlayGestor",
+```
+
+E os fallbacks ao carregar dados (linhas 73-76):
+
+```tsx
+// Antes:
+catalogTitle: data.catalog_title || "Brinquedos Infláveis",
+catalogHeaderTitle: data.catalog_header_title || "Catálogo ENGBRINK",
+companyName: data.company_name || "ENGBRINK",
+
+// Depois:
+catalogTitle: data.catalog_title || "Catálogo de Produtos",
+catalogHeaderTitle: data.catalog_header_title || "Catálogo",
+companyName: data.company_name || "PlayGestor",
+```
 
 ---
 
 ### Resultado Esperado
 
-- O painel de "Diferença" não será mais exibido
-- Os 3 cards restantes (Realizado, Vendido, Ticket Médio) ficarão bem distribuídos
-- Layout responsivo mantido
+Após as alterações:
+- O catálogo mostrará automaticamente o logo do PlayGestor
+- O título será "Catálogo" ao invés de "Catálogo ENGBRINK"
+- A identidade visual ficará consistente com a landing page
+- Quando o usuário salvar as configurações pela primeira vez, um registro será criado no banco de dados e esses valores poderão ser personalizados
+
+---
+
+### Próximos Passos (Opcional)
+
+Para personalização completa, o usuário pode acessar **Configurações** no painel administrativo e:
+1. Fazer upload de um logo customizado
+2. Definir cores personalizadas
+3. Configurar os textos do catálogo
+
