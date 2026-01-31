@@ -1,114 +1,79 @@
 
 
-## Plano: Melhorar Navegação Mobile das Abas
+## Plano: Pagamento Confirmado Automaticamente
 
-### Situação Atual
+### Problema Atual
 
-No celular, as abas de navegação (Estoque, Clientes, Produtos, Financeiro, etc.) são exibidas como um dropdown Select. Isso funciona, mas pode ser menos intuitivo.
+Fluxo em duas etapas desnecessário:
+1. Adicionar pagamento → fica como "pendente"
+2. Rolar até a lista → clicar em "Confirmar"
 
-### Proposta de Melhoria
+### Solução
 
-Trocar o dropdown por uma **barra de abas horizontal com scroll** - mais visual e fácil de navegar com o dedo.
+Ao clicar em "Adicionar Pagamento", salvar diretamente com `status: 'paid'` e `payment_date` = data atual.
 
 ---
 
 ### Arquivo a Modificar
 
-`src/pages/admin/AdminLayout.tsx`
+`src/components/admin/QuickPaymentDrawer.tsx`
 
 ---
 
-### Alterações
+### Alteração
 
-#### Navegação Mobile (linhas 184-222)
+Na função `handleAddPayment`, linhas 153-166, mudar:
 
-**Antes:** Dropdown Select
+**Antes:**
 ```tsx
-{isMobile ? (
-  <Select value={getCurrentTab()} onValueChange={handleTabChange}>
-    <SelectTrigger className="w-full max-w-xs">
-      <SelectValue placeholder="Selecione uma seção" />
-    </SelectTrigger>
-    <SelectContent>
-      {visibleMenuItems.map(...)}
-    </SelectContent>
-  </Select>
-) : (
-  <Tabs>...</Tabs>
-)}
+const { error } = await supabase
+  .from('sale_payments')
+  .insert({
+    sale_id: sale.id,
+    payment_type: newPayment.payment_type,
+    payment_method: newPayment.payment_method,
+    amount,
+    installments: parseInt(newPayment.installments),
+    status: 'pending',  // ❌ Pendente
+    card_fee: ...,
+    receipt_url: receiptUrl,
+  });
 ```
 
-**Depois:** Barra de abas horizontal com scroll
+**Depois:**
 ```tsx
-<div className="w-full overflow-x-auto">
-  <div className="flex gap-1 pb-2 min-w-max md:flex-wrap md:min-w-0">
-    {visibleMenuItems.map((item) => {
-      const Icon = item.icon;
-      const isActive = getCurrentTab() === item.value;
-      return (
-        <Button
-          key={item.value}
-          variant={isActive ? "default" : "ghost"}
-          size="sm"
-          onClick={() => handleTabChange(item.value)}
-          className={cn(
-            "shrink-0 flex items-center gap-1.5 px-3 py-2",
-            isActive && "bg-primary text-primary-foreground"
-          )}
-        >
-          <Icon className="w-4 h-4" />
-          <span className="text-xs sm:text-sm">{item.label}</span>
-        </Button>
-      );
-    })}
-  </div>
-</div>
+const { error } = await supabase
+  .from('sale_payments')
+  .insert({
+    sale_id: sale.id,
+    payment_type: newPayment.payment_type,
+    payment_method: newPayment.payment_method,
+    amount,
+    installments: parseInt(newPayment.installments),
+    status: 'paid',  // ✅ Já confirmado
+    payment_date: new Date().toISOString().split('T')[0],  // Data atual
+    card_fee: ...,
+    receipt_url: receiptUrl,
+  });
 ```
 
 ---
 
-### Comparação Visual
+### Limpeza Adicional
+
+Remover o scroll automático (linhas 188-194), pois não é mais necessário mostrar a lista para confirmar.
+
+---
+
+### Resultado
 
 ```text
-ANTES (Mobile):                      DEPOIS (Mobile):
-┌─────────────────────────────┐      ┌─────────────────────────────┐
-│ [Locações        ▼]         │      │ [Locações][Estoque][Clientes] ──►
-│                             │      │  ← scroll horizontal ──────►
-│ (dropdown fechado)          │      │                             │
-└─────────────────────────────┘      └─────────────────────────────┘
-
-Precisa clicar para ver opções       Todas as opções visíveis
-                                     Desliza para ver mais
+ANTES:                          DEPOIS:
+Adicionar → Pendente            Adicionar → Confirmado ✅
+Rolar lista → Confirmar         Pronto!
 ```
 
----
-
-### Benefícios
-
-| Aspecto | Dropdown (Atual) | Barra Horizontal (Nova) |
-|---------|------------------|-------------------------|
-| Visibilidade | Opções escondidas | Opções visíveis |
-| Navegação | 2 cliques (abrir + selecionar) | 1 toque direto |
-| UX Mobile | Menos intuitivo | Padrão de apps modernos |
-| Feedback visual | Apenas texto | Ícone + texto destacado |
-
----
-
-### Detalhes Técnicos
-
-1. `overflow-x-auto` permite scroll horizontal
-2. `min-w-max` mantém os botões em linha
-3. `shrink-0` impede que os botões encolham
-4. Botão ativo usa `bg-primary` para destaque visual
-5. Desktop mantém comportamento atual com `md:flex-wrap`
-
----
-
-### Resultado Esperado
-
-- Todas as abas visíveis ao mesmo tempo
-- Scroll horizontal suave com o dedo
-- Aba ativa destacada visualmente
-- Ícones + texto para fácil identificação
-- Navegação com 1 toque
+- Um clique = pagamento confirmado
+- Menos etapas
+- Experiência mais rápida
 

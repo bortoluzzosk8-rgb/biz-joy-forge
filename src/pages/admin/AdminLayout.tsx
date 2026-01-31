@@ -1,13 +1,14 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, Store, UserCheck, Truck, User, Building2, Clock, CreditCard, Megaphone, ShoppingBag } from "lucide-react";
 import logoPlaygestor from "@/assets/logo-playgestor-novo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
+
 const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -181,29 +182,24 @@ const AdminLayout = () => {
         </div>
 
           {isMobile ? (
-            <div className="w-full overflow-x-auto -mx-4 px-4">
-              <div className="flex gap-1 pb-2 min-w-max">
+            <Select value={getCurrentTab()} onValueChange={handleTabChange}>
+              <SelectTrigger className="w-full max-w-xs">
+                <SelectValue placeholder="Selecione uma seção" />
+              </SelectTrigger>
+              <SelectContent>
                 {visibleMenuItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = getCurrentTab() === item.value;
                   return (
-                    <Button
-                      key={item.value}
-                      variant={isActive ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => handleTabChange(item.value)}
-                      className={cn(
-                        "shrink-0 flex items-center gap-1.5 px-3 py-2",
-                        isActive && "bg-primary text-primary-foreground"
-                      )}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span className="text-xs">{item.label}</span>
-                    </Button>
+                    <SelectItem key={item.value} value={item.value}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-4 h-4" />
+                        {item.label}
+                      </div>
+                    </SelectItem>
                   );
                 })}
-              </div>
-            </div>
+              </SelectContent>
+            </Select>
           ) : (
             <Tabs value={getCurrentTab()} className="w-full">
               <TabsList className="flex flex-wrap h-auto items-center justify-start rounded-md bg-muted p-1 gap-1">
