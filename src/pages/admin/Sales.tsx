@@ -169,6 +169,7 @@ const Sales = () => {
     inventory_item_id: "",
     unit_value: "",
   });
+  const [checkingInventory, setCheckingInventory] = useState(false);
   const [showBorrowModal, setShowBorrowModal] = useState(false);
   const [borrowingItems, setBorrowingItems] = useState<InventoryItem[]>([]);
   const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
@@ -748,8 +749,11 @@ const Sales = () => {
   const checkInventoryAvailability = async (productName: string, franchiseId: string) => {
     if (!productName || !franchiseId || !formData.rental_start_date || !formData.return_date) {
       setAvailableInventory([]);
+      setCheckingInventory(false);
       return;
     }
+
+    setCheckingInventory(true);
 
     try {
       // Buscar todos os inventory_items da franquia e de outras franquias
@@ -824,6 +828,8 @@ const Sales = () => {
     } catch (error) {
       console.error("Error checking inventory:", error);
       setAvailableInventory([]);
+    } finally {
+      setCheckingInventory(false);
     }
   };
 
@@ -2101,6 +2107,7 @@ Obrigado pela confiança! 🙏`;
                     });
                     setAvailableInventory([]);
                     setAvailableCodes([]);
+                    setCheckingInventory(false);
                   }}
                 >
                   <SelectTrigger id="franchise_id">
@@ -2511,7 +2518,18 @@ Obrigado pela confiança! 🙏`;
                 </div>
               )}
               
-              {currentItem.product_id && availableInventory.length === 0 && formData.rental_start_date && formData.return_date && (
+              {currentItem.product_id && checkingInventory && formData.rental_start_date && formData.return_date && (
+                <Card className="p-3 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
+                    <p className="text-sm text-blue-900 dark:text-blue-100">
+                      Verificando disponibilidade...
+                    </p>
+                  </div>
+                </Card>
+              )}
+              
+              {currentItem.product_id && !checkingInventory && availableInventory.length === 0 && formData.rental_start_date && formData.return_date && (
                 <Card className="p-3 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
                   <div className="flex items-start gap-2">
                     <span className="text-red-600 dark:text-red-400">❌</span>
