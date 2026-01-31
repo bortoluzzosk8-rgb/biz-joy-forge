@@ -29,7 +29,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pencil, Trash2, User, Plus, Phone, MapPin, Building2 } from "lucide-react";
+import { Pencil, Trash2, User, Plus, Phone, MapPin, Building2, PartyPopper } from "lucide-react";
 
 interface Monitor {
   id: string;
@@ -56,6 +56,7 @@ export default function Monitors() {
   const { toast } = useToast();
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [franchises, setFranchises] = useState<Franchise[]>([]);
+  const [monitorPartyCounts, setMonitorPartyCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -97,6 +98,21 @@ export default function Monitors() {
 
       if (monitorsError) throw monitorsError;
       setMonitors(monitorsData || []);
+
+      // Buscar contagem de festas por monitor
+      const { data: partyCountsData, error: partyCountsError } = await supabase
+        .from("sale_monitoring_slots")
+        .select("monitor_id");
+
+      if (!partyCountsError && partyCountsData) {
+        const counts: Record<string, number> = {};
+        partyCountsData.forEach(slot => {
+          if (slot.monitor_id) {
+            counts[slot.monitor_id] = (counts[slot.monitor_id] || 0) + 1;
+          }
+        });
+        setMonitorPartyCounts(counts);
+      }
 
       // Fetch franchises for the dropdown (for franqueadora and vendedor)
       if (isFranqueadora || isVendedor) {
@@ -393,6 +409,7 @@ export default function Monitors() {
                     <TableHead>Telefone</TableHead>
                     <TableHead>Endereço</TableHead>
                     <TableHead>Observações</TableHead>
+                    <TableHead>Festas</TableHead>
                     {(isFranqueadora || isVendedor) && <TableHead>Unidade</TableHead>}
                     {canEdit && <TableHead className="w-[100px]">Ações</TableHead>}
                   </TableRow>
@@ -430,6 +447,14 @@ export default function Monitors() {
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
+                        </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <PartyPopper className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-semibold text-primary">
+                            {monitorPartyCounts[monitor.id] || 0}
+                          </span>
+                        </div>
                       </TableCell>
                       {(isFranqueadora || isVendedor) && (
                         <TableCell>
