@@ -93,7 +93,6 @@ const ProductDetail = () => {
       return;
     }
     addToCart(product);
-    toast.success(`${product.name} adicionado ao carrinho`);
   };
 
   const getGradientStyle = () => ({
