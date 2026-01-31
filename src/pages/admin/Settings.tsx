@@ -344,7 +344,7 @@ const Settings = () => {
     <div className="space-y-6">
       <Card className="p-6 max-w-2xl">
         <h2 className="text-xl font-semibold text-foreground mb-4">
-          🎨 Aparência do Sistema
+          🎨 Aparência do Catálogo
         </h2>
         <div className="space-y-4">
           {/* Upload de Logo */}
