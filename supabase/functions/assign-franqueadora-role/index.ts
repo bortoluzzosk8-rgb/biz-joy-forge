@@ -152,39 +152,32 @@ Deno.serve(async (req) => {
       console.log(`Linked user ${user_id} to franchise ${franchiseId}`)
     }
 
-    // SEGUNDO: Verificar e criar role franqueadora se necessário
-    const { data: existingRole, error: checkError } = await supabaseAdmin
+    // SEGUNDO: Criar role franqueadora (ignorar se já existe)
+    // Usar upsert com onConflict para evitar race conditions
+    const { error: insertError } = await supabaseAdmin
       .from('user_roles')
-      .select('id')
-      .eq('user_id', user_id)
-      .eq('role', 'franqueadora')
-      .maybeSingle()
-
-    if (checkError) {
-      console.error('Error checking existing role:', checkError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to check existing role' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Se role não existe, criar
-    if (!existingRole) {
-      const { error: insertError } = await supabaseAdmin
-        .from('user_roles')
-        .insert({
+      .upsert(
+        {
           user_id: user_id,
           role: 'franqueadora'
-        })
+        },
+        { 
+          onConflict: 'user_id,role',
+          ignoreDuplicates: true 
+        }
+      )
 
-      if (insertError) {
+    if (insertError) {
+      // Ignorar erro de duplicação - significa que já existe
+      if (insertError.code !== '23505') {
         console.error('Error inserting role:', insertError)
         return new Response(
           JSON.stringify({ error: 'Failed to assign role' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
-
+      console.log(`Role franqueadora already exists for user: ${user_id}`)
+    } else {
       console.log(`Successfully assigned franqueadora role to user: ${user_id}`)
     }
 
