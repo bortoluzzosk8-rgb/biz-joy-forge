@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import logoPlayGestor from '@/assets/logo-playgestor.png';
+import logoPlayGestor from '@/assets/logo-playgestor-novo.png';
 
 const navLinks = [
   { href: '#hero', label: 'Principal' },
