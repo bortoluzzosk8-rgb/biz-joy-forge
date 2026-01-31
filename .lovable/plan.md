@@ -1,114 +1,178 @@
 
 
-## Plano: Corrigir Isolamento Multi-Tenant no Histórico de Movimentações
+## Plano: Adicionar Upload de Imagem para Equipamentos no Estoque
 
-### Problema Identificado
+### Objetivo
 
-O usuário "teste" (`fcef5ea9-8818-4513-8011-bd61eddad2f8`) está vendo histórico de movimentações de outros tenants (PLAY GESTOR e Franquia de gg).
-
-**Causa raiz:** Políticas RLS antigas que permitem acesso irrestrito a qualquer franqueadora.
+Adicionar a funcionalidade de upload de imagem nos modais de **criação** e **edição** de equipamentos na Gestão de Estoque.
 
 ---
 
-### Políticas Problemáticas a Remover
+### O que já funciona
 
-| Tabela | Política | Problema |
-|--------|----------|----------|
-| `inventory_movements` | `"Franqueadora can manage all inventory_movements"` | Permite que QUALQUER franqueadora veja TODAS as movimentações |
-| `equipment_movement_history` | `"Franqueadora can manage all equipment movements"` | Mesmo problema |
-
-Ambas usam apenas `has_role(auth.uid(), 'franqueadora')` sem filtrar por tenant.
-
----
-
-### Dados Atuais (Evidência)
-
-| Movimentação | De | Para | Envolve "teste"? |
-|--------------|----|----|------------------|
-| 31/01/2026 12:36 | Franquia de gg | PLAY GESTOR | ❌ Não |
-| 31/01/2026 11:08 | PLAY GESTOR | Franquia de gg | ❌ Não |
-
-O usuário "teste" não deveria ver nenhuma dessas movimentações.
+| Componente | Status |
+|------------|--------|
+| Campo `image_url` na tabela `inventory_items` | ✅ Existe |
+| Exibição de imagem no card (KanbanBoard) | ✅ Funciona |
+| Upload de imagem no modal | ❌ Não existe |
 
 ---
 
-### Solução
+### Mudanças Necessárias
 
-#### Migração SQL
+#### 1. Criar Bucket de Storage
+
+Criar um bucket público para armazenar as imagens dos equipamentos:
 
 ```sql
--- ========================================
--- 1. TABELA: inventory_movements
--- ========================================
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('inventory-images', 'inventory-images', true);
 
--- Remover política antiga que permite acesso irrestrito
-DROP POLICY IF EXISTS "Franqueadora can manage all inventory_movements" ON inventory_movements;
+-- Política para usuários autenticados fazerem upload
+CREATE POLICY "Authenticated users can upload inventory images"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'inventory-images');
 
--- A política "Franqueadora can manage own tenant inventory movements" já existe
--- e usa belongs_to_user_tenant(to_franchise_id), mas precisamos ajustar
--- para filtrar também por from_franchise_id
+-- Política para acesso público às imagens
+CREATE POLICY "Public can view inventory images"
+ON storage.objects FOR SELECT TO public
+USING (bucket_id = 'inventory-images');
 
--- Recriar política com filtro correto (deve verificar ambos os lados)
-DROP POLICY IF EXISTS "Franqueadora can manage own tenant inventory movements" ON inventory_movements;
-CREATE POLICY "Franqueadora can manage own tenant inventory movements"
-ON inventory_movements FOR ALL TO authenticated
-USING (
-  has_role(auth.uid(), 'franqueadora'::app_role) 
-  AND (
-    belongs_to_user_tenant(to_franchise_id) 
-    OR belongs_to_user_tenant(from_franchise_id)
-  )
-)
-WITH CHECK (
-  has_role(auth.uid(), 'franqueadora'::app_role) 
-  AND (
-    belongs_to_user_tenant(to_franchise_id) 
-    OR belongs_to_user_tenant(from_franchise_id)
-  )
-);
-
--- ========================================
--- 2. TABELA: equipment_movement_history
--- ========================================
-
--- Remover política antiga que permite acesso irrestrito
-DROP POLICY IF EXISTS "Franqueadora can manage all equipment movements" ON equipment_movement_history;
-
--- Recriar política com filtro correto
-DROP POLICY IF EXISTS "Franqueadora can manage own tenant equipment movement history" ON equipment_movement_history;
-CREATE POLICY "Franqueadora can manage own tenant equipment movement history"
-ON equipment_movement_history FOR ALL TO authenticated
-USING (
-  has_role(auth.uid(), 'franqueadora'::app_role) 
-  AND (
-    belongs_to_user_tenant(to_franchise_id) 
-    OR belongs_to_user_tenant(from_franchise_id)
-  )
-)
-WITH CHECK (
-  has_role(auth.uid(), 'franqueadora'::app_role) 
-  AND (
-    belongs_to_user_tenant(to_franchise_id) 
-    OR belongs_to_user_tenant(from_franchise_id)
-  )
-);
+-- Política para usuários autenticados deletarem suas imagens
+CREATE POLICY "Authenticated users can delete inventory images"
+ON storage.objects FOR DELETE TO authenticated
+USING (bucket_id = 'inventory-images');
 ```
 
----
+#### 2. Adicionar Estados no Componente Stock.tsx
 
-### Resultado Esperado
+Novos estados para gerenciar as imagens:
 
-| Cenário | Antes | Depois |
-|---------|-------|--------|
-| engbrink01@gmail.com (teste) abre Histórico | Vê movimentações de outros tenants | Vê lista vazia (correto) |
-| playgestor26@gmail.com abre Histórico | Vê todas as movimentações | Vê apenas movimentações do seu tenant |
-| Nova movimentação | Visível para todos | Visível apenas para o tenant envolvido |
+```tsx
+// Novo equipamento
+const [equipImageUrls, setEquipImageUrls] = useState<string[]>([]);
+const [uploadingImage, setUploadingImage] = useState(false);
+
+// Edição
+const [editImageUrls, setEditImageUrls] = useState<string[]>([]);
+```
+
+#### 3. Criar Função de Upload
+
+```tsx
+async function uploadImage(file: File): Promise<string | null> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+  const filePath = `${fileName}`;
+  
+  const { error } = await supabase.storage
+    .from('inventory-images')
+    .upload(filePath, file);
+  
+  if (error) {
+    toast.error('Erro ao fazer upload da imagem');
+    return null;
+  }
+  
+  const { data: { publicUrl } } = supabase.storage
+    .from('inventory-images')
+    .getPublicUrl(filePath);
+  
+  return publicUrl;
+}
+```
+
+#### 4. Adicionar Campo de Upload nos Modais
+
+**Modal de Novo Equipamento** (após campo Unidade):
+
+```tsx
+<div className="sm:col-span-2">
+  <Label>Imagem do Equipamento</Label>
+  <div className="mt-1 space-y-2">
+    {equipImageUrls.length > 0 && (
+      <div className="flex gap-2 flex-wrap">
+        {equipImageUrls.map((url, idx) => (
+          <div key={idx} className="relative">
+            <img src={url} className="w-20 h-20 object-cover rounded border" />
+            <button
+              type="button"
+              onClick={() => removeEquipImage(idx)}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    )}
+    <Input
+      type="file"
+      accept="image/*"
+      onChange={handleEquipImageUpload}
+      disabled={uploadingImage}
+    />
+    {uploadingImage && <span className="text-sm text-muted-foreground">Enviando...</span>}
+  </div>
+</div>
+```
+
+#### 5. Atualizar Funções de Salvamento
+
+Incluir `image_url` no objeto salvo no banco:
+
+```tsx
+// addEquipment()
+await supabase.from("inventory_items").insert({
+  // ... outros campos
+  image_url: equipImageUrls.length > 0 ? equipImageUrls : null,
+});
+
+// confirmEdit()
+await supabase.from("inventory_items").update({
+  // ... outros campos
+  image_url: editImageUrls.length > 0 ? editImageUrls : null,
+}).eq("id", editId);
+```
+
+#### 6. Atualizar Função openEdit
+
+Carregar imagens existentes ao editar:
+
+```tsx
+function openEdit(eq: Equipment) {
+  // ... outros campos
+  setEditImageUrls(eq.imageUrl || []);
+  setEditModalOpen(true);
+}
+```
+
+#### 7. Atualizar resetEquipForm
+
+Limpar estado de imagens:
+
+```tsx
+function resetEquipForm() {
+  // ... outros campos
+  setEquipImageUrls([]);
+}
+```
 
 ---
 
 ### Arquivos a Modificar
 
-Nenhum arquivo de código - apenas migração SQL para:
-1. Remover políticas antigas que permitem acesso irrestrito
-2. Garantir que as políticas filtrem por tenant usando `belongs_to_user_tenant()`
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/pages/admin/Stock.tsx` | Adicionar estados, funções de upload e campos de imagem nos modais |
+| **SQL Migration** | Criar bucket e políticas de storage |
+
+---
+
+### Resultado Esperado
+
+1. Ao criar um novo equipamento, usuário pode selecionar uma imagem
+2. Ao editar um equipamento, usuário vê a imagem atual e pode alterá-la
+3. A imagem aparece no card do equipamento no Kanban (já funciona)
+4. As imagens são armazenadas no Storage do Lovable Cloud
 
