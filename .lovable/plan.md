@@ -1,19 +1,16 @@
 
 
-## Plano: Auto-Scroll para Pagamentos Registrados
+## Plano: Pagamento Confirmado Automaticamente
 
-### Problema
+### Problema Atual
 
-Ao adicionar um pagamento no drawer, a seção "Pagamentos Registrados" não fica visível. O usuário precisa rolar manualmente para ver e confirmar o pagamento recém-adicionado.
-
----
+Fluxo em duas etapas desnecessário:
+1. Adicionar pagamento → fica como "pendente"
+2. Rolar até a lista → clicar em "Confirmar"
 
 ### Solução
 
-Implementar scroll automático para a lista de pagamentos após adicionar um novo pagamento:
-
-1. Criar uma referência (`useRef`) para a seção de pagamentos registrados
-2. Após adicionar o pagamento com sucesso, usar `scrollIntoView()` para rolar até essa seção
+Ao clicar em "Adicionar Pagamento", salvar diretamente com `status: 'paid'` e `payment_date` = data atual.
 
 ---
 
@@ -23,60 +20,60 @@ Implementar scroll automático para a lista de pagamentos após adicionar um nov
 
 ---
 
-### Alterações
+### Alteração
 
-#### 1. Importar useRef (linha 1)
+Na função `handleAddPayment`, linhas 153-166, mudar:
 
+**Antes:**
 ```tsx
-import { useState, useEffect, useRef } from "react";
-```
-
-#### 2. Criar a referência (linha ~75)
-
-```tsx
-const paymentsListRef = useRef<HTMLDivElement>(null);
-```
-
-#### 3. Adicionar scroll após adicionar pagamento (após linha 182)
-
-```tsx
-// Após loadPayments() e onPaymentAdded()
-setTimeout(() => {
-  paymentsListRef.current?.scrollIntoView({ 
-    behavior: 'smooth', 
-    block: 'start' 
+const { error } = await supabase
+  .from('sale_payments')
+  .insert({
+    sale_id: sale.id,
+    payment_type: newPayment.payment_type,
+    payment_method: newPayment.payment_method,
+    amount,
+    installments: parseInt(newPayment.installments),
+    status: 'pending',  // ❌ Pendente
+    card_fee: ...,
+    receipt_url: receiptUrl,
   });
-}, 100);
 ```
 
-#### 4. Adicionar ref na seção de pagamentos (linha 528)
-
+**Depois:**
 ```tsx
-<div ref={paymentsListRef}>
-  <h3 className="font-semibold mb-3">📜 Pagamentos Registrados ({payments.length})</h3>
-  ...
-</div>
+const { error } = await supabase
+  .from('sale_payments')
+  .insert({
+    sale_id: sale.id,
+    payment_type: newPayment.payment_type,
+    payment_method: newPayment.payment_method,
+    amount,
+    installments: parseInt(newPayment.installments),
+    status: 'paid',  // ✅ Já confirmado
+    payment_date: new Date().toISOString().split('T')[0],  // Data atual
+    card_fee: ...,
+    receipt_url: receiptUrl,
+  });
 ```
 
 ---
 
-### Fluxo Após a Alteração
+### Limpeza Adicional
+
+Remover o scroll automático (linhas 188-194), pois não é mais necessário mostrar a lista para confirmar.
+
+---
+
+### Resultado
 
 ```text
-1. Usuário preenche o formulário
-2. Clica em "Adicionar Pagamento"
-3. Pagamento é salvo no banco
-4. Lista é recarregada
-5. ✨ Scroll automático para a seção "Pagamentos Registrados"
-6. Usuário vê o pagamento recém-adicionado
-7. Pode clicar em "Confirmar" imediatamente
+ANTES:                          DEPOIS:
+Adicionar → Pendente            Adicionar → Confirmado ✅
+Rolar lista → Confirmar         Pronto!
 ```
 
----
-
-### Resultado Esperado
-
-- Após adicionar um pagamento, a tela rola automaticamente para mostrar a lista
-- O pagamento recém-adicionado fica visível imediatamente
-- O botão "Confirmar" fica acessível sem precisar rolar manualmente
+- Um clique = pagamento confirmado
+- Menos etapas
+- Experiência mais rápida
 
