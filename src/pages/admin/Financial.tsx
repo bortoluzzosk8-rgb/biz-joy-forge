@@ -16,14 +16,28 @@ export default function Financial() {
       <h1 className="text-2xl font-bold">💰 Financeiro</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-7 max-w-4xl">
-          <TabsTrigger value="summary">📊 Resumo</TabsTrigger>
-          <TabsTrigger value="revenue">📈 Receitas</TabsTrigger>
-          <TabsTrigger value="expenses">📉 Despesas</TabsTrigger>
-          <TabsTrigger value="loans">🏦 Empréstimos</TabsTrigger>
-          <TabsTrigger value="cards">💳 Cartões</TabsTrigger>
-          <TabsTrigger value="categories">📂 Categorias</TabsTrigger>
-          <TabsTrigger value="category-summary">📊 Por Categoria</TabsTrigger>
+        <TabsList className="flex w-full overflow-x-auto h-auto p-1 gap-1">
+          <TabsTrigger value="summary" className="shrink-0 px-3 py-2 text-xs sm:text-sm">
+            📊 Resumo
+          </TabsTrigger>
+          <TabsTrigger value="revenue" className="shrink-0 px-3 py-2 text-xs sm:text-sm">
+            📈 Receitas
+          </TabsTrigger>
+          <TabsTrigger value="expenses" className="shrink-0 px-3 py-2 text-xs sm:text-sm">
+            📉 Despesas
+          </TabsTrigger>
+          <TabsTrigger value="loans" className="shrink-0 px-3 py-2 text-xs sm:text-sm">
+            🏦 Empréstimos
+          </TabsTrigger>
+          <TabsTrigger value="cards" className="shrink-0 px-3 py-2 text-xs sm:text-sm">
+            💳 Cartões
+          </TabsTrigger>
+          <TabsTrigger value="categories" className="shrink-0 px-3 py-2 text-xs sm:text-sm">
+            📂 Categorias
+          </TabsTrigger>
+          <TabsTrigger value="category-summary" className="shrink-0 px-3 py-2 text-xs sm:text-sm">
+            📊 Por Categoria
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary" className="mt-6">
