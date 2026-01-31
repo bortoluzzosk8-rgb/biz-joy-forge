@@ -1,104 +1,83 @@
 
 
-## Plano: Adicionar Coluna "Festas" na Lista de Monitores
+## Plano: Remover Aba de Patrimônios do Financeiro
 
 ### Objetivo
 
-Exibir na tabela de monitores cadastrados a quantidade de festas/locações em que cada monitor participou, funcionando como um ranking de participação.
+Excluir a aba "Patrimônios" da página Financeiro, pois esta funcionalidade não é mais necessária.
 
 ---
 
-### Como Funciona a Relação
+### Arquivos a Modificar
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/pages/admin/Financial.tsx` | Remover import, tab trigger e tab content de "Patrimônios" |
+
+---
+
+### Arquivos a Excluir (Opcional)
+
+Os seguintes arquivos podem ser excluídos pois não serão mais utilizados:
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/components/financial/AssetManager.tsx` | Componente principal de patrimônios |
+| `src/components/financial/AssetList.tsx` | Lista de patrimônios |
+| `src/components/financial/AssetCategoryManager.tsx` | Gerenciador de subcategorias de patrimônios |
+
+---
+
+### Alterações em Financial.tsx
+
+#### 1. Remover Import
+```tsx
+// Remover esta linha:
+import { AssetManager } from "@/components/financial/AssetManager";
+```
+
+#### 2. Atualizar Grid de Tabs (de 8 para 7 colunas)
+```tsx
+// Antes:
+<TabsList className="grid w-full grid-cols-8 max-w-4xl">
+
+// Depois:
+<TabsList className="grid w-full grid-cols-7 max-w-4xl">
+```
+
+#### 3. Remover TabTrigger de Patrimônios
+```tsx
+// Remover esta linha:
+<TabsTrigger value="assets">🏛️ Patrimônios</TabsTrigger>
+```
+
+#### 4. Remover TabContent de Patrimônios
+```tsx
+// Remover este bloco:
+<TabsContent value="assets" className="mt-6">
+  <AssetManager />
+</TabsContent>
+```
+
+---
+
+### Resultado Visual
 
 ```text
-┌─────────────┐         ┌────────────────────────┐         ┌─────────┐
-│   monitors  │────────▶│  sale_monitoring_slots │◀────────│  sales  │
-└─────────────┘         └────────────────────────┘         └─────────┘
-       │                          │                              │
-   monitor_id              monitor_id + sale_id              locações
-```
+ANTES (8 abas):
+┌────────┬─────────┬──────────┬────────────┬─────────┬─────────────┬────────────┬──────────────┐
+│ Resumo │ Receitas│ Despesas │ Empréstimos│ Cartões │ Patrimônios │ Categorias │ Por Categoria│
+└────────┴─────────┴──────────┴────────────┴─────────┴─────────────┴────────────┴──────────────┘
 
-- Quando uma locação é criada e um monitor é selecionado, ele é registrado na tabela `sale_monitoring_slots`
-- Contando os registros por `monitor_id`, obtemos quantas festas cada monitor participou
-
----
-
-### Arquivo a Modificar
-
-`src/pages/admin/Monitors.tsx`
-
----
-
-### Alterações Detalhadas
-
-#### 1. Adicionar Estado para Contagem de Festas
-
-```tsx
-// Novo estado para armazenar contagem de festas por monitor
-const [monitorPartyCounts, setMonitorPartyCounts] = useState<Record<string, number>>({});
-```
-
-#### 2. Buscar Contagem de Festas na Função `fetchData`
-
-```tsx
-// Dentro de fetchData(), após buscar monitores:
-// Buscar contagem de festas por monitor
-const { data: partyCountsData, error: partyCountsError } = await supabase
-  .from("sale_monitoring_slots")
-  .select("monitor_id");
-
-if (!partyCountsError && partyCountsData) {
-  // Contar ocorrências por monitor_id
-  const counts: Record<string, number> = {};
-  partyCountsData.forEach(slot => {
-    if (slot.monitor_id) {
-      counts[slot.monitor_id] = (counts[slot.monitor_id] || 0) + 1;
-    }
-  });
-  setMonitorPartyCounts(counts);
-}
-```
-
-#### 3. Adicionar Coluna no Cabeçalho da Tabela
-
-```tsx
-// Antes da coluna "Unidade" (linha ~395):
-<TableHead>Festas</TableHead>
-```
-
-#### 4. Adicionar Célula na Linha do Monitor
-
-```tsx
-// Antes da célula de Unidade (linha ~433):
-<TableCell>
-  <div className="flex items-center gap-2">
-    <span className="font-semibold text-primary">
-      {monitorPartyCounts[monitor.id] || 0}
-    </span>
-  </div>
-</TableCell>
+DEPOIS (7 abas):
+┌────────┬─────────┬──────────┬────────────┬─────────┬────────────┬──────────────┐
+│ Resumo │ Receitas│ Despesas │ Empréstimos│ Cartões │ Categorias │ Por Categoria│
+└────────┴─────────┴──────────┴────────────┴─────────┴────────────┴──────────────┘
 ```
 
 ---
 
-### Layout Visual da Tabela
+### Nota sobre Dados
 
-```text
-┌─────────┬────────────┬──────────┬─────────────┬────────┬──────────────────────┬────────┐
-│  Nome   │  Telefone  │ Endereço │ Observações │ Festas │       Unidade        │ Ações  │
-├─────────┼────────────┼──────────┼─────────────┼────────┼──────────────────────┼────────┤
-│ 👤 Gui  │ 📞 1111... │ 📍 1111  │     -       │   10   │ 🏢 PLAY GESTOR-CEDRAL│ ✏️ 🗑️  │
-│ 👤 Ana  │ 📞 2222... │ 📍 ...   │     -       │   8    │ 🏢 PLAY GESTOR-SP    │ ✏️ 🗑️  │
-│ 👤 João │ 📞 3333... │ 📍 ...   │     -       │   3    │ 🏢 PLAY GESTOR-RJ    │ ✏️ 🗑️  │
-└─────────┴────────────┴──────────┴─────────────┴────────┴──────────────────────┴────────┘
-```
-
----
-
-### Resultado Esperado
-
-- Nova coluna "Festas" exibindo a quantidade de vezes que cada monitor foi utilizado em locações
-- Atualização automática conforme novas locações são criadas com monitores
-- Valor 0 exibido para monitores que ainda não participaram de nenhuma festa
-- Possibilidade futura de ordenar por esta coluna para criar um ranking
+As tabelas no banco de dados relacionadas a patrimônios (`assets`, `asset_categories`) podem ser mantidas caso você queira reativar esta funcionalidade no futuro, ou podem ser removidas posteriormente se preferir.
 
