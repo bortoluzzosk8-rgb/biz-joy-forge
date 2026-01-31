@@ -84,15 +84,17 @@ const AdminLayout = () => {
       {/* Trial Banner */}
       {subscriptionStatus?.status === 'trial' && subscriptionStatus.trialDaysLeft !== null && !isSuperAdmin && (
         <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2">
-          <div className="flex items-center justify-center gap-2 text-amber-600 dark:text-amber-400 text-sm">
-            <Clock className="h-4 w-4" />
-            <span>
-              ⏰ Você tem <strong>{subscriptionStatus.trialDaysLeft} {subscriptionStatus.trialDaysLeft === 1 ? 'dia' : 'dias'}</strong> restantes do período de teste.
-            </span>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-amber-600 dark:text-amber-400 text-xs sm:text-sm text-center">
+            <div className="flex items-center gap-1">
+              <Clock className="h-4 w-4 shrink-0" />
+              <span>
+                Você tem <strong>{subscriptionStatus.trialDaysLeft} {subscriptionStatus.trialDaysLeft === 1 ? 'dia' : 'dias'}</strong> restantes
+              </span>
+            </div>
             <Button 
               variant="link" 
               size="sm" 
-              className="text-amber-600 dark:text-amber-400 p-0 h-auto"
+              className="text-amber-600 dark:text-amber-400 p-0 h-auto text-xs sm:text-sm"
               onClick={() => navigate('/assinatura')}
             >
               Gerenciar assinatura
@@ -104,15 +106,17 @@ const AdminLayout = () => {
       {/* Past Due Banner */}
       {subscriptionStatus?.status === 'past_due' && !isSuperAdmin && (
         <div className="bg-red-500/10 border-b border-red-500/30 px-4 py-2">
-          <div className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 text-sm">
-            <Clock className="h-4 w-4" />
-            <span>
-              ⚠️ Identificamos um <strong>pagamento em aberto</strong>. Regularize para evitar bloqueio.
-            </span>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-red-600 dark:text-red-400 text-xs sm:text-sm text-center">
+            <div className="flex items-center gap-1">
+              <Clock className="h-4 w-4 shrink-0" />
+              <span>
+                ⚠️ Pagamento <strong>em aberto</strong>. Regularize.
+              </span>
+            </div>
             <Button 
               variant="link" 
               size="sm" 
-              className="text-red-600 dark:text-red-400 p-0 h-auto"
+              className="text-red-600 dark:text-red-400 p-0 h-auto text-xs sm:text-sm"
               onClick={() => navigate('/assinatura')}
             >
               Ver cobrança
@@ -123,28 +127,20 @@ const AdminLayout = () => {
 
       <div className="border-b bg-card">
         <div className="px-4 lg:px-8 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-3">
-                <img 
-                  src={logoPlaygestor} 
-                  alt="PlayGestor" 
-                  className="h-14 w-auto"
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
-              {userFranchise && (
-                <p className="text-sm font-medium text-primary">
-                  📍 {userFranchise.name} - {userFranchise.city}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          {/* Linha 1: Logo + Botões de ação */}
+          <div className="flex items-center justify-between">
+            <img 
+              src={logoPlaygestor} 
+              alt="PlayGestor" 
+              className="h-10 sm:h-14 w-auto"
+            />
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button 
                 variant="ghost" 
-                size="sm" 
+                size="icon"
                 onClick={() => navigate('/admin/updates')}
-                className="text-[#6C4DF6] hover:text-[#6C4DF6] hover:bg-[#6C4DF6]/10 transition-colors"
+                className="w-9 h-9 sm:w-auto sm:h-auto sm:px-3 text-[#6C4DF6] hover:text-[#6C4DF6] hover:bg-[#6C4DF6]/10 transition-colors"
               >
                 <Megaphone className="w-4 h-4" />
                 <span className="hidden sm:inline ml-1">Atualizações</span>
@@ -153,9 +149,9 @@ const AdminLayout = () => {
               {isFranqueadora && (
                 <Button 
                   variant="ghost" 
-                  size="sm" 
+                  size="icon"
                   onClick={() => navigate('/assinatura')}
-                  className="text-[#6C4DF6] hover:text-[#6C4DF6] hover:bg-[#6C4DF6]/10 transition-colors"
+                  className="w-9 h-9 sm:w-auto sm:h-auto sm:px-3 text-[#6C4DF6] hover:text-[#6C4DF6] hover:bg-[#6C4DF6]/10 transition-colors"
                 >
                   <CreditCard className="w-4 h-4" />
                   <span className="hidden sm:inline ml-1">Assinaturas</span>
@@ -164,14 +160,26 @@ const AdminLayout = () => {
               
               <Button 
                 variant="outline" 
+                size="icon"
                 onClick={handleLogout}
-                className="border-[#E53935] text-[#E53935] hover:bg-[#E53935] hover:text-white transition-colors"
+                className="w-9 h-9 sm:w-auto sm:h-auto sm:px-4 border-[#E53935] text-[#E53935] hover:bg-[#E53935] hover:text-white transition-colors"
               >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sair
+                <LogOut className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Sair</span>
               </Button>
             </div>
           </div>
+          
+          {/* Linha 2: Info do usuário */}
+          <div className="flex flex-col gap-0.5">
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">{user?.email}</p>
+            {userFranchise && (
+              <p className="text-xs sm:text-sm font-medium text-primary">
+                📍 {userFranchise.name} - {userFranchise.city}
+              </p>
+            )}
+          </div>
+        </div>
 
           {isMobile ? (
             <Select value={getCurrentTab()} onValueChange={handleTabChange}>
