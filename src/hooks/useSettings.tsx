@@ -27,13 +27,13 @@ type Settings = {
 
 export const useSettings = () => {
   const [settings, setSettings] = useState<Settings>({
-    logoUrl: '/src/assets/logo-engbrink.jpg',
+    logoUrl: '/src/assets/logo-playgestor-novo.png',
     primaryColor: '#8B5CF6',
     secondaryColor: '#EC4899',
     whatsappNumber: '',
-    catalogTitle: 'Brinquedos Infláveis',
+    catalogTitle: 'Catálogo de Produtos',
     catalogSubtitle: 'Bem-vindo ao nosso catálogo!',
-    catalogHeaderTitle: 'Catálogo ENGBRINK',
+    catalogHeaderTitle: 'Catálogo',
   });
   const [loading, setLoading] = useState(true);
 
@@ -67,13 +67,13 @@ export const useSettings = () => {
 
       if (data) {
         setSettings({
-          logoUrl: data.logo_url || '/src/assets/logo-engbrink.jpg',
+          logoUrl: data.logo_url || '/src/assets/logo-playgestor-novo.png',
           primaryColor: data.primary_color || '#8B5CF6',
           secondaryColor: data.secondary_color || '#EC4899',
           whatsappNumber: data.whatsapp_number || '',
-          catalogTitle: data.catalog_title || 'Brinquedos Infláveis',
+          catalogTitle: data.catalog_title || 'Catálogo de Produtos',
           catalogSubtitle: data.catalog_subtitle || 'Bem-vindo ao nosso catálogo!',
-          catalogHeaderTitle: data.catalog_header_title || 'Catálogo ENGBRINK',
+          catalogHeaderTitle: data.catalog_header_title || 'Catálogo',
           companyName: data.company_name,
           companyCNPJ: data.company_cnpj,
           companyAddress: data.company_address,
