@@ -1,30 +1,111 @@
 
 
-## Plano: Renomear Seção para "Aparência do Catálogo"
+## Plano: Remover Logo Padrão do Catálogo
 
-### Alteração Identificada
+### Problema Atual
 
-A seção "Aparência do Sistema" deve ser renomeada para "Aparência do Catálogo", pois o logo e as cores configurados nessa seção são utilizados especificamente no catálogo público.
+Quando o cliente não configura nenhum logo em "Aparência do Catálogo", o sistema exibe automaticamente o logo do PlayGestor como fallback.
 
-### Arquivo a Modificar
+**Comportamento desejado:** O catálogo não deve exibir nenhum logo até que o cliente faça upload de um arquivo.
 
-| Arquivo | Linha | Alteração |
-|---------|-------|-----------|
-| `src/pages/admin/Settings.tsx` | 347 | Renomear título da seção |
+---
 
-### Alteração Necessária
+### Arquivos a Modificar
 
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/hooks/useSettings.tsx` | Mudar valor padrão de `logoUrl` para string vazia |
+| `src/pages/Catalog.tsx` | Renderizar logo condicionalmente |
+| `src/pages/PublicCatalog.tsx` | Renderizar logo condicionalmente |
+
+---
+
+### Alterações Detalhadas
+
+#### 1. `src/hooks/useSettings.tsx`
+
+**Estado inicial (linha 30):**
 ```tsx
-// Antes (linha 347):
-🎨 Aparência do Sistema
+// Antes:
+logoUrl: '/src/assets/logo-playgestor-novo.png',
 
 // Depois:
-🎨 Aparência do Catálogo
+logoUrl: '',
 ```
+
+**Fallback na função loadSettings (linha 70):**
+```tsx
+// Antes:
+logoUrl: data.logo_url || '/src/assets/logo-playgestor-novo.png',
+
+// Depois:
+logoUrl: data.logo_url || '',
+```
+
+---
+
+#### 2. `src/pages/Catalog.tsx`
+
+**Header com logo (linhas 229-233):**
+```tsx
+// Antes:
+<img 
+  src={settings.logoUrl} 
+  alt="Logo" 
+  className="h-10 sm:h-14 md:h-16 object-contain shrink-0"
+/>
+
+// Depois (renderização condicional):
+{settings.logoUrl && (
+  <img 
+    src={settings.logoUrl} 
+    alt="Logo" 
+    className="h-10 sm:h-14 md:h-16 object-contain shrink-0"
+  />
+)}
+```
+
+---
+
+#### 3. `src/pages/PublicCatalog.tsx`
+
+**Header com logo (linhas 250-254):**
+```tsx
+// Antes:
+<img 
+  src={settings.logoUrl} 
+  alt="Logo" 
+  className="h-10 sm:h-14 md:h-16 object-contain shrink-0"
+/>
+
+// Depois (renderização condicional):
+{settings.logoUrl && (
+  <img 
+    src={settings.logoUrl} 
+    alt="Logo" 
+    className="h-10 sm:h-14 md:h-16 object-contain shrink-0"
+  />
+)}
+```
+
+---
 
 ### Resultado Esperado
 
-- O título da seção será "Aparência do Catálogo"
-- Ficará mais claro para o usuário que o logo e cores configurados ali são exibidos no catálogo público
-- A descrição do campo "Logo da Empresa" continuará a mesma, indicando que é o logo exibido no catálogo
+- Sem configuração: Header exibe apenas o título do catálogo, sem logo
+- Com configuração: Header exibe o logo personalizado + título
+
+### Layout Visual
+
+```text
+[ ANTES - sem config ]          [ DEPOIS - sem config ]
++---------------------------+    +---------------------------+
+| [Logo PG] Catálogo        |    |          Catálogo         |
++---------------------------+    +---------------------------+
+
+[ COM logo configurado - permanece igual ]
++---------------------------+
+| [Logo Cliente] Catálogo   |
++---------------------------+
+```
 
