@@ -1,84 +1,109 @@
 
 
-## Plano: Carrinho Flutuante Compacto no Mobile
+## Plano: Reorganizar Header Mobile do Painel Admin
 
-### Problema
+### Problemas Identificados
 
-O carrinho flutuante ainda ocupa muito espaço no mobile, cobrindo parte da descrição do produto e dificultando a navegação.
+1. **Banner do trial** quebra em múltiplas linhas de forma confusa
+2. **Logo muito grande** para telas pequenas (h-14 = 56px)
+3. **Layout do cabeçalho desorganizado** - email, ícones e botão Sair ficam amontoados
+4. **Botão "Sair"** parece cortado e com espaçamento inadequado
 
 ---
 
 ### Solução
 
-Criar **duas versões** do carrinho:
-- **Mobile**: Apenas um botão circular pequeno com ícone + badge
-- **Desktop**: O card completo como está hoje
+Criar um layout responsivo que reorganiza os elementos no mobile:
 
-No mobile, ao tocar no botão, o card expande. Ao tocar novamente (ou em "Finalizar"), ele colapsa.
+**Mobile:**
+- Banner do trial em layout vertical/compacto
+- Logo menor (h-10 ao invés de h-14)
+- Layout em duas linhas: logo + botão Sair na primeira, info do usuário na segunda
+- Botões de ação (Atualizações, Assinaturas) apenas como ícones
+
+**Desktop:**
+- Mantém o layout atual
 
 ---
 
 ### Arquivo a Modificar
 
-`src/components/catalog/FloatingCart.tsx`
+`src/pages/admin/AdminLayout.tsx`
 
 ---
 
-### Mudança de Abordagem
+### Alterações Detalhadas
 
-**No mobile (padrão):** Apenas um botão circular de 56x56px com:
-- Ícone de carrinho
-- Badge com quantidade
-- Ao clicar: expande para o card completo
+#### 1. Banner do Trial (linhas 85-101)
 
-**No desktop:** Card completo como está hoje
-
----
-
-### Código Atualizado
+**Antes:** Texto longo em uma única linha horizontal
+**Depois:** Layout vertical no mobile com texto empilhado
 
 ```tsx
-export const FloatingCart = () => {
-  const navigate = useNavigate();
-  const { cart, removeFromCart, cartTotal } = useCart();
-  const [isExpanded, setIsExpanded] = useState(false);
+<div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2">
+  <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-amber-600 dark:text-amber-400 text-sm text-center">
+    <div className="flex items-center gap-1">
+      <Clock className="h-4 w-4 shrink-0" />
+      <span>
+        Você tem <strong>{subscriptionStatus.trialDaysLeft} dias</strong> restantes
+      </span>
+    </div>
+    <Button variant="link" size="sm" className="...">
+      Gerenciar assinatura
+    </Button>
+  </div>
+</div>
+```
 
-  if (cart.length === 0) return null;
+#### 2. Header Principal (linhas 126-173)
 
-  return (
-    <>
-      {/* Botão compacto - Visível apenas no mobile quando não expandido */}
-      <button
-        onClick={() => setIsExpanded(true)}
-        className="md:hidden fixed bottom-4 right-4 w-14 h-14 rounded-full gradient-primary shadow-xl z-50 flex items-center justify-center animate-scale-in"
-        style={{ display: isExpanded ? 'none' : 'flex' }}
+**Antes:** Uma linha horizontal com tudo junto
+**Depois:** Layout empilhado no mobile
+
+```tsx
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+  {/* Linha 1: Logo + Botões de ação */}
+  <div className="flex items-center justify-between">
+    <img 
+      src={logoPlaygestor} 
+      alt="PlayGestor" 
+      className="h-10 sm:h-14 w-auto"
+    />
+    <div className="flex items-center gap-1 sm:gap-2">
+      <Button variant="ghost" size="icon" className="w-8 h-8 sm:w-auto sm:h-auto sm:px-3">
+        <Megaphone className="w-4 h-4" />
+        <span className="hidden sm:inline ml-1">Atualizações</span>
+      </Button>
+      
+      {isFranqueadora && (
+        <Button variant="ghost" size="icon" className="w-8 h-8 sm:w-auto sm:h-auto sm:px-3">
+          <CreditCard className="w-4 h-4" />
+          <span className="hidden sm:inline ml-1">Assinaturas</span>
+        </Button>
+      )}
+      
+      <Button 
+        variant="outline" 
+        size="sm"
+        onClick={handleLogout}
+        className="border-[#E53935] text-[#E53935] px-2 sm:px-4"
       >
-        <ShoppingCart className="w-6 h-6 text-white" />
-        <Badge className="absolute -top-1 -right-1 bg-secondary text-white border-0 w-5 h-5 p-0 flex items-center justify-center text-xs font-bold animate-pulse">
-          {cart.length}
-        </Badge>
-      </button>
-
-      {/* Card completo - Sempre visível no desktop, só quando expandido no mobile */}
-      <Card 
-        className={`fixed bottom-4 right-4 md:bottom-6 md:right-6 w-64 md:w-80 shadow-2xl border-2 border-primary/30 overflow-hidden z-50 animate-scale-in ${
-          isExpanded ? 'block' : 'hidden md:block'
-        }`}
-      >
-        {/* Header com botão de fechar no mobile */}
-        <div 
-          className="gradient-primary p-3 md:p-4 cursor-pointer"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
-          {/* ... conteúdo do header ... */}
-        </div>
-        
-        {/* Lista de itens e botão Finalizar */}
-        {/* ... resto do código ... */}
-      </Card>
-    </>
-  );
-};
+        <LogOut className="w-4 h-4" />
+        <span className="hidden sm:inline ml-1">Sair</span>
+      </Button>
+    </div>
+  </div>
+  
+  {/* Linha 2: Info do usuário */}
+  <div className="flex flex-col sm:flex-row sm:items-center gap-0.5">
+    <p className="text-xs sm:text-sm text-muted-foreground truncate">{user?.email}</p>
+    {userFranchise && (
+      <p className="text-xs sm:text-sm font-medium text-primary">
+        📍 {userFranchise.name} - {userFranchise.city}
+      </p>
+    )}
+  </div>
+</div>
 ```
 
 ---
@@ -86,28 +111,43 @@ export const FloatingCart = () => {
 ### Comparação Visual
 
 ```text
-ANTES (Mobile):                    DEPOIS (Mobile):
-┌────────────────────────┐         
-│ 🛒 Meu Carrinho        │                              ┌────┐
-│    1 item    R$ 800,00 │         Botão compacto →     │ 🛒 │
-│                        │                              │ ❶  │
-│ ┌────────────────────┐ │                              └────┘
-│ │ Finalizar Compra   │ │              56x56px
-│ └────────────────────┘ │         
-└────────────────────────┘         Ocupa muito menos espaço!
-
-                           
-Ao clicar no botão:                Expande para o card →
-                                   (mesmo layout atual)
+ANTES (Mobile):                      DEPOIS (Mobile):
+┌─────────────────────────────┐      ┌─────────────────────────────┐
+│ ⏰ Você tem 7 dias          │      │ ⏰ Você tem 7 dias restantes │
+│ ⏰ restantes do período de  │      │    Gerenciar assinatura     │
+│    teste.  Gerenciar...     │      ├─────────────────────────────┤
+├─────────────────────────────┤      │ [Logo]      [📢][💳][Sair] │
+│ [Logo Grande]               │      │ user@email.com              │
+│ user@email.com [📢][💳]    │      │ 📍 PLAY GESTOR - CEDRAL     │
+│ 📍 PLAY GESTOR    [ Sair ] │      ├─────────────────────────────┤
+│                    ^cortado │      │ [Locações ▼]                │
+├─────────────────────────────┤      └─────────────────────────────┘
+│ [Locações ▼]                │      
+└─────────────────────────────┘      Logo menor, layout organizado
+                                     Botão Sair completo
+Confuso e desorganizado              Botões de ação como ícones
 ```
 
 ---
 
-### Benefícios
+### Resumo das Mudanças
 
-- **Botão circular compacto** de 56x56px no mobile
-- Não atrapalha a navegação ou visualização do produto
-- Ao clicar, expande para o card completo
-- Desktop mantém o comportamento atual
-- Fácil de acessar e não intrusivo
+| Elemento | Mobile Antes | Mobile Depois |
+|----------|--------------|---------------|
+| Logo | h-14 (56px) | h-10 (40px) |
+| Banner trial | Texto quebrado | Layout vertical centralizado |
+| Botão Sair | Cortado | Apenas ícone (ou ícone + texto) |
+| Botões Atualizações/Assinaturas | Escondidos | Ícones pequenos visíveis |
+| Info usuário | Junto com logo | Linha separada abaixo |
+
+---
+
+### Resultado Esperado
+
+- Header mais limpo e organizado no mobile
+- Logo com tamanho adequado
+- Banner do trial legível
+- Todos os botões visíveis e clicáveis
+- Informações do usuário bem posicionadas
+- Desktop permanece igual
 
