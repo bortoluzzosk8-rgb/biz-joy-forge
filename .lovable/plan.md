@@ -1,21 +1,20 @@
 
 
-## Plano: Reduzir Tamanho do Carrinho Flutuante no Mobile
+## Plano: Carrinho Flutuante Compacto no Mobile
 
 ### Problema
 
-O carrinho flutuante atual ocupa quase toda a largura da tela no celular (`w-80` = 320px), com:
-- Header com padding grande (`p-4`)
-- Texto do valor em `text-2xl`  
-- Botão "Finalizar Compra" muito alto (`py-6`)
-
-Isso atrapalha a visualização dos botões de ação da página.
+O carrinho flutuante ainda ocupa muito espaço no mobile, cobrindo parte da descrição do produto e dificultando a navegação.
 
 ---
 
 ### Solução
 
-Criar uma versão mais compacta para mobile que seja menor e menos intrusiva.
+Criar **duas versões** do carrinho:
+- **Mobile**: Apenas um botão circular pequeno com ícone + badge
+- **Desktop**: O card completo como está hoje
+
+No mobile, ao tocar no botão, o card expande. Ao tocar novamente (ou em "Finalizar"), ele colapsa.
 
 ---
 
@@ -25,62 +24,61 @@ Criar uma versão mais compacta para mobile que seja menor e menos intrusiva.
 
 ---
 
-### Alterações
+### Mudança de Abordagem
 
-| Elemento | Antes | Depois |
-|----------|-------|--------|
-| Largura | `w-80 md:w-96` | `w-64 md:w-80` |
-| Posição | `bottom-6 right-6` | `bottom-4 right-4 md:bottom-6 md:right-6` |
-| Padding header | `p-4` | `p-3 md:p-4` |
-| Gap header | `gap-3` | `gap-2 md:gap-3` |
-| Ícone carrinho | `w-6 h-6` | `w-5 h-5 md:w-6 md:h-6` |
-| Título | `text-lg` | `text-base md:text-lg` |
-| Valor total | `text-2xl` | `text-lg md:text-2xl` |
-| Padding botão | `p-4` | `p-3 md:p-4` |
-| Botão altura | `py-6` | `py-3 md:py-6` |
-| Botão texto | `text-lg` | `text-sm md:text-lg` |
+**No mobile (padrão):** Apenas um botão circular de 56x56px com:
+- Ícone de carrinho
+- Badge com quantidade
+- Ao clicar: expande para o card completo
+
+**No desktop:** Card completo como está hoje
 
 ---
 
 ### Código Atualizado
 
 ```tsx
-<Card className="fixed bottom-4 right-4 md:bottom-6 md:right-6 w-64 md:w-80 shadow-2xl border-2 border-primary/30 overflow-hidden z-50 animate-scale-in">
-  <div 
-    className="gradient-primary p-3 md:p-4 cursor-pointer transition-all duration-300 hover:opacity-90"
-    onClick={() => setCartExpanded(!cartExpanded)}
-  >
-    <div className="flex items-center justify-between text-white">
-      <div className="flex items-center gap-2 md:gap-3">
-        <div className="relative">
-          <ShoppingCart className="w-5 h-5 md:w-6 md:h-6" />
-          <Badge className="absolute -top-2 -right-2 bg-secondary text-white border-0 w-4 h-4 md:w-5 md:h-5 p-0 flex items-center justify-center text-xs font-bold animate-pulse">
-            {cart.length}
-          </Badge>
+export const FloatingCart = () => {
+  const navigate = useNavigate();
+  const { cart, removeFromCart, cartTotal } = useCart();
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (cart.length === 0) return null;
+
+  return (
+    <>
+      {/* Botão compacto - Visível apenas no mobile quando não expandido */}
+      <button
+        onClick={() => setIsExpanded(true)}
+        className="md:hidden fixed bottom-4 right-4 w-14 h-14 rounded-full gradient-primary shadow-xl z-50 flex items-center justify-center animate-scale-in"
+        style={{ display: isExpanded ? 'none' : 'flex' }}
+      >
+        <ShoppingCart className="w-6 h-6 text-white" />
+        <Badge className="absolute -top-1 -right-1 bg-secondary text-white border-0 w-5 h-5 p-0 flex items-center justify-center text-xs font-bold animate-pulse">
+          {cart.length}
+        </Badge>
+      </button>
+
+      {/* Card completo - Sempre visível no desktop, só quando expandido no mobile */}
+      <Card 
+        className={`fixed bottom-4 right-4 md:bottom-6 md:right-6 w-64 md:w-80 shadow-2xl border-2 border-primary/30 overflow-hidden z-50 animate-scale-in ${
+          isExpanded ? 'block' : 'hidden md:block'
+        }`}
+      >
+        {/* Header com botão de fechar no mobile */}
+        <div 
+          className="gradient-primary p-3 md:p-4 cursor-pointer"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          {/* ... conteúdo do header ... */}
         </div>
-        <div>
-          <p className="font-bold text-base md:text-lg">Meu Carrinho</p>
-          <p className="text-xs text-white/80">{cart.length} {cart.length === 1 ? 'item' : 'itens'}</p>
-        </div>
-      </div>
-      <div className="text-right">
-        <p className="text-lg md:text-2xl font-black">{formatCurrency(cartTotal())}</p>
-      </div>
-    </div>
-  </div>
-  
-  {/* ... lista de itens (mesmo código) ... */}
-  
-  <div className="p-3 md:p-4 bg-card border-t">
-    <Button 
-      onClick={() => navigate("/checkout")} 
-      className="w-full gradient-success text-white font-bold text-sm md:text-lg py-3 md:py-6 rounded-xl shadow-lg hover:scale-105 transition-all duration-300 border-0"
-    >
-      <ShoppingCart className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-      Finalizar Compra
-    </Button>
-  </div>
-</Card>
+        
+        {/* Lista de itens e botão Finalizar */}
+        {/* ... resto do código ... */}
+      </Card>
+    </>
+  );
+};
 ```
 
 ---
@@ -88,27 +86,28 @@ Criar uma versão mais compacta para mobile que seja menor e menos intrusiva.
 ### Comparação Visual
 
 ```text
-ANTES (Mobile):                      DEPOIS (Mobile):
-┌──────────────────────────────┐     ┌────────────────────────┐
-│ 🛒 Meu Carrinho   R$ 800,00  │     │ 🛒 Meu Carrinho        │
-│    1 item                    │     │    1 item    R$ 800,00 │
-│                              │     │                        │
-│ ┌──────────────────────────┐ │     │ ┌────────────────────┐ │
-│ │                          │ │     │ │ Finalizar Compra   │ │
-│ │     Finalizar Compra     │ │     │ └────────────────────┘ │
-│ │                          │ │     └────────────────────────┘
-│ └──────────────────────────┘ │     
-└──────────────────────────────┘     Largura: ~256px
-Largura: ~320px                      Altura: ~30% menor
+ANTES (Mobile):                    DEPOIS (Mobile):
+┌────────────────────────┐         
+│ 🛒 Meu Carrinho        │                              ┌────┐
+│    1 item    R$ 800,00 │         Botão compacto →     │ 🛒 │
+│                        │                              │ ❶  │
+│ ┌────────────────────┐ │                              └────┘
+│ │ Finalizar Compra   │ │              56x56px
+│ └────────────────────┘ │         
+└────────────────────────┘         Ocupa muito menos espaço!
+
+                           
+Ao clicar no botão:                Expande para o card →
+                                   (mesmo layout atual)
 ```
 
 ---
 
-### Resultado Esperado
+### Benefícios
 
-- Carrinho flutuante **20% mais estreito** no mobile (256px vs 320px)
-- **Altura reduzida** em ~30% com padding e botão menores
-- Não bloqueia o botão "Ir para o Carrinho"
-- Mantém todas as funcionalidades intactas
-- Em desktop permanece com tamanho confortável
+- **Botão circular compacto** de 56x56px no mobile
+- Não atrapalha a navegação ou visualização do produto
+- Ao clicar, expande para o card completo
+- Desktop mantém o comportamento atual
+- Fácil de acessar e não intrusivo
 
