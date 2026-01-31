@@ -1182,7 +1182,7 @@ export type Database = {
           created_at: string
           description: string | null
           display_order: number | null
-          franchise_id: string | null
+          franchise_id: string
           id: string
           image_url: string[] | null
           lead_time_days: number | null
@@ -1198,7 +1198,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number | null
-          franchise_id?: string | null
+          franchise_id: string
           id?: string
           image_url?: string[] | null
           lead_time_days?: number | null
@@ -1214,7 +1214,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number | null
-          franchise_id?: string | null
+          franchise_id?: string
           id?: string
           image_url?: string[] | null
           lead_time_days?: number | null
