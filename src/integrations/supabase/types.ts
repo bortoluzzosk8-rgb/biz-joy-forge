@@ -2062,6 +2062,10 @@ export type Database = {
       }
     }
     Functions: {
+      belongs_to_user_tenant: {
+        Args: { record_franchise_id: string }
+        Returns: boolean
+      }
       check_item_availability: {
         Args: {
           p_exclude_sale_id?: string
