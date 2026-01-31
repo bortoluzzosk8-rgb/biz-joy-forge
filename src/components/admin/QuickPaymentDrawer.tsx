@@ -158,7 +158,8 @@ export const QuickPaymentDrawer = ({
         payment_method: newPayment.payment_method,
         amount,
         installments: parseInt(newPayment.installments),
-        status: 'pending',
+        status: 'paid',
+        payment_date: new Date().toISOString().split('T')[0],
         card_fee: (newPayment.payment_method === 'credito' || newPayment.payment_method === 'debito')
           ? parseFloat(newPayment.card_fee) || 0
           : 0,
@@ -184,14 +185,6 @@ export const QuickPaymentDrawer = ({
     setNewPaymentPreview(null);
     loadPayments();
     onPaymentAdded();
-    
-    // Scroll automático para a lista de pagamentos
-    setTimeout(() => {
-      paymentsListRef.current?.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-      });
-    }, 100);
   };
 
   // Marcar como pago
