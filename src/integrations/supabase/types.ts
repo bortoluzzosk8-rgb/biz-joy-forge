@@ -1752,6 +1752,7 @@ export type Database = {
           contract_template: string | null
           contract_title: string | null
           created_at: string
+          franchise_id: string | null
           id: string
           logo_url: string | null
           max_installments: number
@@ -1781,6 +1782,7 @@ export type Database = {
           contract_template?: string | null
           contract_title?: string | null
           created_at?: string
+          franchise_id?: string | null
           id?: string
           logo_url?: string | null
           max_installments?: number
@@ -1810,6 +1812,7 @@ export type Database = {
           contract_template?: string | null
           contract_title?: string | null
           created_at?: string
+          franchise_id?: string | null
           id?: string
           logo_url?: string | null
           max_installments?: number
@@ -1822,7 +1825,15 @@ export type Database = {
           updated_at?: string
           whatsapp_number?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "settings_franchise_id_fkey"
+            columns: ["franchise_id"]
+            isOneToOne: true
+            referencedRelation: "franchises"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subscription_payments: {
         Row: {
