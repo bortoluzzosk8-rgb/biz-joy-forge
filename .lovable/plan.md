@@ -1,100 +1,78 @@
 
 
-## Plano: Anexar Comprovante ao Adicionar Pagamento (Opcional)
+## Plano: Alterar "Franquia" para "Unidade" na Gestão de Estoque
 
-### Situação Atual
+### Contexto
 
-Atualmente, o fluxo é:
-1. Adicionar pagamento → Pagamento criado como "Pendente"
-2. Clicar em "Comprovante" na lista → Anexar comprovante
-3. Clicar em "Confirmar" → **Só funciona se tiver comprovante**
-
-O usuário quer poder:
-- Anexar comprovante **diretamente** ao adicionar o pagamento
-- Confirmar pagamento **com ou sem** comprovante (opcional)
-
----
+Conforme a preferência do sistema por utilizar "Unidade" em vez de "Franquia", os labels nos formulários e exibições da página de Estoque precisam ser atualizados.
 
 ### Arquivos a Modificar
 
-| Arquivo | Ação |
-|---------|------|
-| `src/components/admin/PaymentManager.tsx` | Adicionar campo de upload no formulário + tornar comprovante opcional |
-| `src/components/admin/QuickPaymentDrawer.tsx` | Adicionar campo de upload no formulário + tornar comprovante opcional |
+| Arquivo | Localização | Alteração |
+|---------|-------------|-----------|
+| `src/pages/admin/Stock.tsx` | Linha 224 | Mensagem de erro "Preencha nome, valor e franquia" |
+| `src/pages/admin/Stock.tsx` | Linha 300 | Mensagem "Apenas a franqueadora pode mover equipamentos entre franquias" |
+| `src/pages/admin/Stock.tsx` | Linha 1174 | Label "Franquia *" no modal de novo equipamento |
+| `src/pages/admin/Stock.tsx` | Linha 1270 | Label "Franquia" no modal de edição |
+| `src/components/inventory/KanbanBoard.tsx` | Linha 72 | Label "Franquia:" na exibição do card |
+| `src/components/inventory/DeletedEquipmentTable.tsx` | Linha 73 | Label "Franquia:" na tabela de excluídos |
 
 ---
 
 ### Alterações Detalhadas
 
-#### 1. PaymentManager.tsx
-
-**Adicionar estado para arquivo no formulário:**
+#### 1. Stock.tsx - Mensagem de erro (linha 224)
 ```typescript
-const [newPaymentFile, setNewPaymentFile] = useState<File | null>(null);
-const [newPaymentPreview, setNewPaymentPreview] = useState<string | null>(null);
+// ANTES
+toast.error("Preencha nome, valor e franquia");
+
+// DEPOIS
+toast.error("Preencha nome, valor e unidade");
 ```
 
-**Adicionar seção de upload no formulário de novo pagamento (após "Observações"):**
-- Área de drag & drop ou clique para selecionar imagem
-- Preview da imagem selecionada
-- Botão para remover o arquivo se quiser
-
-**Modificar `handleAddPayment` para:**
-- Se tiver arquivo selecionado, fazer upload para storage
-- Salvar pagamento já com `receipt_url` preenchido
-- Limpar estado do arquivo após adicionar
-
-**Tornar comprovante opcional:**
-- Remover validação que exige `receipt_url` em `handleMarkAsPaid`
-- Remover validação que exige `localReceiptPreview` em `handleLocalMarkAsPaid`
-- Manter o botão "Comprovante" visível para quem quiser anexar depois
-
-**Remover mensagens de "Anexe o comprovante":**
-- Remover a mensagem "⚠️ Anexe o comprovante" da lista de pagamentos
-- O botão "Confirmar" ficará sempre habilitado (sem `disabled`)
-
----
-
-#### 2. QuickPaymentDrawer.tsx
-
-Mesmas alterações:
-
-**Adicionar estado para arquivo:**
+#### 2. Stock.tsx - Mensagem de erro (linha 300)
 ```typescript
-const [newPaymentFile, setNewPaymentFile] = useState<File | null>(null);
-const [newPaymentPreview, setNewPaymentPreview] = useState<string | null>(null);
+// ANTES
+toast.error("Apenas a franqueadora pode mover equipamentos entre franquias");
+
+// DEPOIS
+toast.error("Apenas a franqueadora pode mover equipamentos entre unidades");
 ```
 
-**Adicionar área de upload no formulário de adicionar pagamento**
+#### 3. Stock.tsx - Label no modal de novo equipamento (linha 1174)
+```typescript
+// ANTES
+<Label>Franquia *</Label>
 
-**Modificar `handleAddPayment`:**
-- Fazer upload se tiver arquivo
-- Salvar com `receipt_url` se aplicável
+// DEPOIS
+<Label>Unidade *</Label>
+```
 
-**Tornar comprovante opcional em `handleMarkAsPaid`:**
-- Remover a verificação `if (!payment?.receipt_url)`
+#### 4. Stock.tsx - Label no modal de edição (linha 1270)
+```typescript
+// ANTES
+<Label>Franquia</Label>
 
----
+// DEPOIS
+<Label>Unidade</Label>
+```
 
-### Interface do Campo de Upload
+#### 5. KanbanBoard.tsx - Label no card (linha 72)
+```typescript
+// ANTES
+<span className="text-muted-foreground">Franquia:</span>
 
-O campo de upload no formulário ficará assim:
+// DEPOIS
+<span className="text-muted-foreground">Unidade:</span>
+```
 
-```text
-┌─────────────────────────────────────────────────┐
-│  📎 Comprovante (opcional)                      │
-│  ┌───────────────────────────────────────────┐  │
-│  │                                           │  │
-│  │   [Ícone Upload]                          │  │
-│  │   Arraste uma imagem ou clique            │  │
-│  │                                           │  │
-│  └───────────────────────────────────────────┘  │
-│                                                 │
-│  (ou se tiver preview)                          │
-│  ┌──────┐                                       │
-│  │ img  │  [X] Remover                          │
-│  └──────┘                                       │
-└─────────────────────────────────────────────────┘
+#### 6. DeletedEquipmentTable.tsx - Label na tabela (linha 73)
+```typescript
+// ANTES
+<p className="text-muted-foreground">Franquia:</p>
+
+// DEPOIS
+<p className="text-muted-foreground">Unidade:</p>
 ```
 
 ---
@@ -102,9 +80,9 @@ O campo de upload no formulário ficará assim:
 ### Resultado Esperado
 
 Após as alterações:
-- Ao adicionar um pagamento, haverá um campo opcional para anexar comprovante
-- Se anexar, o pagamento já será salvo com o comprovante
-- Se não anexar, pode confirmar o pagamento do mesmo jeito
-- O botão "Comprovante" na lista continua disponível para anexar depois, se quiser
-- Não haverá mais bloqueio ou mensagem de erro pedindo comprovante
+- O modal de "Novo equipamento" mostrará "Unidade *" em vez de "Franquia *"
+- O modal de edição mostrará "Unidade" em vez de "Franquia"
+- Os cards de equipamento mostrarão "Unidade:" em vez de "Franquia:"
+- A tabela de equipamentos excluídos mostrará "Unidade:" em vez de "Franquia:"
+- As mensagens de erro usarão "unidade" em vez de "franquia"
 
