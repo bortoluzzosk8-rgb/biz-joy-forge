@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/hooks/useSettings";
+import { FloatingCart } from "@/components/catalog/FloatingCart";
 
 type Category = { 
   id: string; 
@@ -296,6 +297,8 @@ const ProductDetail = () => {
           </div>
         </div>
       </div>
+      
+      <FloatingCart />
     </div>
   );
 };
