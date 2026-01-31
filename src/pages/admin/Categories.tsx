@@ -26,16 +26,9 @@ type FormState = {
 };
 
 const iconOptions = [
+  '', // Opção "Nenhum"
   '🎪', '🎈', '⚙️', '🎁', '🎯', '🎨', '🎮', '🎸', 
   '📦', '🛠️', '🏗️', '🚚', '💡', '⭐', '🔥', '✨'
-];
-
-const colorOptions = [
-  { value: 'gradient-primary', label: 'Roxo', preview: 'bg-gradient-to-r from-purple-600 to-pink-600' },
-  { value: 'gradient-warning', label: 'Laranja', preview: 'bg-gradient-to-r from-orange-500 to-yellow-500' },
-  { value: 'gradient-accent', label: 'Azul', preview: 'bg-gradient-to-r from-blue-600 to-cyan-600' },
-  { value: 'gradient-success', label: 'Verde', preview: 'bg-gradient-to-r from-green-600 to-emerald-600' },
-  { value: 'gradient-danger', label: 'Vermelho', preview: 'bg-gradient-to-r from-red-600 to-rose-600' }
 ];
 
 const Categories = () => {
@@ -44,8 +37,8 @@ const Categories = () => {
   const [form, setForm] = useState<FormState>({
     id: null,
     name: "",
-    icon: "📦",
-    color: "gradient-primary"
+    icon: "",
+    color: ""
   });
 
   useEffect(() => {
@@ -78,8 +71,8 @@ const Categories = () => {
     setForm({
       id: null,
       name: "",
-      icon: "📦",
-      color: "gradient-primary"
+      icon: "",
+      color: ""
     });
   };
 
@@ -131,8 +124,8 @@ const Categories = () => {
     setForm({
       id: category.id,
       name: category.name,
-      icon: category.icon,
-      color: category.color
+      icon: category.icon || "",
+      color: category.color || ""
     });
   };
 
@@ -154,11 +147,6 @@ const Categories = () => {
       console.error("Erro ao excluir categoria:", error);
       toast.error(`Erro ao excluir categoria: ${error.message}`);
     }
-  };
-
-  const getColorPreview = (colorValue: string) => {
-    const option = colorOptions.find(opt => opt.value === colorValue);
-    return option?.preview || colorOptions[0].preview;
   };
 
   return (
@@ -184,15 +172,19 @@ const Categories = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="icon">Ícone</Label>
+                <Label htmlFor="icon">Ícone (opcional)</Label>
                 <Select value={form.icon} onValueChange={(v) => handleChangeForm("icon", v)}>
                   <SelectTrigger id="icon">
-                    <SelectValue />
+                    <SelectValue placeholder="Nenhum" />
                   </SelectTrigger>
                   <SelectContent>
-                    {iconOptions.map((icon) => (
-                      <SelectItem key={icon} value={icon}>
-                        <span className="text-2xl">{icon}</span>
+                    {iconOptions.map((icon, index) => (
+                      <SelectItem key={index} value={icon || "none"}>
+                        {icon ? (
+                          <span className="text-2xl">{icon}</span>
+                        ) : (
+                          <span className="text-muted-foreground">Nenhum</span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -200,21 +192,27 @@ const Categories = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="color">Cor</Label>
-                <div className="flex gap-2">
-                  <Select value={form.color} onValueChange={(v) => handleChangeForm("color", v)}>
-                    <SelectTrigger id="color" className="flex-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {colorOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className={`w-16 h-10 rounded-md ${getColorPreview(form.color)}`} />
+                <Label htmlFor="color">Cor (opcional)</Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="color"
+                    id="color"
+                    value={form.color || "#6366f1"}
+                    onChange={(e) => handleChangeForm("color", e.target.value)}
+                    className="w-16 h-10 p-1 cursor-pointer"
+                  />
+                  {form.color ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleChangeForm("color", "")}
+                    >
+                      Remover cor
+                    </Button>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Sem cor definida</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -260,11 +258,22 @@ const Categories = () => {
                   {categories.map((category) => (
                     <TableRow key={category.id}>
                       <TableCell>
-                        <span className="text-2xl">{category.icon}</span>
+                        {category.icon ? (
+                          <span className="text-2xl">{category.icon}</span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell className="font-medium">{category.name}</TableCell>
                       <TableCell>
-                        <div className={`h-8 rounded-md ${getColorPreview(category.color)}`} />
+                        {category.color ? (
+                          <div 
+                            className="h-8 w-full rounded-md" 
+                            style={{ backgroundColor: category.color }} 
+                          />
+                        ) : (
+                          <span className="text-muted-foreground">Sem cor</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
