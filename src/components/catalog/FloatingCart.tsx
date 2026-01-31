@@ -18,26 +18,26 @@ export const FloatingCart = () => {
   if (cart.length === 0) return null;
 
   return (
-    <Card className="fixed bottom-6 right-6 w-80 md:w-96 shadow-2xl border-2 border-primary/30 overflow-hidden z-50 animate-scale-in">
+    <Card className="fixed bottom-4 right-4 md:bottom-6 md:right-6 w-64 md:w-80 shadow-2xl border-2 border-primary/30 overflow-hidden z-50 animate-scale-in">
       <div 
-        className="gradient-primary p-4 cursor-pointer transition-all duration-300 hover:opacity-90"
+        className="gradient-primary p-3 md:p-4 cursor-pointer transition-all duration-300 hover:opacity-90"
         onClick={() => setCartExpanded(!cartExpanded)}
       >
         <div className="flex items-center justify-between text-white">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <div className="relative">
-              <ShoppingCart className="w-6 h-6" />
-              <Badge className="absolute -top-2 -right-2 bg-secondary text-white border-0 w-5 h-5 p-0 flex items-center justify-center text-xs font-bold animate-pulse">
+              <ShoppingCart className="w-5 h-5 md:w-6 md:h-6" />
+              <Badge className="absolute -top-2 -right-2 bg-secondary text-white border-0 w-4 h-4 md:w-5 md:h-5 p-0 flex items-center justify-center text-xs font-bold animate-pulse">
                 {cart.length}
               </Badge>
             </div>
             <div>
-              <p className="font-bold text-lg">Meu Carrinho</p>
+              <p className="font-bold text-base md:text-lg">Meu Carrinho</p>
               <p className="text-xs text-white/80">{cart.length} {cart.length === 1 ? 'item' : 'itens'}</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-black">{formatCurrency(cartTotal())}</p>
+            <p className="text-lg md:text-2xl font-black">{formatCurrency(cartTotal())}</p>
           </div>
         </div>
       </div>
@@ -81,12 +81,12 @@ export const FloatingCart = () => {
         </div>
       )}
       
-      <div className="p-4 bg-card border-t">
+      <div className="p-3 md:p-4 bg-card border-t">
         <Button 
           onClick={() => navigate("/checkout")} 
-          className="w-full gradient-success text-white font-bold text-lg py-6 rounded-xl shadow-lg hover:scale-105 transition-all duration-300 border-0"
+          className="w-full gradient-success text-white font-bold text-sm md:text-lg py-3 md:py-6 rounded-xl shadow-lg hover:scale-105 transition-all duration-300 border-0"
         >
-          <ShoppingCart className="w-5 h-5 mr-2" />
+          <ShoppingCart className="w-4 h-4 md:w-5 md:h-5 mr-2" />
           Finalizar Compra
         </Button>
       </div>
