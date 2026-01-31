@@ -26,7 +26,7 @@ import {
   SelectSeparator,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Sparkles, Plus } from "lucide-react";
+import { Loader2, RefreshCw, Sparkles, Plus, X, ImagePlus } from "lucide-react";
 import { autoSubstituteItems } from "@/lib/autoSubstituteItems";
 import { useNavigate } from "react-router-dom";
 
@@ -59,6 +59,8 @@ const Stock = () => {
   const [equipRentalValue, setEquipRentalValue] = useState("");
   const [equipCode, setEquipCode] = useState("");
   const [equipDate, setEquipDate] = useState("");
+  const [equipImageUrls, setEquipImageUrls] = useState<string[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [equipFranchiseId, setEquipFranchiseId] = useState("");
 
   // Edit modal
@@ -69,6 +71,7 @@ const Stock = () => {
   const [editRentalValue, setEditRentalValue] = useState("");
   const [editCode, setEditCode] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [editImageUrls, setEditImageUrls] = useState<string[]>([]);
   const [editFranchiseId, setEditFranchiseId] = useState("");
 
   // Delete modal
@@ -238,6 +241,7 @@ const Stock = () => {
           manufacture_date: equipDate || null,
           franchise_id: equipFranchiseId,
           status: "disponivel",
+          image_url: equipImageUrls.length > 0 ? equipImageUrls : null,
         });
 
       if (error) throw error;
@@ -272,6 +276,61 @@ const Stock = () => {
     setEquipCode("");
     setEquipDate("");
     setEquipFranchiseId(activeFranchise || franchises[0]?.id || "");
+    setEquipImageUrls([]);
+  }
+
+  async function uploadImage(file: File): Promise<string | null> {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    
+    const { error } = await supabase.storage
+      .from('inventory-images')
+      .upload(fileName, file);
+    
+    if (error) {
+      toast.error('Erro ao fazer upload da imagem');
+      return null;
+    }
+    
+    const { data: { publicUrl } } = supabase.storage
+      .from('inventory-images')
+      .getPublicUrl(fileName);
+    
+    return publicUrl;
+  }
+
+  async function handleEquipImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingImage(true);
+    const url = await uploadImage(file);
+    if (url) {
+      setEquipImageUrls(prev => [...prev, url]);
+    }
+    setUploadingImage(false);
+    e.target.value = '';
+  }
+
+  async function handleEditImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingImage(true);
+    const url = await uploadImage(file);
+    if (url) {
+      setEditImageUrls(prev => [...prev, url]);
+    }
+    setUploadingImage(false);
+    e.target.value = '';
+  }
+
+  function removeEquipImage(idx: number) {
+    setEquipImageUrls(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  function removeEditImage(idx: number) {
+    setEditImageUrls(prev => prev.filter((_, i) => i !== idx));
   }
 
   function openEdit(eq: Equipment) {
@@ -282,6 +341,7 @@ const Stock = () => {
     setEditCode(eq.code);
     setEditDate(eq.manufactureDate || "");
     setEditFranchiseId(eq.franchiseId);
+    setEditImageUrls(eq.imageUrl || []);
     setEditModalOpen(true);
   }
 
@@ -310,6 +370,7 @@ const Stock = () => {
           code: editCode,
           manufacture_date: editDate || null,
           franchise_id: editFranchiseId,
+          image_url: editImageUrls.length > 0 ? editImageUrls : null,
         })
         .eq("id", editId);
 
@@ -1183,6 +1244,40 @@ const Stock = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="sm:col-span-2">
+                <Label>Imagem do Equipamento</Label>
+                <div className="mt-1 space-y-2">
+                  {equipImageUrls.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {equipImageUrls.map((url, idx) => (
+                        <div key={idx} className="relative">
+                          <img src={url} className="w-20 h-20 object-cover rounded border" alt="Preview" />
+                          <button
+                            type="button"
+                            onClick={() => removeEquipImage(idx)}
+                            className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-muted/50 transition-colors">
+                      <ImagePlus className="w-4 h-4" />
+                      <span className="text-sm">{uploadingImage ? 'Enviando...' : 'Adicionar imagem'}</span>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEquipImageUpload}
+                        disabled={uploadingImage}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setEquipModalOpen(false)}>
@@ -1278,6 +1373,40 @@ const Stock = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Imagem do Equipamento</Label>
+                <div className="mt-1 space-y-2">
+                  {editImageUrls.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {editImageUrls.map((url, idx) => (
+                        <div key={idx} className="relative">
+                          <img src={url} className="w-20 h-20 object-cover rounded border" alt="Preview" />
+                          <button
+                            type="button"
+                            onClick={() => removeEditImage(idx)}
+                            className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-muted/50 transition-colors">
+                      <ImagePlus className="w-4 h-4" />
+                      <span className="text-sm">{uploadingImage ? 'Enviando...' : 'Adicionar imagem'}</span>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEditImageUpload}
+                        disabled={uploadingImage}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-2">
