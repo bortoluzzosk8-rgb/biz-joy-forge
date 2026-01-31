@@ -226,11 +226,13 @@ const Catalog = () => {
           <div className="relative flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               {/* Logo no Header */}
-              <img 
-                src={settings.logoUrl} 
-                alt="Logo" 
-                className="h-10 sm:h-14 md:h-16 object-contain shrink-0"
-              />
+              {settings.logoUrl && (
+                <img 
+                  src={settings.logoUrl} 
+                  alt="Logo" 
+                  className="h-10 sm:h-14 md:h-16 object-contain shrink-0"
+                />
+              )}
               <div className="min-w-0">
                 <h1 className="text-lg sm:text-2xl md:text-4xl font-black text-white drop-shadow-lg truncate">
                   {settings.catalogHeaderTitle}

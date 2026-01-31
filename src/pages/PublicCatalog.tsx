@@ -65,7 +65,7 @@ const PublicCatalog = () => {
   const [settings, setSettings] = useState<Settings>({
     catalogHeaderTitle: "Catálogo",
     catalogSubtitle: "Confira nossos produtos!",
-    logoUrl: "/placeholder.svg",
+    logoUrl: "",
     primaryColor: "#6366f1",
     secondaryColor: "#8b5cf6",
     whatsappNumber: "",
@@ -109,7 +109,7 @@ const PublicCatalog = () => {
         setSettings({
           catalogHeaderTitle: data.catalog_header_title || "Catálogo",
           catalogSubtitle: data.catalog_subtitle || "Confira nossos produtos!",
-          logoUrl: data.logo_url || "/placeholder.svg",
+          logoUrl: data.logo_url || "",
           primaryColor: data.primary_color || "#6366f1",
           secondaryColor: data.secondary_color || "#8b5cf6",
           whatsappNumber: data.whatsapp_number || "",
@@ -247,11 +247,13 @@ const PublicCatalog = () => {
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iYSIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoNDUpIj48cGF0aCBkPSJNLTEwIDMwaDYwdjJoLTYweiIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMDUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjYSkiLz48L3N2Zz4=')] opacity-30"></div>
           <div className="relative flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <img 
-                src={settings.logoUrl} 
-                alt="Logo" 
-                className="h-10 sm:h-14 md:h-16 object-contain shrink-0"
-              />
+              {settings.logoUrl && (
+                <img 
+                  src={settings.logoUrl} 
+                  alt="Logo" 
+                  className="h-10 sm:h-14 md:h-16 object-contain shrink-0"
+                />
+              )}
               <div className="min-w-0">
                 <h1 className="text-lg sm:text-2xl md:text-4xl font-black text-white drop-shadow-lg truncate">
                   {settings.catalogHeaderTitle}
