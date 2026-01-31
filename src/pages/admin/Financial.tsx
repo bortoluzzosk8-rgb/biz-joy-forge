@@ -6,7 +6,6 @@ import { ExpenseList } from "@/components/financial/ExpenseList";
 import { LoanList } from "@/components/financial/LoanList";
 import { ExpenseCategoryManager } from "@/components/financial/ExpenseCategoryManager";
 import { CreditCardManager } from "@/components/financial/CreditCardManager";
-import { AssetManager } from "@/components/financial/AssetManager";
 import { ExpenseCategorySummary } from "@/components/financial/ExpenseCategorySummary";
 
 export default function Financial() {
@@ -17,13 +16,12 @@ export default function Financial() {
       <h1 className="text-2xl font-bold">💰 Financeiro</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-8 max-w-4xl">
+        <TabsList className="grid w-full grid-cols-7 max-w-4xl">
           <TabsTrigger value="summary">📊 Resumo</TabsTrigger>
           <TabsTrigger value="revenue">📈 Receitas</TabsTrigger>
           <TabsTrigger value="expenses">📉 Despesas</TabsTrigger>
           <TabsTrigger value="loans">🏦 Empréstimos</TabsTrigger>
           <TabsTrigger value="cards">💳 Cartões</TabsTrigger>
-          <TabsTrigger value="assets">🏛️ Patrimônios</TabsTrigger>
           <TabsTrigger value="categories">📂 Categorias</TabsTrigger>
           <TabsTrigger value="category-summary">📊 Por Categoria</TabsTrigger>
         </TabsList>
@@ -46,10 +44,6 @@ export default function Financial() {
 
         <TabsContent value="cards" className="mt-6">
           <CreditCardManager />
-        </TabsContent>
-
-        <TabsContent value="assets" className="mt-6">
-          <AssetManager />
         </TabsContent>
 
         <TabsContent value="categories" className="mt-6">
