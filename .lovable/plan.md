@@ -1,162 +1,99 @@
 
-## Plano: Isolar Configurações por Tenant (Settings Multi-Tenant)
+## Plano: Corrigir Isolamento Multi-Tenant de Produtos e Estoque
 
 ### Problema Identificado
 
-A tabela `settings` **não possui** coluna `franchise_id`, fazendo com que todas as franqueadoras compartilhem as mesmas configurações - incluindo o logo da empresa. Quando um usuário de outra conta acessa o sistema, ele vê o logo configurado por outro tenant (PlayGestor).
+O usuário `engbrink01@gmail.com` (franquia "teste") está vendo produtos e estoque de outro tenant (PLAY GESTOR). Isso acontece por duas razões:
 
-**Estado atual:**
+1. **Políticas RLS conflitantes**: As políticas antigas ainda existem junto com as novas, e como são PERMISSIVE, basta uma permitir acesso para que o dado seja visível
+2. **Produto sem franchise_id**: O produto "Pula pula de 3,05m" tem `franchise_id = NULL`, o que faz com que a função `belongs_to_user_tenant()` não consiga filtrar corretamente
+
+---
+
+### Dados Atuais (Evidência do Problema)
+
+| Tabela | Item | franchise_id | Pertence a |
+|--------|------|--------------|------------|
+| `products` | Pula pula de 3,05m | **NULL** | Nenhuma franquia |
+| `inventory_items` | Pula pula de 3,05m | e8019f6e... | PLAY GESTOR |
+
+| Usuário | franchise_id | Franquia |
+|---------|--------------|----------|
+| engbrink01@gmail.com | fcef5ea9... | teste |
+| playgestor26@gmail.com | e8019f6e... | PLAY GESTOR |
+
+---
+
+### Políticas Problemáticas a Remover
+
+**Tabela `products`:**
+```sql
+-- Permite que QUALQUER pessoa veja TODOS os produtos (inclui anônimos!)
+"Anyone can view products" → qual: true
 ```
-settings (1 registro global)
-├── logo_url: "https://...logo-1769874702434.png" (logo do PlayGestor)
-├── company_name: "PlayGestor"
-└── ... (compartilhado por todos)
+
+**Tabela `inventory_items`:**
+```sql
+-- Permite que QUALQUER franqueadora veja TODO o estoque
+"Franqueadora can manage all inventory_items" → has_role(auth.uid(), 'franqueadora'::app_role)
 ```
 
 ---
 
 ### Solução
 
-#### 1. Migração SQL - Adicionar `franchise_id` à Tabela Settings
+#### 1. Migração SQL - Limpar Políticas Antigas
 
 ```sql
--- Adicionar coluna franchise_id
-ALTER TABLE public.settings 
-ADD COLUMN franchise_id UUID REFERENCES public.franchises(id) ON DELETE CASCADE;
+-- Remover políticas antigas que permitem acesso irrestrito
+DROP POLICY IF EXISTS "Anyone can view products" ON products;
+DROP POLICY IF EXISTS "Franqueadora can manage all inventory_items" ON inventory_items;
 
--- Criar índice para performance
-CREATE INDEX idx_settings_franchise_id ON public.settings(franchise_id);
+-- Adicionar política pública para catálogo (apenas anônimos, filtrado por franchise_id na query)
+CREATE POLICY "Public can view products for catalog"
+ON products FOR SELECT TO anon
+USING (franchise_id IS NOT NULL);
 
--- Garantir unicidade (cada franquia só pode ter 1 registro de settings)
-ALTER TABLE public.settings 
-ADD CONSTRAINT settings_franchise_unique UNIQUE (franchise_id);
-```
+-- Garantir que produtos sem franchise_id não sejam visíveis para autenticados
+-- A política existente "Franqueadora can manage own tenant products" já usa belongs_to_user_tenant()
+-- mas precisamos garantir que franchise_id NULL não passe
 
-#### 2. Atualizar Políticas RLS
-
-```sql
--- Remover políticas antigas
-DROP POLICY IF EXISTS "Admins and franqueadora can insert settings" ON settings;
-DROP POLICY IF EXISTS "Admins and franqueadora can update settings" ON settings;
-DROP POLICY IF EXISTS "Settings are viewable by everyone" ON settings;
-
--- Política SELECT: ver apenas settings da própria franquia
-CREATE POLICY "Franqueadora can view own settings"
-ON public.settings FOR SELECT TO authenticated
-USING (belongs_to_user_tenant(franchise_id));
-
--- Política INSERT: inserir apenas para própria franquia
-CREATE POLICY "Franqueadora can insert own settings"
-ON public.settings FOR INSERT TO authenticated
-WITH CHECK (
-  has_role(auth.uid(), 'franqueadora'::app_role) 
-  AND belongs_to_user_tenant(franchise_id)
-);
-
--- Política UPDATE: atualizar apenas settings da própria franquia
-CREATE POLICY "Franqueadora can update own settings"
-ON public.settings FOR UPDATE TO authenticated
+-- Recriar política de produtos com tratamento de NULL
+DROP POLICY IF EXISTS "Franqueadora can manage own tenant products" ON products;
+CREATE POLICY "Franqueadora can manage own tenant products"
+ON products FOR ALL TO authenticated
 USING (
   has_role(auth.uid(), 'franqueadora'::app_role) 
+  AND franchise_id IS NOT NULL
   AND belongs_to_user_tenant(franchise_id)
 )
 WITH CHECK (
   has_role(auth.uid(), 'franqueadora'::app_role) 
+  AND franchise_id IS NOT NULL
   AND belongs_to_user_tenant(franchise_id)
 );
-
--- Política pública para catálogo (filtrado por franchise_id do parâmetro)
-CREATE POLICY "Public can view settings for catalog"
-ON public.settings FOR SELECT TO anon
-USING (true);
 ```
 
-#### 3. Atualizar Hook useSettings
+#### 2. Limpar Dados Órfãos
 
-**Arquivo:** `src/hooks/useSettings.tsx`
+O produto com `franchise_id = NULL` precisa ser associado a uma franquia ou removido:
 
-Modificar para filtrar por `franchise_id` do usuário logado:
+```sql
+-- Opção A: Associar ao PLAY GESTOR (já que o item de estoque relacionado pertence a ele)
+UPDATE products 
+SET franchise_id = 'e8019f6e-fdbf-480b-916a-71f9cc52b2c6' 
+WHERE franchise_id IS NULL;
 
-```tsx
-// Antes
-const { data } = await supabase
-  .from('settings')
-  .select('*')
-  .limit(1)
-  .maybeSingle();
-
-// Depois
-const { data: userData } = await supabase
-  .from('user_franchises')
-  .select('franchise_id')
-  .single();
-
-const { data } = await supabase
-  .from('settings')
-  .select('*')
-  .eq('franchise_id', userData?.franchise_id)
-  .maybeSingle();
+-- Opção B: Verificar se há produtos órfãos e decidir o que fazer
+SELECT id, name, franchise_id FROM products WHERE franchise_id IS NULL;
 ```
 
-#### 4. Atualizar Página Settings.tsx
+#### 3. Tornar `franchise_id` NOT NULL (Prevenção Futura)
 
-**Arquivo:** `src/pages/admin/Settings.tsx`
-
-- Ao carregar: filtrar por `franchise_id`
-- Ao salvar: incluir `franchise_id` no insert/update
-
-```tsx
-// No fetchSettings
-const { data, error } = await supabase
-  .from("settings")
-  .select("*")
-  .eq("franchise_id", userFranchise?.id)
-  .maybeSingle();
-
-// No handleSave (insert)
-const { data, error } = await supabase
-  .from("settings")
-  .insert({
-    ...updateData,
-    franchise_id: userFranchise?.id  // Adicionar franchise_id
-  })
-  .select()
-  .single();
+```sql
+-- Após limpar dados órfãos, impedir novos produtos sem franquia
+ALTER TABLE products ALTER COLUMN franchise_id SET NOT NULL;
 ```
-
-#### 5. Atualizar PublicCatalog.tsx
-
-**Arquivo:** `src/pages/PublicCatalog.tsx`
-
-Já recebe `franchiseId` como parâmetro da rota, então precisa filtrar:
-
-```tsx
-// Antes
-const { data } = await supabase
-  .from("settings")
-  .select("*")
-  .maybeSingle();
-
-// Depois
-const { data } = await supabase
-  .from("settings")
-  .select("*")
-  .eq("franchise_id", franchiseId)
-  .maybeSingle();
-```
-
----
-
-### Arquivos a Modificar
-
-| Arquivo | Tipo de Mudança |
-|---------|-----------------|
-| **SQL Migration** | Adicionar `franchise_id`, RLS policies |
-| `src/hooks/useSettings.tsx` | Filtrar por franchise_id do usuário |
-| `src/pages/admin/Settings.tsx` | Carregar/salvar com franchise_id |
-| `src/pages/PublicCatalog.tsx` | Filtrar por franchise_id da URL |
-| `src/pages/Checkout.tsx` | Filtrar por franchise_id |
-| `src/pages/PublicContract.tsx` | Filtrar por franchise_id |
 
 ---
 
@@ -164,19 +101,17 @@ const { data } = await supabase
 
 | Cenário | Antes | Depois |
 |---------|-------|--------|
-| Nova conta | Vê logo do PlayGestor | Sem logo (campo vazio) |
-| Configurar logo | Afeta todos os tenants | Afeta apenas própria franquia |
-| Catálogo público | Mostra logo global | Mostra logo da franquia específica |
+| engbrink01@gmail.com abre Produtos | Vê produto de outro tenant | Vê apenas seus produtos (vazio) |
+| engbrink01@gmail.com abre Estoque | Vê estoque de outro tenant | Vê apenas seu estoque (vazio) |
+| Criar novo produto sem franchise_id | Permitido (causa vazamento) | Bloqueado (NOT NULL) |
+| Catálogo público | Vê todos os produtos | Vê apenas produtos com franchise_id válido |
 
 ---
 
-### Benefício Principal
+### Arquivos a Modificar
 
-Cada tenant terá suas **próprias configurações completamente isoladas**:
-- Logo personalizado
-- Cores do catálogo
-- WhatsApp
-- Dados da empresa
-- Templates de documentos
-
-Contas novas começarão **sem logo** até que o cliente faça upload do seu próprio.
+Nenhum arquivo de código - apenas migração SQL no banco de dados para:
+1. Remover políticas antigas que permitem acesso irrestrito
+2. Recriar políticas com filtro de tenant + tratamento de NULL
+3. Limpar dados órfãos (produtos sem franchise_id)
+4. Adicionar constraint NOT NULL para prevenção futura
