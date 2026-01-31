@@ -331,7 +331,7 @@ export function SalesChart() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -358,25 +358,6 @@ export function SalesChart() {
             </div>
             <div className="text-xs text-muted-foreground mt-1">
               {totals.quantidadeVendida} reservas
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              {isPositiveDiff ? (
-                <TrendingUp className="h-4 w-4 text-green-500" />
-              ) : (
-                <TrendingDown className="h-4 w-4 text-red-500" />
-              )}
-              Diferença
-            </div>
-            <div className={`text-2xl font-bold ${isPositiveDiff ? "text-green-600" : "text-red-600"}`}>
-              {isPositiveDiff ? "+" : ""}{formatCurrency(difference)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              vendas antecipadas
             </div>
           </CardContent>
         </Card>
