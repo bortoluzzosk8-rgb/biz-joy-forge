@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, UserPlus, ArrowLeft } from 'lucide-react';
-import logoPlayGestor from '@/assets/logo-playgestor.png';
+import logoPlayGestor from '@/assets/logo-playgestor-novo.png';
 
 export default function UserRegister() {
   const [name, setName] = useState('');

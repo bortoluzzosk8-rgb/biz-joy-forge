@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, LogIn, ArrowLeft, Mail } from 'lucide-react';
-import logoPlayGestor from '@/assets/logo-playgestor.png';
+import logoPlayGestor from '@/assets/logo-playgestor-novo.png';
 
 export default function UserLogin() {
   const [email, setEmail] = useState('');
