@@ -27,7 +27,7 @@ type Settings = {
 
 export const useSettings = () => {
   const [settings, setSettings] = useState<Settings>({
-    logoUrl: '/src/assets/logo-playgestor-novo.png',
+    logoUrl: '',
     primaryColor: '#8B5CF6',
     secondaryColor: '#EC4899',
     whatsappNumber: '',
@@ -67,7 +67,7 @@ export const useSettings = () => {
 
       if (data) {
         setSettings({
-          logoUrl: data.logo_url || '/src/assets/logo-playgestor-novo.png',
+          logoUrl: data.logo_url || '',
           primaryColor: data.primary_color || '#8B5CF6',
           secondaryColor: data.secondary_color || '#EC4899',
           whatsappNumber: data.whatsapp_number || '',
