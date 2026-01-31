@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +72,9 @@ export const QuickPaymentDrawer = ({
   // Estados para upload de comprovante no formulário de novo pagamento
   const [newPaymentFile, setNewPaymentFile] = useState<File | null>(null);
   const [newPaymentPreview, setNewPaymentPreview] = useState<string | null>(null);
+
+  // Ref para scroll automático após adicionar pagamento
+  const paymentsListRef = useRef<HTMLDivElement>(null);
 
   const [newPayment, setNewPayment] = useState({
     payment_type: '' as 'sinal' | 'pagamento' | 'complemento' | '',
@@ -181,6 +184,14 @@ export const QuickPaymentDrawer = ({
     setNewPaymentPreview(null);
     loadPayments();
     onPaymentAdded();
+    
+    // Scroll automático para a lista de pagamentos
+    setTimeout(() => {
+      paymentsListRef.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }, 100);
   };
 
   // Marcar como pago
@@ -525,7 +536,7 @@ export const QuickPaymentDrawer = ({
             </div>
 
             {/* Lista de Pagamentos */}
-            <div>
+            <div ref={paymentsListRef}>
               <h3 className="font-semibold mb-3">📜 Pagamentos Registrados ({payments.length})</h3>
 
               {loading ? (
