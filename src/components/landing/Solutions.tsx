@@ -1,6 +1,7 @@
 import { Package, Calendar, FileText, DollarSign, UserCheck, Settings } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-const solutions = [
+const solutions: { icon: LucideIcon; title: string; description: string }[] = [
   {
     icon: Package,
     title: 'Estoque e disponibilidade',
@@ -35,28 +36,31 @@ const solutions = [
 
 export function Solutions() {
   return (
-    <section id="features" className="py-16 md:py-24 bg-secondary/30">
+    <section id="features" className="py-16 md:py-24 bg-background">
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-center text-foreground mb-4">
-          Como o <span className="text-primary">sistema</span> resolve
+        <h2 className="font-inter text-2xl md:text-3xl lg:text-4xl font-bold text-center text-foreground mb-4">
+          Como o <span className="text-gradient-brand">sistema</span> resolve
         </h2>
         <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
           Todas as ferramentas que você precisa para organizar sua operação.
         </p>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {solutions.map((solution, index) => (
-            <div
-              key={index}
-              className="p-6 bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-lg transition-all duration-300 group"
-            >
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-4 group-hover:from-primary/30 group-hover:to-primary/10 transition-colors">
-                <solution.icon className="w-7 h-7 text-primary" />
+          {solutions.map((solution, index) => {
+            const IconComponent = solution.icon;
+            return (
+              <div
+                key={index}
+                className="p-6 glass-card-modern rounded-2xl hover:shadow-xl hover-lift-strong transition-all duration-300 group glow-secondary"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-secondary/20 to-primary/10 flex items-center justify-center mb-4 group-hover:from-secondary/30 group-hover:to-primary/20 transition-colors">
+                  <IconComponent className="w-7 h-7 text-secondary" />
+                </div>
+                <h3 className="text-xl font-semibold text-foreground mb-2 font-inter">{solution.title}</h3>
+                <p className="text-muted-foreground">{solution.description}</p>
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">{solution.title}</h3>
-              <p className="text-muted-foreground">{solution.description}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

@@ -27,7 +27,7 @@ export function Header() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
@@ -41,7 +41,7 @@ export function Header() {
               <button
                 key={link.href}
                 onClick={() => handleNavClick(link.href)}
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium text-sm"
               >
                 {link.label}
               </button>
@@ -49,22 +49,32 @@ export function Header() {
           </nav>
 
           {/* Desktop Auth Buttons */}
-          <div className="hidden lg:flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-3">
             {user ? (
               <>
-                <Button onClick={() => navigate('/admin/dashboard')}>
+                <Button 
+                  onClick={() => navigate('/admin/dashboard')}
+                  className="bg-primary hover:bg-primary/90"
+                >
                   Acessar Sistema
                 </Button>
-                <Button variant="ghost" onClick={() => signOut()}>
+                <Button variant="ghost" onClick={() => signOut()} className="text-muted-foreground hover:text-foreground">
                   Sair
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => navigate('/login')}>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => navigate('/login')}
+                  className="text-muted-foreground hover:text-foreground font-medium"
+                >
                   LOGIN
                 </Button>
-                <Button onClick={() => navigate('/cadastro')}>
+                <Button 
+                  onClick={() => navigate('/cadastro')}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6"
+                >
                   CRIAR CONTA
                 </Button>
               </>
@@ -73,7 +83,7 @@ export function Header() {
 
           {/* Mobile Menu Button */}
           <button
-            className="lg:hidden p-2"
+            className="lg:hidden p-2 text-foreground"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -83,7 +93,7 @@ export function Header() {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-border animate-fade-in">
+          <div className="lg:hidden py-4 border-t border-border/50 animate-fade-in">
             <nav className="flex flex-col gap-4">
               {navLinks.map((link) => (
                 <button
@@ -94,10 +104,10 @@ export function Header() {
                   {link.label}
                 </button>
               ))}
-              <div className="flex flex-col gap-2 pt-4 border-t border-border">
+              <div className="flex flex-col gap-2 pt-4 border-t border-border/50">
                 {user ? (
                   <>
-                    <Button onClick={() => navigate('/admin/dashboard')}>
+                    <Button onClick={() => navigate('/admin/dashboard')} className="bg-primary hover:bg-primary/90">
                       Acessar Sistema
                     </Button>
                     <Button variant="ghost" onClick={() => signOut()}>
@@ -109,7 +119,7 @@ export function Header() {
                     <Button variant="ghost" onClick={() => navigate('/login')}>
                       LOGIN
                     </Button>
-                    <Button onClick={() => navigate('/cadastro')}>
+                    <Button onClick={() => navigate('/cadastro')} className="bg-primary hover:bg-primary/90">
                       CRIAR CONTA
                     </Button>
                   </>

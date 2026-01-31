@@ -64,35 +64,35 @@ All colors MUST be HSL.
     --sidebar-ring: 221.2 83.2% 53.3%;
   }
 
-  /* PlayGestor Landing Page Theme */
+  /* PlayGestor Landing Page Theme - Modern Redesign */
   .landing-theme {
-    --background: 0 0% 95%;
-    --foreground: 0 0% 12%;
+    --background: 0 0% 100%;
+    --foreground: 240 10% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 12%;
+    --card-foreground: 240 10% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 12%;
+    --popover-foreground: 240 10% 10%;
 
-    --primary: 4 82% 55%;
+    --primary: 4 82% 56%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 252 90% 64%;
+    --secondary: 252 85% 62%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 0 0% 92%;
-    --muted-foreground: 0 0% 40%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 40%;
 
-    --accent: 252 90% 64%;
+    --accent: 252 85% 62%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 85%;
-    --input: 0 0% 85%;
-    --ring: 4 82% 55%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 4 82% 56%;
   }
 
   .dark {
@@ -161,17 +161,24 @@ All colors MUST be HSL.
     background: linear-gradient(135deg, hsl(var(--warning)) 0%, hsl(38 92% 65%) 100%);
   }
 
-  /* Landing page specific gradients */
-  .landing-theme .gradient-coral {
-    background: linear-gradient(135deg, hsl(4 82% 55%) 0%, hsl(4 82% 45%) 100%);
+  /* Landing page modern utilities */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, hsl(4 82% 56%) 0%, hsl(252 85% 62%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
-  
-  .landing-theme .gradient-navy {
-    background: linear-gradient(135deg, hsl(252 90% 64%) 0%, hsl(252 90% 50%) 100%);
+
+  .glow-primary {
+    box-shadow: 0 0 60px -15px hsl(4 82% 56% / 0.4);
   }
-  
-  .landing-theme .gradient-brand {
-    background: linear-gradient(135deg, hsl(4 82% 55%) 0%, hsl(252 90% 64%) 100%);
+
+  .glow-secondary {
+    box-shadow: 0 0 60px -15px hsl(252 85% 62% / 0.4);
+  }
+
+  .dark-section {
+    background: linear-gradient(135deg, hsl(240 10% 8%) 0%, hsl(252 30% 12%) 100%);
   }
 
   .hover-lift {
@@ -183,14 +190,29 @@ All colors MUST be HSL.
     box-shadow: 0 20px 40px -10px hsl(var(--primary) / 0.3);
   }
 
+  .hover-lift-strong {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hover-lift-strong:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 25px 50px -12px hsl(var(--primary) / 0.25);
+  }
+
   .pattern-dots {
-    background-image: radial-gradient(circle, hsl(var(--primary) / 0.05) 1px, transparent 1px);
-    background-size: 20px 20px;
+    background-image: radial-gradient(circle, hsl(var(--primary) / 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
   }
   
   .glass-card {
     background: hsl(0 0% 100% / 0.8);
     backdrop-filter: blur(12px);
     border: 1px solid hsl(0 0% 100% / 0.5);
+  }
+
+  .glass-card-modern {
+    background: hsl(0 0% 100% / 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsl(0 0% 100% / 0.3);
   }
 }
