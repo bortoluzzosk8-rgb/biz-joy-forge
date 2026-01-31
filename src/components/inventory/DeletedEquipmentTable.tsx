@@ -70,7 +70,7 @@ export const DeletedEquipmentTable = ({
                   <p className="font-semibold">{formatCurrency(item.value)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Franquia:</p>
+                  <p className="text-muted-foreground">Unidade:</p>
                   <p className="font-semibold">{franchiseNameById(item.franchiseId)}</p>
                 </div>
                 <div>

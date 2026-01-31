@@ -221,7 +221,7 @@ const Stock = () => {
 
   async function addEquipment() {
     if (!equipName || !equipValue || !equipFranchiseId) {
-      toast.error("Preencha nome, valor e franquia");
+      toast.error("Preencha nome, valor e unidade");
       return;
     }
 
@@ -297,7 +297,7 @@ const Stock = () => {
       const changedFranchise = !!(original && original.franchiseId !== editFranchiseId);
 
       if (changedFranchise && !isFranqueadora) {
-        toast.error("Apenas a franqueadora pode mover equipamentos entre franquias");
+        toast.error("Apenas a franqueadora pode mover equipamentos entre unidades");
         return;
       }
 
@@ -1171,7 +1171,7 @@ const Stock = () => {
                 />
               </div>
               <div>
-                <Label>Franquia *</Label>
+                <Label>Unidade *</Label>
                 <Select value={equipFranchiseId} onValueChange={setEquipFranchiseId}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Selecione..." />
@@ -1267,7 +1267,7 @@ const Stock = () => {
                 />
               </div>
               <div>
-                <Label>Franquia</Label>
+                <Label>Unidade</Label>
                 <Select value={editFranchiseId} onValueChange={setEditFranchiseId} disabled={!isFranqueadora}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
