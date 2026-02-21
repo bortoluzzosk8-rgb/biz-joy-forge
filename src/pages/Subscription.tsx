@@ -128,7 +128,7 @@ const Subscription = () => {
     setProcessingPayment(true);
     
     try {
-      const response = await supabase.functions.invoke('asaas-payment', {
+      const response = await supabase.functions.invoke('asaas-payment?action=create-charge', {
         body: {
           franchiseId: subscriptionStatus.franchiseId,
           plan: selectedPlan,
