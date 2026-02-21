@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, CreditCard, FileText, QrCode, Clock, CheckCircle, AlertCircle, XCircle, Loader2, Copy, ExternalLink } from "lucide-react";
+import { ArrowLeft, CreditCard, QrCode, Clock, CheckCircle, AlertCircle, XCircle, Loader2, Copy, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,12 +62,10 @@ const Subscription = () => {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string>('lancamento');
   const [showPixModal, setShowPixModal] = useState(false);
-  const [showBoletoModal, setShowBoletoModal] = useState(false);
+  const [showCardModal, setShowCardModal] = useState(false);
   const [currentPaymentData, setCurrentPaymentData] = useState<{
     pixQrcode?: string;
     pixQrcodeImage?: string;
-    boletoUrl?: string;
-    boletoBarcode?: string;
   } | null>(null);
 
   // Form state for customer info
@@ -75,6 +73,15 @@ const Subscription = () => {
   const [customerCpfCnpj, setCustomerCpfCnpj] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+
+  // Credit card form state
+  const [cardHolderName, setCardHolderName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiryMonth, setCardExpiryMonth] = useState('');
+  const [cardExpiryYear, setCardExpiryYear] = useState('');
+  const [cardCcv, setCardCcv] = useState('');
+  const [cardPostalCode, setCardPostalCode] = useState('');
+  const [cardAddressNumber, setCardAddressNumber] = useState('');
 
   useEffect(() => {
     if (subscriptionStatus?.franchiseId) {
@@ -119,7 +126,7 @@ const Subscription = () => {
     }
   };
 
-  const handleGenerateCharge = async (billingType: 'PIX' | 'BOLETO') => {
+  const handleGenerateCharge = async (billingType: 'PIX') => {
     if (!subscriptionStatus?.franchiseId || !customerName || !customerCpfCnpj) {
       toast.error('Preencha o nome e CPF/CNPJ');
       return;
@@ -160,12 +167,6 @@ const Subscription = () => {
           pixQrcodeImage: data.pix.encodedImage,
         });
         setShowPixModal(true);
-      } else if (billingType === 'BOLETO' && data.payment) {
-        setCurrentPaymentData({
-          boletoUrl: data.payment.bankSlipUrl,
-          boletoBarcode: data.payment.nossoNumero,
-        });
-        setShowBoletoModal(true);
       }
 
       toast.success('Cobrança gerada com sucesso!');
@@ -174,6 +175,72 @@ const Subscription = () => {
     } catch (error) {
       console.error('Error generating charge:', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao gerar cobrança');
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  const handleCreditCardPayment = async () => {
+    if (!subscriptionStatus?.franchiseId || !customerName || !customerCpfCnpj) {
+      toast.error('Preencha os dados de cobrança (nome e CPF/CNPJ)');
+      return;
+    }
+
+    if (!cardHolderName || !cardNumber || !cardExpiryMonth || !cardExpiryYear || !cardCcv || !cardPostalCode || !cardAddressNumber) {
+      toast.error('Preencha todos os campos do cartão');
+      return;
+    }
+
+    setProcessingPayment(true);
+
+    try {
+      const response = await supabase.functions.invoke('asaas-payment', {
+        body: {
+          action: 'create-subscription',
+          franchiseId: subscriptionStatus.franchiseId,
+          plan: selectedPlan,
+          customerName,
+          customerCpfCnpj,
+          customerEmail,
+          customerPhone,
+          creditCard: {
+            holderName: cardHolderName,
+            number: cardNumber,
+            expiryMonth: cardExpiryMonth,
+            expiryYear: cardExpiryYear,
+            ccv: cardCcv,
+          },
+          creditCardHolderInfo: {
+            name: cardHolderName,
+            email: customerEmail,
+            cpfCnpj: customerCpfCnpj,
+            postalCode: cardPostalCode,
+            addressNumber: cardAddressNumber,
+            phone: customerPhone,
+          },
+        },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erro ao criar assinatura');
+      }
+
+      const data = response.data;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      toast.success('Assinatura criada com sucesso! Seu cartão será cobrado automaticamente todo mês.');
+      setShowCardModal(false);
+      fetchPayments();
+      fetchFranchiseData();
+    } catch (error) {
+      console.error('Error creating subscription:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao criar assinatura com cartão');
     } finally {
       setProcessingPayment(false);
     }
@@ -395,31 +462,16 @@ const Subscription = () => {
             <CardDescription>Escolha como deseja pagar sua assinatura</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Button 
                 variant="outline" 
                 className="h-auto py-6 flex flex-col gap-2"
-                onClick={() => toast.info('Pagamento com cartão em breve!')}
+                onClick={() => setShowCardModal(true)}
                 disabled={processingPayment}
               >
                 <CreditCard className="h-8 w-8" />
                 <span className="font-medium">Cartão de Crédito</span>
                 <span className="text-xs text-muted-foreground">Recorrente automático</span>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-auto py-6 flex flex-col gap-2"
-                onClick={() => handleGenerateCharge('BOLETO')}
-                disabled={processingPayment}
-              >
-                {processingPayment ? (
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                ) : (
-                  <FileText className="h-8 w-8" />
-                )}
-                <span className="font-medium">Boleto Bancário</span>
-                <span className="text-xs text-muted-foreground">Vencimento em 5 dias</span>
               </Button>
               
               <Button 
@@ -548,42 +600,106 @@ const Subscription = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Boleto Modal */}
-      <Dialog open={showBoletoModal} onOpenChange={setShowBoletoModal}>
+      {/* Credit Card Modal */}
+      <Dialog open={showCardModal} onOpenChange={setShowCardModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Boleto Gerado</DialogTitle>
+            <DialogTitle>Pagamento com Cartão de Crédito</DialogTitle>
             <DialogDescription>
-              Seu boleto foi gerado com sucesso
+              Preencha os dados do cartão para criar sua assinatura recorrente
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-4">
-            {currentPaymentData?.boletoUrl && (
-              <Button onClick={() => window.open(currentPaymentData.boletoUrl!, '_blank')}>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Abrir Boleto
-              </Button>
-            )}
-            {currentPaymentData?.boletoBarcode && (
-              <div>
-                <Label>Linha Digitável</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input 
-                    value={currentPaymentData.boletoBarcode} 
-                    readOnly 
-                  />
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => copyToClipboard(currentPaymentData.boletoBarcode!)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="cardHolderName">Nome no cartão *</Label>
+              <Input
+                id="cardHolderName"
+                value={cardHolderName}
+                onChange={(e) => setCardHolderName(e.target.value)}
+                placeholder="Nome como está no cartão"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cardNumber">Número do cartão *</Label>
+              <Input
+                id="cardNumber"
+                value={cardNumber}
+                onChange={(e) => setCardNumber(e.target.value)}
+                placeholder="0000 0000 0000 0000"
+                maxLength={19}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="cardExpiryMonth">Mês *</Label>
+                <Input
+                  id="cardExpiryMonth"
+                  value={cardExpiryMonth}
+                  onChange={(e) => setCardExpiryMonth(e.target.value)}
+                  placeholder="MM"
+                  maxLength={2}
+                />
               </div>
-            )}
-            <p className="text-sm text-muted-foreground text-center">
-              Após o pagamento, seu acesso será liberado automaticamente em até 3 dias úteis.
+              <div className="space-y-2">
+                <Label htmlFor="cardExpiryYear">Ano *</Label>
+                <Input
+                  id="cardExpiryYear"
+                  value={cardExpiryYear}
+                  onChange={(e) => setCardExpiryYear(e.target.value)}
+                  placeholder="AAAA"
+                  maxLength={4}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cardCcv">CVV *</Label>
+                <Input
+                  id="cardCcv"
+                  value={cardCcv}
+                  onChange={(e) => setCardCcv(e.target.value)}
+                  placeholder="000"
+                  maxLength={4}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="cardPostalCode">CEP *</Label>
+                <Input
+                  id="cardPostalCode"
+                  value={cardPostalCode}
+                  onChange={(e) => setCardPostalCode(e.target.value)}
+                  placeholder="00000-000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cardAddressNumber">Nº endereço *</Label>
+                <Input
+                  id="cardAddressNumber"
+                  value={cardAddressNumber}
+                  onChange={(e) => setCardAddressNumber(e.target.value)}
+                  placeholder="123"
+                />
+              </div>
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={handleCreditCardPayment}
+              disabled={processingPayment}
+            >
+              {processingPayment ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Confirmar Assinatura - R$ {PLAN_PRICES[selectedPlan] || 59}/mês
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              Seu cartão será cobrado automaticamente todo mês. Você pode cancelar a qualquer momento.
             </p>
           </div>
         </DialogContent>
