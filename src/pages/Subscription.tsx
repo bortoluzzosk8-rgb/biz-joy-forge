@@ -466,7 +466,13 @@ const Subscription = () => {
               <Button 
                 variant="outline" 
                 className="h-auto py-6 flex flex-col gap-2"
-                onClick={() => setShowCardModal(true)}
+                onClick={() => {
+                  if (!customerName || !customerCpfCnpj) {
+                    toast.error('Preencha o nome e CPF/CNPJ nos dados de cobrança antes de continuar');
+                    return;
+                  }
+                  setShowCardModal(true);
+                }}
                 disabled={processingPayment}
               >
                 <CreditCard className="h-8 w-8" />
