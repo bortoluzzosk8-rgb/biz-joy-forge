@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY');
@@ -121,7 +121,9 @@ serve(async (req) => {
     const url = new URL(req.url);
     let action = url.searchParams.get('action');
 
-    const body = await req.json().catch(() => ({}));
+    const rawBody = await req.text();
+    console.log(`[Asaas] Raw body length: ${rawBody.length}`);
+    const body = rawBody ? JSON.parse(rawBody) : {};
     
     // Support action from body as well (supabase.functions.invoke doesn't support query params in name)
     if (!action && body.action) {
@@ -138,7 +140,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[Asaas] Request body:`, JSON.stringify(body));
+    console.log(`[Asaas] Request body keys:`, Object.keys(body).join(', '));
 
     switch (action) {
       case 'create-customer': {
