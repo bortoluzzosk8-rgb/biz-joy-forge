@@ -16,15 +16,11 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const PLAN_PRICES: Record<string, number> = {
-  basic: 197,
-  pro: 297,
-  multi: 497
+  lancamento: 59,
 };
 
 const PLAN_NAMES: Record<string, string> = {
-  basic: "Básico",
-  pro: "Profissional",
-  multi: "Multi-Unidades"
+  lancamento: "Lançamento",
 };
 
 interface SubscriptionPayment {
@@ -64,7 +60,7 @@ const Subscription = () => {
   const [payments, setPayments] = useState<SubscriptionPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingPayment, setProcessingPayment] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<string>('basic');
+  const [selectedPlan, setSelectedPlan] = useState<string>('lancamento');
   const [showPixModal, setShowPixModal] = useState(false);
   const [showBoletoModal, setShowBoletoModal] = useState(false);
   const [currentPaymentData, setCurrentPaymentData] = useState<{
@@ -303,11 +299,11 @@ const Subscription = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Plano</p>
-                <p className="font-medium">{PLAN_NAMES[franchise?.subscription_plan || 'basic'] || 'Básico'}</p>
+                <p className="font-medium">{PLAN_NAMES[franchise?.subscription_plan || 'lancamento'] || 'Lançamento'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Valor</p>
-                <p className="font-medium">R$ {PLAN_PRICES[franchise?.subscription_plan || 'basic']}/mês</p>
+                <p className="font-medium">R$ {PLAN_PRICES[franchise?.subscription_plan || 'lancamento'] || 59}/mês</p>
               </div>
               {franchise?.next_due_date && (
                 <div>
@@ -325,29 +321,19 @@ const Subscription = () => {
           </CardContent>
         </Card>
 
-        {/* Select Plan */}
-        <Card className="mb-6">
+        {/* Plan Info */}
+        <Card className="mb-6 border-2 border-primary">
           <CardHeader>
-            <CardTitle>Escolher Plano</CardTitle>
-            <CardDescription>Selecione o plano que deseja contratar</CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle>Plano de Lançamento</CardTitle>
+              <Badge className="bg-primary text-primary-foreground">Oferta de Lançamento</Badge>
+            </div>
+            <CardDescription>Acesso total a todas as funcionalidades por 6 meses</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {Object.entries(PLAN_NAMES).map(([key, name]) => (
-                <button
-                  key={key}
-                  onClick={() => setSelectedPlan(key)}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    selectedPlan === key 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <p className="font-medium">{name}</p>
-                  <p className="text-2xl font-bold text-primary">R$ {PLAN_PRICES[key]}</p>
-                  <p className="text-sm text-muted-foreground">/mês</p>
-                </button>
-              ))}
+            <div className="text-center py-4">
+              <span className="text-4xl font-bold text-primary">R$ 59</span>
+              <span className="text-muted-foreground">/mês</span>
             </div>
           </CardContent>
         </Card>

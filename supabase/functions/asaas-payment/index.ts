@@ -13,9 +13,7 @@ const ASAAS_BASE_URL = 'https://api.asaas.com/api/v3';
 
 // Plan prices in BRL
 const PLAN_PRICES: Record<string, number> = {
-  basic: 197,
-  pro: 297,
-  multi: 497
+  lancamento: 59,
 };
 
 interface CustomerData {
