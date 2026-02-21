@@ -119,7 +119,14 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    let action = url.searchParams.get('action');
+
+    const body = await req.json().catch(() => ({}));
+    
+    // Support action from body as well (supabase.functions.invoke doesn't support query params in name)
+    if (!action && body.action) {
+      action = body.action;
+    }
     
     console.log(`[Asaas] Action: ${action}`);
 
@@ -131,7 +138,6 @@ serve(async (req) => {
       );
     }
 
-    const body = await req.json().catch(() => ({}));
     console.log(`[Asaas] Request body:`, JSON.stringify(body));
 
     switch (action) {
