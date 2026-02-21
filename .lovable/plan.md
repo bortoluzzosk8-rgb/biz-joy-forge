@@ -1,76 +1,61 @@
 
 
-## Plano: Plano de Lancamento - R$ 59,00
+## Plano: Adicionar Pagamento com Cartao de Credito e Remover Boleto
 
 ### Objetivo
 
-Substituir os 3 planos atuais (Basico R$197, Profissional R$297, Multi-Unidades R$497) por um unico **Plano de Lancamento** a R$59/mes com acesso total por 6 meses.
+Ativar o pagamento por cartao de credito (que ja existe na edge function como `create-subscription`) e remover a opcao de boleto, ficando apenas **Pix** e **Cartao de Credito**.
 
 ---
 
-### Onde os planos estao definidos hoje
+### Mudancas em `src/pages/Subscription.tsx`
 
-| Arquivo | O que tem |
-|---------|-----------|
-| `src/pages/Subscription.tsx` | `PLAN_PRICES` e `PLAN_NAMES` + seletor de plano |
-| `src/pages/ChoosePlan.tsx` | Grid com 3 planos |
-| `src/components/landing/Plans.tsx` | Planos na landing page |
-| `supabase/functions/asaas-payment/index.ts` | `PLAN_PRICES` usado para cobrar no Asaas |
+#### Remover Boleto
+- Remover o botao "Boleto Bancario" (linhas 410-423)
+- Remover o estado `showBoletoModal` e o modal de boleto (linhas 551-589)
+- Remover o import do icone `FileText` (nao sera mais usado)
 
----
+#### Adicionar Modal de Cartao de Credito
+- Adicionar estado `showCardModal` para controlar o modal
+- Adicionar campos de formulario no modal:
+  - Nome no cartao
+  - Numero do cartao
+  - Mes de validade
+  - Ano de validade
+  - CVV
+  - CEP
+  - Numero do endereco
+- Criar funcao `handleCreditCardPayment` que chama a edge function com `action: 'create-subscription'` passando os dados do cartao (`creditCard` e `creditCardHolderInfo`)
 
-### Mudancas
-
-#### 1. Edge Function `asaas-payment/index.ts`
-
-Atualizar o mapa de precos:
-
-```typescript
-const PLAN_PRICES: Record<string, number> = {
-  lancamento: 59,
-};
-```
-
-#### 2. `src/pages/Subscription.tsx`
-
-- Trocar `PLAN_PRICES` e `PLAN_NAMES` para o plano unico:
-
-```typescript
-const PLAN_PRICES: Record<string, number> = { lancamento: 59 };
-const PLAN_NAMES: Record<string, string> = { lancamento: "Lancamento" };
-```
-
-- Remover o seletor de 3 planos e fixar `selectedPlan = 'lancamento'`
-- Mostrar um card unico com as informacoes do plano de lancamento (R$59/mes, acesso total, valido por 6 meses)
-
-#### 3. `src/pages/ChoosePlan.tsx`
-
-- Substituir os 3 cards por um unico card destacado com:
-  - Nome: "Plano de Lancamento"
-  - Preco: R$ 59/mes
-  - Descricao: Acesso total por 6 meses
-  - Features: todas as funcionalidades listadas (estoque, financeiro, logistica, relatorios, usuarios ilimitados, etc.)
-  - Badge: "Oferta de Lancamento"
-
-#### 4. `src/components/landing/Plans.tsx`
-
-- Substituir os 3 planos por um unico plano de lancamento com as mesmas informacoes
+#### Ajustar Layout
+- Trocar o grid de `md:grid-cols-3` para `md:grid-cols-2`
+- Botao de cartao de credito abre o modal ao inves de mostrar toast
+- Manter o botao de Pix como esta
 
 ---
 
-### O que NAO muda
+### Edge Function `asaas-payment/index.ts`
 
-- Fluxo de pagamento (Pix, Boleto, Cartao) continua o mesmo
-- Webhook do Asaas continua funcionando igual
-- Trial de 10 dias continua igual
-- Logica de bloqueio por assinatura expirada continua igual
+Nenhuma mudanca necessaria. A action `create-subscription` ja existe e suporta cartao de credito com todos os campos necessarios (linhas 222-323).
+
+---
+
+### Fluxo do Cartao de Credito
+
+1. Usuario clica em "Cartao de Credito"
+2. Modal abre pedindo dados do cartao
+3. Usuario preenche e confirma
+4. Frontend chama edge function com `action: 'create-subscription'`
+5. Edge function cria assinatura recorrente no Asaas
+6. Franchise atualizada com status `active` e `payment_method: 'card'`
+7. Cobranças mensais automaticas pelo Asaas
 
 ---
 
 ### Resultado Esperado
 
-1. Usuario vê apenas um plano: **Lancamento - R$ 59/mes**
-2. Ao pagar, o Asaas cobra R$ 59
-3. Acesso total a todas as funcionalidades
-4. Landing page mostra o plano unico de lancamento
+- 2 opcoes de pagamento: **Pix** e **Cartao de Credito**
+- Cartao cria assinatura recorrente (cobranca automatica todo mes)
+- Pix gera cobranca avulsa mensal (como ja funciona)
+- Boleto removido completamente da interface
 
