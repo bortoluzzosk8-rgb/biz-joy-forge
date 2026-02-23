@@ -97,6 +97,25 @@ export default function UserRegister() {
       }
 
       if (authData.user) {
+        // Detectar signup repetido (usuario ja existe mas nao confirmou)
+        if (authData.user.identities && authData.user.identities.length === 0) {
+          // Usuario ja existe - reenviar email de confirmacao
+          await supabase.auth.resend({
+            type: 'signup',
+            email: email.trim(),
+            options: {
+              emailRedirectTo: window.location.origin,
+            }
+          });
+          toast({
+            title: "Quase lá!",
+            description: "Reenviamos o link de confirmação para seu e-mail.",
+          });
+          navigate('/verificar-email', { state: { email: email.trim() } });
+          setLoading(false);
+          return;
+        }
+
         // Check if email confirmation is required (no session means email not confirmed)
         if (!authData.session) {
           // Email needs confirmation - redirect to verification page
