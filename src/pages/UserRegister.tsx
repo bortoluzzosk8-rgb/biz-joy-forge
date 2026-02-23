@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +18,6 @@ export default function UserRegister() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { refreshRoles } = useAuth();
   const { toast } = useToast();
 
   const formatPhone = (value: string) => {
@@ -108,43 +106,24 @@ export default function UserRegister() {
           return;
         }
 
-        // Com auto-confirm, signUp retorna sessão imediatamente
-        if (authData.session) {
-          // Enviar email de boas-vindas via Resend (fire-and-forget)
-          supabase.functions.invoke('send-email', {
-            body: { type: 'welcome', to: email.trim(), name: name.trim() }
-          }).catch(err => console.error('Welcome email error:', err));
-
-          // Atribuir role e criar franquia
-          const { error: roleError } = await supabase.functions.invoke('assign-franqueadora-role', {
-            body: { 
-              user_id: authData.user.id,
-              name: name.trim(),
-              email: email.trim(),
-              phone: phone.replace(/\D/g, '')
-            }
+        // Enviar email de confirmação via Resend (com link gerado pela admin API)
+        try {
+          await supabase.functions.invoke('send-email', {
+            body: { type: 'confirmation', to: email.trim(), name: name.trim() }
           });
-
-          if (roleError) {
-            console.error('Error assigning role:', roleError);
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 300));
-          await refreshRoles();
-
-          toast({
-            title: "Conta criada com sucesso!",
-            description: "Bem-vindo ao PlayGestor!",
-          });
-          navigate('/admin/rentals');
-        } else {
-          // Fallback: se por algum motivo não veio sessão
-          toast({
-            title: "Conta criada!",
-            description: "Faça login para acessar o sistema.",
-          });
-          navigate('/login', { state: { email: email.trim() } });
+        } catch (emailErr) {
+          console.error('Confirmation email error:', emailErr);
         }
+
+        // Garantir que o usuário NÃO tem sessão (auto-confirm está desativado)
+        await supabase.auth.signOut();
+
+        // Redirecionar para página de verificação
+        toast({
+          title: "Conta criada!",
+          description: "Verifique seu email para confirmar sua conta.",
+        });
+        navigate('/verificar-email', { state: { email: email.trim(), name: name.trim() } });
       }
     } catch (error) {
       console.error('Registration error:', error);
