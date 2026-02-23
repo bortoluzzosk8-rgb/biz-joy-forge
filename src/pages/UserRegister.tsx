@@ -97,11 +97,6 @@ export default function UserRegister() {
       }
 
       if (authData.user) {
-        // Send welcome email via Resend (fire-and-forget)
-        supabase.functions.invoke('send-email', {
-          body: { type: 'welcome', to: email.trim(), name: name.trim() }
-        }).catch(err => console.error('Welcome email error:', err));
-
         // Check if email confirmation is required (no session means email not confirmed)
         if (!authData.session) {
           // Email needs confirmation - redirect to verification page
