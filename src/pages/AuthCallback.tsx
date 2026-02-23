@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -10,6 +11,22 @@ export default function AuthCallback() {
     const handleCallback = async () => {
       try {
         console.log('[AuthCallback] Processing auth callback...');
+
+        // Check for errors in URL hash (e.g. expired link)
+        const hash = window.location.hash.substring(1);
+        const hashParams = new URLSearchParams(hash);
+        const hashError = hashParams.get('error');
+        const errorCode = hashParams.get('error_code');
+
+        if (hashError || errorCode) {
+          console.log('[AuthCallback] Error in hash:', hashError, errorCode);
+          const message = errorCode === 'otp_expired'
+            ? 'O link expirou. Faça login novamente ou solicite um novo link.'
+            : 'Erro na verificação do email. Tente fazer login.';
+          toast({ title: 'Atenção', description: message, variant: 'destructive' });
+          navigate('/login', { replace: true });
+          return;
+        }
 
         // Supabase client auto-detects code/tokens in URL hash/params
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
