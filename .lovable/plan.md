@@ -1,75 +1,94 @@
 
 
-## Corrigir entrega de emails: Usar Resend em vez do email padrao do sistema
+## Exigir confirmacao de email antes de acessar o sistema (via Resend)
 
-### Problema raiz
-O servico de email padrao do backend de autenticacao tem limitacoes severas de entrega (rate limit de ~4 emails/hora, remetente generico que cai em spam). Por isso os emails de confirmacao **nao chegam** — nem para usuarios novos, nem para reenvios. Os logs mostram status 200 (aceito), mas o email nunca e entregue ao destinatario.
+### Problema atual
+Com auto-confirm ativado, o usuario cria a conta e entra direto no painel sem precisar confirmar o email. Isso permite cadastros com emails falsos.
 
 ### Solucao
-Contornar o sistema de email padrao e usar o Resend (ja configurado com API key e dominio `playgestor.com.br`) para enviar os emails de confirmacao. Para isso:
+Desativar auto-confirm e usar uma edge function com a API admin do Supabase para **gerar o link de confirmacao** e envia-lo via Resend. Assim o email chega de forma confiavel, e o usuario so acessa o sistema apos clicar no link.
 
-1. **Ativar auto-confirmacao de email** no cadastro — assim o usuario ja recebe sessao imediatamente apos criar a conta.
-2. **Enviar email de boas-vindas personalizado** via edge function `send-email` usando Resend, garantindo entrega confiavel.
-3. **Simplificar o fluxo de cadastro** — sem necessidade da pagina `/verificar-email`, o usuario entra direto no painel.
+### Fluxo esperado
+
+1. Usuario preenche cadastro e clica "Criar conta"
+2. Conta e criada (nao confirmada, sem sessao)
+3. Edge function gera link de confirmacao via API admin e envia por Resend
+4. Usuario e redirecionado para tela "Verifique seu email"
+5. Usuario clica no link no email -> `/auth/callback` processa -> atribui role -> entra no painel
+6. Se nao clicar, nao consegue fazer login (email nao confirmado)
 
 ### Passos de implementacao
 
-**1. Ativar auto-confirm de email**
-- Usar a ferramenta de configuracao de autenticacao para ativar auto-confirmacao de signups por email.
+**1. Desativar auto-confirm de email**
+- Configurar autenticacao para exigir confirmacao de email no cadastro.
 
-**2. Atualizar edge function `send-email`**
-- Adicionar template de "boas-vindas" com branding PlayGestor.
-- O template incluira nome do usuario, link para o painel e dicas iniciais.
+**2. Criar/atualizar edge function `send-email`**
+- Adicionar tipo `confirmation` que usa `supabase.auth.admin.generateLink()` para criar link de confirmacao.
+- Enviar o link via Resend com template branded do PlayGestor.
+- O link aponta para `/auth/callback` para processar a confirmacao.
 
 **3. Atualizar `src/pages/UserRegister.tsx`**
-- Remover logica de verificacao de email (nao sera mais necessaria).
-- Apos signup bem-sucedido com sessao, chamar edge function `send-email` com type `welcome`.
-- Atribuir role e redirecionar direto para `/admin/dashboard`.
-- Manter deteccao de signup repetido: se identities vazio, redirecionar para login com mensagem clara.
+- Apos signup, NÃO redirecionar para o painel.
+- Chamar edge function `send-email` com `type: 'confirmation'` para enviar link via Resend.
+- Deslogar o usuario (signOut) para garantir que nao tenha sessao.
+- Redirecionar para `/verificar-email` com o email.
 
 **4. Atualizar `src/pages/VerifyEmail.tsx`**
-- Manter a pagina como fallback mas adicionar redirecionamento automatico se usuario ja tiver sessao.
-- Adicionar persistencia do email via query param.
+- Mostrar mensagem "Verifique seu email para confirmar sua conta".
+- Adicionar botao "Reenviar email" que chama a edge function novamente.
+- Timer de cooldown de 60 segundos para evitar spam.
 
-**5. Atualizar `src/pages/UserLogin.tsx`**
-- Ler email de state/query para pre-preencher campo quando redirecionado do cadastro.
+**5. AuthCallback.tsx ja esta pronto**
+- Ja processa o codigo PKCE, atribui role e redireciona para `/admin/rentals`.
 
-### Secao Tecnica
+### Secao tecnica
 
-**Template de boas-vindas no send-email:**
+**Edge function `send-email` - novo tipo `confirmation`:**
 ```typescript
-case 'welcome':
-  subject = 'Bem-vindo ao PlayGestor!';
-  html = getWelcomeTemplate(name || 'Usuario', to);
-  break;
-```
-
-**Fluxo simplificado no UserRegister.tsx:**
-```typescript
-// Com auto-confirm, signUp retorna sessao imediatamente
-if (authData.session) {
-  // Enviar email de boas-vindas via Resend
-  supabase.functions.invoke('send-email', {
-    body: { type: 'welcome', to: email.trim(), name: name.trim() }
-  }).catch(err => console.error('Welcome email error:', err));
+case 'confirmation': {
+  // Gerar link de confirmacao via admin API
+  const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'signup',
+    email: to,
+    options: { redirectTo: 'https://playgestor.com.br/auth/callback' }
+  });
+  const confirmationUrl = linkData?.properties?.action_link;
   
-  // Atribuir role e redirecionar
-  await supabase.functions.invoke('assign-franqueadora-role', { ... });
-  await refreshRoles();
-  navigate('/admin/dashboard');
-}
-
-// Signup repetido (identities vazio)
-if (authData.user?.identities?.length === 0) {
-  toast({ title: "Conta ja existe", description: "Faca login com suas credenciais." });
-  navigate('/login', { state: { email: email.trim() } });
-  return;
+  subject = 'Confirme seu email — PlayGestor';
+  html = getConfirmationTemplate(name, confirmationUrl);
+  break;
 }
 ```
 
-### Fluxo esperado apos implementacao
+**UserRegister.tsx - fluxo atualizado:**
+```typescript
+if (authData.user) {
+  // Enviar email de confirmacao via Resend
+  await supabase.functions.invoke('send-email', {
+    body: { type: 'confirmation', to: email.trim(), name: name.trim() }
+  });
+  
+  // Garantir que usuario nao tem sessao
+  await supabase.auth.signOut();
+  
+  // Redirecionar para verificacao
+  navigate('/verificar-email', { state: { email: email.trim() } });
+}
+```
 
-1. Usuario novo cria conta -> conta criada instantaneamente -> recebe email de boas-vindas via Resend -> entra no painel
-2. Usuario com email ja cadastrado tenta criar conta -> redirecionado para login com mensagem clara
-3. Sem dependencia do sistema de email padrao do backend para confirmacao
+**VerifyEmail.tsx - com reenvio:**
+```typescript
+const handleResend = async () => {
+  await supabase.functions.invoke('send-email', {
+    body: { type: 'confirmation', to: email, name: '' }
+  });
+  setCooldown(60);
+};
+```
+
+### Resultado
+- Emails falsos nao conseguem acessar o sistema
+- Emails de confirmacao chegam de forma confiavel via Resend
+- Fluxo profissional com branding PlayGestor
+- Botao de reenvio funcional na tela de verificacao
 
