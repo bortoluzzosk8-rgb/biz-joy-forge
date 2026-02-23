@@ -66,12 +66,10 @@ export default function UserRegister() {
     setLoading(true);
 
     try {
-      // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             name: name.trim(),
           }
@@ -85,6 +83,7 @@ export default function UserRegister() {
             description: "Este email já está em uso. Tente fazer login.",
             variant: "destructive",
           });
+          navigate('/login', { state: { email: email.trim() } });
         } else {
           toast({
             title: "Erro no cadastro",
@@ -97,80 +96,54 @@ export default function UserRegister() {
       }
 
       if (authData.user) {
-        // Detectar signup repetido (usuario ja existe mas nao confirmou)
+        // Signup repetido (conta já existe)
         if (authData.user.identities && authData.user.identities.length === 0) {
-          // Usuario ja existe - reenviar email de confirmacao
-          await supabase.auth.resend({
-            type: 'signup',
-            email: email.trim(),
-            options: {
-              emailRedirectTo: `${window.location.origin}/auth/callback`,
-            }
-          });
           toast({
-            title: "Quase lá!",
-            description: "Reenviamos o link de confirmação para seu e-mail.",
+            title: "Conta já existe",
+            description: "Este email já está cadastrado. Faça login com suas credenciais.",
+            variant: "destructive",
           });
-          navigate('/verificar-email', { state: { email: email.trim() } });
+          navigate('/login', { state: { email: email.trim() } });
           setLoading(false);
           return;
         }
 
-        // Check if email confirmation is required (no session means email not confirmed)
-        if (!authData.session) {
-          // Email needs confirmation - redirect to verification page
-          toast({
-            title: "Quase lá!",
-            description: "Enviamos um link de confirmação para seu e-mail.",
+        // Com auto-confirm, signUp retorna sessão imediatamente
+        if (authData.session) {
+          // Enviar email de boas-vindas via Resend (fire-and-forget)
+          supabase.functions.invoke('send-email', {
+            body: { type: 'welcome', to: email.trim(), name: name.trim() }
+          }).catch(err => console.error('Welcome email error:', err));
+
+          // Atribuir role e criar franquia
+          const { error: roleError } = await supabase.functions.invoke('assign-franqueadora-role', {
+            body: { 
+              user_id: authData.user.id,
+              name: name.trim(),
+              email: email.trim(),
+              phone: phone.replace(/\D/g, '')
+            }
           });
-          navigate('/verificar-email', { state: { email: email.trim() } });
-          return;
-        }
 
-        // If we have a session, email was auto-confirmed (fallback)
-        // Assign franqueadora role and create franchise via edge function
-        const { error: roleError } = await supabase.functions.invoke('assign-franqueadora-role', {
-          body: { 
-            user_id: authData.user.id,
-            name: name.trim(),
-            email: email.trim(),
-            phone: phone.replace(/\D/g, '')
+          if (roleError) {
+            console.error('Error assigning role:', roleError);
           }
-        });
 
-        if (roleError) {
-          console.error('Error assigning role:', roleError);
-        }
+          await new Promise(resolve => setTimeout(resolve, 300));
+          await refreshRoles();
 
-        // Wait for role to be assigned before checking
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Verify role was assigned successfully directly from database
-        const { data: hasRole } = await supabase.rpc('has_role', { 
-          _user_id: authData.user.id, 
-          _role: 'franqueadora' 
-        });
-
-        // Update auth context
-        await refreshRoles();
-
-        if (hasRole) {
           toast({
             title: "Conta criada com sucesso!",
-            description: "Bem-vindo ao painel administrativo.",
+            description: "Bem-vindo ao PlayGestor!",
           });
-          navigate('/admin/dashboard');
+          navigate('/admin/rentals');
         } else {
-          // Fallback - role might take longer
+          // Fallback: se por algum motivo não veio sessão
           toast({
             title: "Conta criada!",
-            description: "Aguarde enquanto configuramos seu acesso...",
+            description: "Faça login para acessar o sistema.",
           });
-          // Retry after 1 second
-          setTimeout(async () => {
-            await refreshRoles();
-            navigate('/admin/dashboard');
-          }, 1000);
+          navigate('/login', { state: { email: email.trim() } });
         }
       }
     } catch (error) {
