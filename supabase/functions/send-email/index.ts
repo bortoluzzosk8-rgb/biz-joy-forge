@@ -1,0 +1,188 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const getWelcomeTemplate = (name: string) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+  <div style="background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <div style="text-align:center;margin-bottom:32px;">
+      <h1 style="color:#7c3aed;font-size:28px;margin:0;">PlayGestor</h1>
+    </div>
+    <h2 style="color:#18181b;font-size:22px;margin:0 0 16px;">Bem-vindo(a), ${name}! 🎉</h2>
+    <p style="color:#52525b;font-size:16px;line-height:1.6;margin:0 0 16px;">
+      Sua conta no <strong>PlayGestor</strong> foi criada com sucesso! Estamos muito felizes em ter você conosco.
+    </p>
+    <p style="color:#52525b;font-size:16px;line-height:1.6;margin:0 0 24px;">
+      Com o PlayGestor você pode gerenciar vendas, estoque, logística, financeiro e muito mais — tudo em um só lugar.
+    </p>
+    <div style="text-align:center;margin:32px 0;">
+      <p style="color:#52525b;font-size:14px;">
+        <strong>Importante:</strong> Verifique seu e-mail clicando no link de confirmação que enviamos separadamente.
+      </p>
+    </div>
+    <hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0;">
+    <p style="color:#a1a1aa;font-size:13px;text-align:center;margin:0;">
+      PlayGestor — Gestão inteligente para seu negócio<br>
+      <a href="https://playgestor.com.br" style="color:#7c3aed;">playgestor.com.br</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>
+`;
+
+const getPasswordResetTemplate = (email: string) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+  <div style="background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <div style="text-align:center;margin-bottom:32px;">
+      <h1 style="color:#7c3aed;font-size:28px;margin:0;">PlayGestor</h1>
+    </div>
+    <h2 style="color:#18181b;font-size:22px;margin:0 0 16px;">Recuperação de Senha 🔐</h2>
+    <p style="color:#52525b;font-size:16px;line-height:1.6;margin:0 0 16px;">
+      Recebemos uma solicitação de redefinição de senha para a conta associada ao email <strong>${email}</strong>.
+    </p>
+    <p style="color:#52525b;font-size:16px;line-height:1.6;margin:0 0 16px;">
+      Você receberá em breve um email do sistema com o link para redefinir sua senha. Verifique também a pasta de <strong>spam</strong>.
+    </p>
+    <div style="background:#fef3c7;border-radius:8px;padding:16px;margin:24px 0;">
+      <p style="color:#92400e;font-size:14px;margin:0;">
+        ⚠️ Se você não solicitou essa alteração, ignore este email. Sua senha continuará a mesma.
+      </p>
+    </div>
+    <hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0;">
+    <p style="color:#a1a1aa;font-size:13px;text-align:center;margin:0;">
+      PlayGestor — Gestão inteligente para seu negócio<br>
+      <a href="https://playgestor.com.br" style="color:#7c3aed;">playgestor.com.br</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>
+`;
+
+const getVerificationTemplate = (name: string) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+  <div style="background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <div style="text-align:center;margin-bottom:32px;">
+      <h1 style="color:#7c3aed;font-size:28px;margin:0;">PlayGestor</h1>
+    </div>
+    <h2 style="color:#18181b;font-size:22px;margin:0 0 16px;">Confirme seu E-mail ✉️</h2>
+    <p style="color:#52525b;font-size:16px;line-height:1.6;margin:0 0 16px;">
+      Olá${name ? `, ${name}` : ''}! Para ativar sua conta no PlayGestor, precisamos confirmar seu endereço de e-mail.
+    </p>
+    <p style="color:#52525b;font-size:16px;line-height:1.6;margin:0 0 24px;">
+      Verifique sua caixa de entrada — enviamos um link de confirmação separadamente. Clique nele para ativar sua conta.
+    </p>
+    <div style="background:#f0fdf4;border-radius:8px;padding:16px;margin:24px 0;">
+      <p style="color:#166534;font-size:14px;margin:0;">
+        💡 <strong>Dica:</strong> Verifique também a pasta de <strong>spam</strong>, <strong>lixo eletrônico</strong> ou aba <strong>Promoções</strong> (Gmail).
+      </p>
+    </div>
+    <hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0;">
+    <p style="color:#a1a1aa;font-size:13px;text-align:center;margin:0;">
+      PlayGestor — Gestão inteligente para seu negócio<br>
+      <a href="https://playgestor.com.br" style="color:#7c3aed;">playgestor.com.br</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>
+`;
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { type, to, name, data } = await req.json();
+
+    if (!type || !to) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: type, to' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+    if (!RESEND_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: 'RESEND_API_KEY not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    let subject = '';
+    let html = '';
+
+    switch (type) {
+      case 'welcome':
+        subject = `Bem-vindo(a) ao PlayGestor, ${name || 'usuário'}! 🎉`;
+        html = getWelcomeTemplate(name || 'usuário');
+        break;
+      case 'password_reset':
+        subject = 'Recuperação de Senha — PlayGestor 🔐';
+        html = getPasswordResetTemplate(to);
+        break;
+      case 'verification':
+        subject = 'Confirme seu E-mail — PlayGestor ✉️';
+        html = getVerificationTemplate(name || '');
+        break;
+      default:
+        return new Response(
+          JSON.stringify({ error: `Unknown email type: ${type}` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+    }
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: 'PlayGestor <suporte@playgestor.com.br>',
+        to: [to],
+        subject,
+        html,
+      }),
+    });
+
+    const resData = await res.json();
+
+    if (!res.ok) {
+      console.error('Resend API error:', resData);
+      return new Response(
+        JSON.stringify({ error: 'Failed to send email', details: resData }),
+        { status: res.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, id: resData.id }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Send email error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
