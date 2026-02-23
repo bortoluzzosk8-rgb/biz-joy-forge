@@ -115,6 +115,11 @@ export default function UserLogin() {
           variant: "destructive",
         });
       } else {
+        // Send custom password reset notification via Resend
+        supabase.functions.invoke('send-email', {
+          body: { type: 'password_reset', to: forgotEmail.trim() }
+        }).catch(err => console.error('Password reset email error:', err));
+
         toast({
           title: "Email enviado!",
           description: "Verifique sua caixa de entrada para redefinir sua senha.",
