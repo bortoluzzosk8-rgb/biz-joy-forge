@@ -1,96 +1,75 @@
 
 
-## Corrigir tela branca apos criacao de conta
+## Corrigir entrega de emails: Usar Resend em vez do email padrao do sistema
 
-### Problema identificado
-
-Apos o usuario criar a conta e confirmar o email, o link de confirmacao redireciona para a raiz do site (`/`). O Supabase JS v2 usa o fluxo PKCE, onde o redirect inclui um parametro `?code=xxx` na URL. Se o processamento desse codigo falhar silenciosamente ou demorar, a pagina pode ficar em branco porque:
-
-1. **Sem Error Boundary**: Se qualquer componente React lanca um erro durante o processamento da sessao (ex: ao trocar o code por sessao e imediatamente tentar verificar roles), nao existe Error Boundary para capturar o erro - o React simplesmente mostra uma tela branca.
-
-2. **Race condition no AuthContext**: Quando a sessao e criada apos o callback, `onAuthStateChange` dispara `checkAdminStatus`. Se a franquia ainda nao foi criada (o `assign-franqueadora-role` nao foi chamado porque o signup original nao tinha sessao), o `checkAdminStatus` tenta atribuir a role automaticamente mas pode falhar, causando estado inconsistente.
-
-3. **Redirect pos-confirmacao vai para LandingPage**: O usuario confirma o email, chega na LandingPage (`/`), e nao sabe onde ir. Se o processamento do token falha, fica preso na tela branca.
+### Problema raiz
+O servico de email padrao do backend de autenticacao tem limitacoes severas de entrega (rate limit de ~4 emails/hora, remetente generico que cai em spam). Por isso os emails de confirmacao **nao chegam** — nem para usuarios novos, nem para reenvios. Os logs mostram status 200 (aceito), mas o email nunca e entregue ao destinatario.
 
 ### Solucao
+Contornar o sistema de email padrao e usar o Resend (ja configurado com API key e dominio `playgestor.com.br`) para enviar os emails de confirmacao. Para isso:
 
-1. **Adicionar Error Boundary global** para capturar erros React e mostrar uma tela amigavel em vez da tela branca.
-
-2. **Criar rota de callback** (`/auth/callback`) que processa o codigo de confirmacao e redireciona o usuario para o local correto (`/admin/rentals`).
-
-3. **Atualizar `emailRedirectTo`** para apontar para a rota de callback em vez da raiz.
-
-4. **Adicionar logs de debug** no fluxo de cadastro para identificar exatamente onde o problema ocorre.
+1. **Ativar auto-confirmacao de email** no cadastro — assim o usuario ja recebe sessao imediatamente apos criar a conta.
+2. **Enviar email de boas-vindas personalizado** via edge function `send-email` usando Resend, garantindo entrega confiavel.
+3. **Simplificar o fluxo de cadastro** — sem necessidade da pagina `/verificar-email`, o usuario entra direto no painel.
 
 ### Passos de implementacao
 
-1. **Criar componente `ErrorBoundary`** (`src/components/ErrorBoundary.tsx`)
-   - Captura erros React e exibe mensagem amigavel com botao "Tentar novamente"
-   - Envolve o App inteiro
+**1. Ativar auto-confirm de email**
+- Usar a ferramenta de configuracao de autenticacao para ativar auto-confirmacao de signups por email.
 
-2. **Criar pagina `AuthCallback`** (`src/pages/AuthCallback.tsx`)
-   - Rota: `/auth/callback`
-   - Detecta o parametro `code` na URL
-   - Chama `supabase.auth.exchangeCodeForSession(code)` se necessario
-   - Apos sessao criada, chama `assign-franqueadora-role` se o usuario nao tem roles
-   - Redireciona para `/admin/rentals`
+**2. Atualizar edge function `send-email`**
+- Adicionar template de "boas-vindas" com branding PlayGestor.
+- O template incluira nome do usuario, link para o painel e dicas iniciais.
 
-3. **Atualizar `emailRedirectTo`** em todos os locais:
-   - `src/pages/UserRegister.tsx` (linhas 74 e 107): mudar de `window.location.origin` para `window.location.origin + '/auth/callback'`
-   - `src/pages/VerifyEmail.tsx` (linha 45): mesmo ajuste
+**3. Atualizar `src/pages/UserRegister.tsx`**
+- Remover logica de verificacao de email (nao sera mais necessaria).
+- Apos signup bem-sucedido com sessao, chamar edge function `send-email` com type `welcome`.
+- Atribuir role e redirecionar direto para `/admin/dashboard`.
+- Manter deteccao de signup repetido: se identities vazio, redirecionar para login com mensagem clara.
 
-4. **Registrar rota no App.tsx**
-   - Adicionar `<Route path="/auth/callback" element={<AuthCallback />} />`
+**4. Atualizar `src/pages/VerifyEmail.tsx`**
+- Manter a pagina como fallback mas adicionar redirecionamento automatico se usuario ja tiver sessao.
+- Adicionar persistencia do email via query param.
 
-5. **Envolver App com ErrorBoundary** (`src/main.tsx`)
+**5. Atualizar `src/pages/UserLogin.tsx`**
+- Ler email de state/query para pre-preencher campo quando redirecionado do cadastro.
 
 ### Secao Tecnica
 
-**ErrorBoundary.tsx** - Componente de classe React (error boundaries precisam ser class components):
+**Template de boas-vindas no send-email:**
 ```typescript
-class ErrorBoundary extends React.Component {
-  state = { hasError: false, error: null };
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error, info) {
-    console.error('React Error Boundary:', error, info);
-  }
-  render() {
-    if (this.state.hasError) {
-      return /* UI de erro amigavel com botao reload */;
-    }
-    return this.props.children;
-  }
+case 'welcome':
+  subject = 'Bem-vindo ao PlayGestor!';
+  html = getWelcomeTemplate(name || 'Usuario', to);
+  break;
+```
+
+**Fluxo simplificado no UserRegister.tsx:**
+```typescript
+// Com auto-confirm, signUp retorna sessao imediatamente
+if (authData.session) {
+  // Enviar email de boas-vindas via Resend
+  supabase.functions.invoke('send-email', {
+    body: { type: 'welcome', to: email.trim(), name: name.trim() }
+  }).catch(err => console.error('Welcome email error:', err));
+  
+  // Atribuir role e redirecionar
+  await supabase.functions.invoke('assign-franqueadora-role', { ... });
+  await refreshRoles();
+  navigate('/admin/dashboard');
+}
+
+// Signup repetido (identities vazio)
+if (authData.user?.identities?.length === 0) {
+  toast({ title: "Conta ja existe", description: "Faca login com suas credenciais." });
+  navigate('/login', { state: { email: email.trim() } });
+  return;
 }
 ```
 
-**AuthCallback.tsx** - Pagina de processamento do callback:
-```typescript
-export default function AuthCallback() {
-  useEffect(() => {
-    const handleCallback = async () => {
-      // O Supabase client detecta automaticamente os tokens/code na URL
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // Atribuir role se necessario
-        await supabase.functions.invoke('assign-franqueadora-role', {
-          body: { user_id: session.user.id }
-        });
-        navigate('/admin/rentals');
-      } else {
-        navigate('/login');
-      }
-    };
-    handleCallback();
-  }, []);
-  return /* Tela de loading */;
-}
-```
+### Fluxo esperado apos implementacao
 
-**emailRedirectTo atualizado**:
-```typescript
-// UserRegister.tsx e VerifyEmail.tsx
-emailRedirectTo: `${window.location.origin}/auth/callback`
-```
+1. Usuario novo cria conta -> conta criada instantaneamente -> recebe email de boas-vindas via Resend -> entra no painel
+2. Usuario com email ja cadastrado tenta criar conta -> redirecionado para login com mensagem clara
+3. Sem dependencia do sistema de email padrao do backend para confirmacao
 
