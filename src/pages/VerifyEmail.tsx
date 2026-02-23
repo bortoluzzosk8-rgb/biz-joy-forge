@@ -53,11 +53,6 @@ export default function VerifyEmail() {
           variant: "destructive",
         });
       } else {
-        // Also send verification reminder via Resend
-        supabase.functions.invoke('send-email', {
-          body: { type: 'verification', to: email, name: '' }
-        }).catch(err => console.error('Verification email error:', err));
-
         setCooldown(60);
         toast({
           title: "E-mail reenviado!",
