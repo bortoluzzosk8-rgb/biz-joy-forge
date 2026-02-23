@@ -109,7 +109,12 @@ export default function UserRegister() {
         // Enviar email de confirmação via Resend (com link gerado pela admin API)
         try {
           await supabase.functions.invoke('send-email', {
-            body: { type: 'confirmation', to: email.trim(), name: name.trim() }
+            body: { 
+              type: 'confirmation', 
+              to: email.trim(), 
+              name: name.trim(),
+              data: { origin: window.location.origin }
+            }
           });
         } catch (emailErr) {
           console.error('Confirmation email error:', emailErr);

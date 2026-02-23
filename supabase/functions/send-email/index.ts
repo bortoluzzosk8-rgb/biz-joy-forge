@@ -156,11 +156,13 @@ serve(async (req) => {
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
         );
 
+        const origin = data?.origin || 'https://playgestor.com.br';
+
         const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-          type: 'magiclink',
+          type: 'signup',
           email: to,
           options: {
-            redirectTo: 'https://playgestor.com.br/auth/callback',
+            redirectTo: `${origin}/auth/callback`,
           }
         });
 
