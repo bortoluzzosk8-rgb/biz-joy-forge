@@ -41,11 +41,18 @@ export default function VerifyEmail() {
     setResending(true);
 
     try {
-      const { error } = await supabase.functions.invoke('send-email', {
-        body: { type: 'confirmation', to: email, name: name || '' }
+      const response = await supabase.functions.invoke('send-email', {
+        body: { 
+          type: 'confirmation', 
+          to: email, 
+          name: name || '',
+          data: { origin: window.location.origin }
+        }
       });
 
-      if (error) throw error;
+      if (response.error || response.data?.error) {
+        throw new Error(response.data?.error || 'Erro ao enviar email');
+      }
 
       toast({
         title: "Email reenviado!",
