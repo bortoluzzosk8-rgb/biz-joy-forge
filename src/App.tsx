@@ -40,6 +40,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ChoosePlan from "./pages/ChoosePlan";
 import Subscription from "./pages/Subscription";
 import PublicCatalog from "./pages/PublicCatalog";
+import AuthCallback from "./pages/AuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => (
                 <Route path="/escolher-plano" element={<ChoosePlan />} />
                 <Route path="/assinatura" element={<Subscription />} />
                 <Route path="/admin-login" element={<AdminLogin />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/catalog" element={
                   <ProtectedRoute requireAuth>
                     <Catalog />

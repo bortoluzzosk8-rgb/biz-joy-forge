@@ -71,7 +71,7 @@ export default function UserRegister() {
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             name: name.trim(),
           }
@@ -104,7 +104,7 @@ export default function UserRegister() {
             type: 'signup',
             email: email.trim(),
             options: {
-              emailRedirectTo: window.location.origin,
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
             }
           });
           toast({
