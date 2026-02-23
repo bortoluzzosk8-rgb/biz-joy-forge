@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,20 @@ import logoPlayGestor from '@/assets/logo-playgestor.png';
 
 export default function VerifyEmail() {
   const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   
   const email = location.state?.email || '';
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleResendEmail = async () => {
     if (!email) {
@@ -44,6 +53,7 @@ export default function VerifyEmail() {
           variant: "destructive",
         });
       } else {
+        setCooldown(60);
         toast({
           title: "E-mail reenviado!",
           description: "Verifique sua caixa de entrada e spam.",
@@ -99,10 +109,13 @@ export default function VerifyEmail() {
               </p>
             </div>
 
-            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-sm text-amber-800 dark:text-amber-200">
+            <div className="bg-muted border border-border rounded-lg p-4 text-sm text-muted-foreground">
               <strong>Não recebeu o e-mail?</strong>
-              <br />
-              Verifique sua caixa de spam ou lixo eletrônico.
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Verifique sua caixa de <strong>spam</strong> ou <strong>lixo eletrônico</strong></li>
+                <li>Verifique a aba <strong>Promoções</strong> (Gmail)</li>
+                <li>Aguarde até 2 minutos para o e-mail chegar</li>
+              </ul>
             </div>
           </CardContent>
 
@@ -111,12 +124,17 @@ export default function VerifyEmail() {
               onClick={handleResendEmail} 
               variant="outline" 
               className="w-full"
-              disabled={resending || !email}
+              disabled={resending || !email || cooldown > 0}
             >
               {resending ? (
                 <>
                   <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                   Reenviando...
+                </>
+              ) : cooldown > 0 ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Aguarde {cooldown}s
                 </>
               ) : (
                 <>
