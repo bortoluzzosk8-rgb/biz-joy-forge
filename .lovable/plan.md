@@ -1,42 +1,43 @@
 
+## Corrigir email nao enviado em cadastros repetidos
 
-## Unificar emails de cadastro em um unico email
-
-### Problema atual
-Quando o usuario se cadastra, recebe **dois emails**:
-1. Email de confirmacao do Supabase Auth (com link de verificacao)
-2. Email de boas-vindas enviado via Resend (edge function `send-email`)
+### Problema
+Quando um usuario tenta se cadastrar com um email que ja foi registrado mas nunca confirmou, o Supabase retorna `user_repeated_signup` com status 200 (sem erro), porem **nao reenvia o email de confirmacao**. O sistema redireciona para a pagina de verificacao normalmente, mas o email nunca chega.
 
 ### Solucao
-Remover o envio do email de boas-vindas separado e personalizar o template do email de confirmacao do Supabase Auth para incluir a mensagem de boas-vindas junto com o link de confirmacao. Assim o usuario recebe **apenas um email** bonito, com design do PlayGestor, contendo boas-vindas + link de confirmacao.
+Detectar o cenario de "signup repetido" (usuario existe mas sem sessao confirmada) e usar `supabase.auth.resend()` para reenviar o email de confirmacao automaticamente.
 
 ### Passos
 
-1. **Remover envio do email de boas-vindas no cadastro** (`src/pages/UserRegister.tsx`)
-   - Remover as linhas 101-103 que chamam `send-email` com type `welcome`
+1. **Atualizar `src/pages/UserRegister.tsx`** - Apos o `signUp`, verificar se o usuario retornado ja existia (identities vazio ou created_at antigo) e nesse caso chamar `supabase.auth.resend({ type: 'signup', email })` para garantir que o email de confirmacao seja reenviado.
 
-2. **Atualizar o template de confirmacao do Supabase Auth**
-   - Usar a ferramenta de configuracao de auth para definir um template HTML personalizado para o email de confirmacao (signup)
-   - O template tera o design do PlayGestor com as cores #E53935 (vermelho) e #6C4DF6 (roxo), logo, e mensagem de boas-vindas integrada com o botao de confirmacao
-
-3. **Design do email unificado**
-   - Header com logo do PlayGestor
-   - Mensagem de boas-vindas personalizada com o nome do usuario
-   - Botao de confirmacao de email com destaque visual
-   - Dicas sobre o que o usuario pode fazer no PlayGestor
-   - Footer com link do site
-   - Cores e fontes alinhadas com a identidade visual do sistema
-
-4. **Limpar templates nao utilizados na edge function** (`supabase/functions/send-email/index.ts`)
-   - Remover o template `welcome` e `verification` que nao serao mais necessarios
-   - Manter apenas o template `password_reset` que ainda e usado
+2. **Logica de deteccao**: O Supabase retorna `authData.user` com `identities` vazio (array `[]`) quando o usuario ja existe. Usar isso como indicador para disparar o reenvio.
 
 ### Secao Tecnica
 
-**Arquivo `src/pages/UserRegister.tsx`**: Remover bloco de linhas 100-103 (chamada fire-and-forget do send-email welcome).
+No arquivo `src/pages/UserRegister.tsx`, apos a linha 79 (apos o `signUp`), adicionar verificacao:
 
-**Auth template (signup confirmation)**: Configurar via ferramenta configure-auth com HTML customizado usando as variaveis do Supabase: `{{ .ConfirmationURL }}` para o link e `{{ .Email }}` para o email do usuario.
+```typescript
+// Detectar signup repetido (usuario ja existe mas nao confirmou)
+if (authData.user && 
+    authData.user.identities && 
+    authData.user.identities.length === 0) {
+  // Usuario ja existe - reenviar email de confirmacao
+  await supabase.auth.resend({
+    type: 'signup',
+    email: email.trim(),
+    options: {
+      emailRedirectTo: window.location.origin,
+    }
+  });
+  toast({
+    title: "Quase la!",
+    description: "Reenviamos o link de confirmacao para seu e-mail.",
+  });
+  navigate('/verificar-email', { state: { email: email.trim() } });
+  setLoading(false);
+  return;
+}
+```
 
-**Arquivo `supabase/functions/send-email/index.ts`**: Remover templates `getWelcomeTemplate` e `getVerificationTemplate`, manter `getPasswordResetTemplate`. Remover cases `welcome` e `verification` do switch.
-
-**Arquivo `src/pages/VerifyEmail.tsx`**: Remover chamada ao send-email com type `verification` nas linhas 57-59, pois o reenvio ja e feito pelo `supabase.auth.resend()`.
+Isso garante que mesmo em cadastros repetidos, o usuario sempre receba o email de confirmacao.
