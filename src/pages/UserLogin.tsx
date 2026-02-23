@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,9 @@ import { Eye, EyeOff, LogIn, ArrowLeft, Mail } from 'lucide-react';
 import logoPlayGestor from '@/assets/logo-playgestor-novo.png';
 
 export default function UserLogin() {
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const initialEmail = location.state?.email || '';
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
