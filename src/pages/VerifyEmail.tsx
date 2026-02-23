@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Mail, ArrowLeft, RefreshCw } from 'lucide-react';
-import logoPlayGestor from '@/assets/logo-playgestor.png';
+import logoPlayGestor from '@/assets/logo-playgestor-novo.png';
 
 export default function VerifyEmail() {
   const [resending, setResending] = useState(false);
