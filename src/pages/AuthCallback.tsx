@@ -12,11 +12,36 @@ export default function AuthCallback() {
       try {
         console.log('[AuthCallback] Processing auth callback...');
 
-        // Check for errors in URL hash (e.g. expired link)
+        // Check for errors or recovery type in URL hash
         const hash = window.location.hash.substring(1);
         const hashParams = new URLSearchParams(hash);
         const hashError = hashParams.get('error');
         const errorCode = hashParams.get('error_code');
+        const authType = hashParams.get('type');
+
+        // If this is a password recovery callback, redirect to reset page
+        if (authType === 'recovery') {
+          console.log('[AuthCallback] Recovery detected, redirecting to reset-password');
+          // Wait for Supabase to exchange the token for a session
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            sessionStorage.setItem('password_recovery', 'true');
+            navigate('/reset-password', { replace: true });
+            return;
+          }
+          // If no session yet, small delay and retry
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const { data: { session: retrySession } } = await supabase.auth.getSession();
+          if (retrySession) {
+            sessionStorage.setItem('password_recovery', 'true');
+            navigate('/reset-password', { replace: true });
+            return;
+          }
+          // Fallback: redirect anyway, ResetPassword will handle validation
+          sessionStorage.setItem('password_recovery', 'true');
+          navigate('/reset-password', { replace: true });
+          return;
+        }
 
         if (hashError || errorCode) {
           console.log('[AuthCallback] Error in hash:', hashError, errorCode);

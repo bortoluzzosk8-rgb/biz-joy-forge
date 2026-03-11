@@ -1,62 +1,90 @@
 
 
-## Problema: Link de recuperação de senha redireciona para o login
+## Corrigir erro "Algo deu errado" na verificacao de email
 
-### Causa raiz
+### Problema raiz
+Tres problemas combinados causam o erro:
 
-O `generateLink` na edge function usa `redirectTo: ${origin}/reset-password`, mas essa URL provavelmente não está na lista de "Redirect URLs" permitidas na configuração de autenticação do projeto. Como resultado, o Supabase ignora o `redirect_to` e redireciona para a URL padrão do site (raiz ou login).
+1. **Tipo de link errado na edge function**: Usa `type: 'magiclink'` mas deveria usar `type: 'signup'` para confirmar o email do usuario corretamente
+2. **URL hardcoded**: O `redirectTo` aponta fixo para `playgestor.com.br`, quebrando testes no preview
+3. **Tratamento de erro fragil no VerifyEmail**: O `supabase.functions.invoke` pode retornar erro em formato inesperado, causando crash no React que o ErrorBoundary captura
 
-A confirmação de email funciona porque usa `redirectTo: ${origin}/auth/callback`, que já está na lista permitida.
+### Correcoes
 
-Confirmação nos logs: o verify endpoint processa o token com sucesso (303), mas redireciona para a URL errada.
+**1. Edge function `send-email` (supabase/functions/send-email/index.ts)**
+- Trocar `type: 'magiclink'` por `type: 'signup'` no `generateLink` para gerar link de confirmacao de email real
+- Receber `origin` no body da requisicao para construir o `redirectTo` dinamicamente
+- Fallback para `https://playgestor.com.br` se origin nao for fornecido
 
-### Solução
+**2. VerifyEmail.tsx**
+- Passar `window.location.origin` ao chamar a edge function para que o link funcione no ambiente correto
+- Melhorar tratamento de erro: verificar `data.error` alem de `error` do invoke, evitando throw de objetos nao-Error
+- Envolver o handleResend em tratamento defensivo para evitar crash do React
 
-Reutilizar a rota `/auth/callback` (que já funciona) e fazê-la detectar quando é uma recuperação de senha.
+**3. UserRegister.tsx**
+- Passar `window.location.origin` ao chamar a edge function de confirmacao
 
-**1. Edge function `send-email` — mudar redirectTo**
+### Secao tecnica
 
-No case `password_reset`, mudar de:
-```
-redirectTo: `${resetOrigin}/reset-password`
-```
-Para:
-```
-redirectTo: `${resetOrigin}/auth/callback`
-```
-
-**2. `AuthCallback.tsx` — detectar recovery no hash**
-
-Antes de processar como confirmação normal, verificar se o hash da URL contém `type=recovery`. Se sim:
-- Definir flag `sessionStorage.setItem('password_recovery', 'true')`
-- Navegar para `/reset-password` em vez de `/admin/rentals`
-
+**Edge function - correcao do generateLink:**
 ```typescript
-const hash = window.location.hash.substring(1);
-const hashParams = new URLSearchParams(hash);
-const authType = hashParams.get('type');
-
-if (authType === 'recovery') {
-  sessionStorage.setItem('password_recovery', 'true');
-  navigate('/reset-password', { replace: true });
-  return;
+case 'confirmation': {
+  const origin = data?.origin || 'https://playgestor.com.br';
+  
+  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'signup',  // era 'magiclink', agora 'signup' para confirmar email
+    email: to,
+    options: {
+      redirectTo: `${origin}/auth/callback`,
+    }
+  });
+  // ...
 }
 ```
 
-**3. `ResetPassword.tsx` — aceitar flag do sessionStorage**
-
-Além do listener `PASSWORD_RECOVERY` e do fallback de sessão, verificar a flag:
+**VerifyEmail.tsx - chamada corrigida:**
 ```typescript
-if (sessionStorage.getItem('password_recovery') === 'true') {
-  sessionStorage.removeItem('password_recovery');
-  setIsValidSession(true);
-  setCheckingSession(false);
-}
+const handleResend = async () => {
+  if (!email || cooldown > 0) return;
+  setResending(true);
+  try {
+    const response = await supabase.functions.invoke('send-email', {
+      body: { 
+        type: 'confirmation', 
+        to: email, 
+        name: name || '',
+        data: { origin: window.location.origin }
+      }
+    });
+    
+    if (response.error || response.data?.error) {
+      throw new Error(response.data?.error || 'Erro ao enviar email');
+    }
+    
+    toast({ title: "Email reenviado!", description: "Verifique sua caixa de entrada e spam." });
+    setCooldown(60);
+  } catch (err) {
+    toast({ title: "Erro ao reenviar", description: "Tente novamente.", variant: "destructive" });
+  } finally {
+    setResending(false);
+  }
+};
 ```
 
-### Resultado
+**UserRegister.tsx - passar origin:**
+```typescript
+await supabase.functions.invoke('send-email', {
+  body: { 
+    type: 'confirmation', 
+    to: email.trim(), 
+    name: name.trim(),
+    data: { origin: window.location.origin }
+  }
+});
+```
 
-- Link de recovery passa pela mesma rota que já funciona (`/auth/callback`)
-- Callback detecta tipo recovery e redireciona para `/reset-password`
-- Página de reset reconhece a sessão e mostra o formulário de nova senha
+### Resultado esperado
+- Link de confirmacao confirma o email corretamente (tipo signup, nao magiclink)
+- Link funciona tanto no preview quanto na URL publicada
+- Nenhum crash do React ao reenviar email - erros sao tratados graciosamente com toast
 

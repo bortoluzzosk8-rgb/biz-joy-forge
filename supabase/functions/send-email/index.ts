@@ -200,7 +200,7 @@ serve(async (req) => {
           type: 'recovery',
           email: to,
           options: {
-            redirectTo: `${resetOrigin}/reset-password`,
+            redirectTo: `${resetOrigin}/auth/callback`,
           }
         });
 

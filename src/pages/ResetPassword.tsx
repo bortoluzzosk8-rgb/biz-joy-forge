@@ -21,7 +21,15 @@ export default function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Escutar evento PASSWORD_RECOVERY antes de validar sessão
+    // Check sessionStorage flag from AuthCallback (recovery redirect)
+    if (sessionStorage.getItem('password_recovery') === 'true') {
+      sessionStorage.removeItem('password_recovery');
+      setIsValidSession(true);
+      setCheckingSession(false);
+      return;
+    }
+
+    // Listen for PASSWORD_RECOVERY event
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsValidSession(true);
@@ -29,7 +37,7 @@ export default function ResetPassword() {
       }
     });
 
-    // Fallback: checar sessão existente após delay para dar tempo ao token
+    // Fallback: check existing session after delay
     const timer = setTimeout(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
