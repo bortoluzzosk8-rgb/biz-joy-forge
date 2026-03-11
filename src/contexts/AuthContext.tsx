@@ -151,10 +151,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Defer the admin check to avoid blocking
-          setTimeout(() => {
-            checkAdminStatus(session.user.id, session.user.email);
-          }, 0);
+          checkAdminStatus(session.user.id, session.user.email);
         } else {
           setIsAdmin(false);
           setIsVendedor(false);

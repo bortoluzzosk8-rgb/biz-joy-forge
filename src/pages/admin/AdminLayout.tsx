@@ -258,7 +258,9 @@ const AdminLayout = () => {
       </div>
 
       <div className="px-4 lg:px-8 py-8">
-        <Outlet />
+        <AdminErrorBoundary>
+          <Outlet />
+        </AdminErrorBoundary>
       </div>
     </div>
   );

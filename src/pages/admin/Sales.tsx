@@ -145,7 +145,8 @@ const FRANCHISE_STORAGE_KEY = 'rentals_franchise_draft';
 
 const Sales = () => {
   const navigate = useNavigate();
-  const { isFranqueadora, isFranqueado, userFranchise, user } = useAuth();
+  const { isFranqueadora, userFranchise, user } = useAuth();
+  const isFranqueado = false; // Role não existe mais, manter compatibilidade
   const [sales, setSales] = useState<Sale[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
