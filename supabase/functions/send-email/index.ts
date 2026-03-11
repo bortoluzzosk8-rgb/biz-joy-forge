@@ -47,7 +47,7 @@ const getConfirmationTemplate = (name: string, confirmationUrl: string) => `
 </html>
 `;
 
-const getPasswordResetTemplate = (email: string) => `
+const getPasswordResetTemplate = (email: string, resetUrl: string) => `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -62,7 +62,18 @@ const getPasswordResetTemplate = (email: string) => `
       Recebemos uma solicitação de redefinição de senha para a conta associada ao email <strong>${email}</strong>.
     </p>
     <p style="color:#52525b;font-size:16px;line-height:1.6;margin:0 0 16px;">
-      Você receberá em breve um email do sistema com o link para redefinir sua senha. Verifique também a pasta de <strong>spam</strong>.
+      Clique no botão abaixo para definir uma nova senha:
+    </p>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${resetUrl}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:600;">
+        Redefinir minha senha
+      </a>
+    </div>
+    <p style="color:#52525b;font-size:14px;line-height:1.6;margin:0 0 16px;">
+      Se o botão não funcionar, copie e cole o link abaixo no seu navegador:
+    </p>
+    <p style="color:#7c3aed;font-size:13px;word-break:break-all;margin:0 0 24px;">
+      ${resetUrl}
     </p>
     <div style="background:#fef3c7;border-radius:8px;padding:16px;margin:24px 0;">
       <p style="color:#92400e;font-size:14px;margin:0;">
