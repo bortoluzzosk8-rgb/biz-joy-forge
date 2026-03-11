@@ -56,6 +56,7 @@ const AdminLayout = () => {
     return <Navigate to="/admin/logistics" replace />;
   }
 
+  const handleLogout = async () => {
     await signOut();
     toast.success("Logout realizado com sucesso");
     navigate("/");
