@@ -33,6 +33,7 @@ import Monitors from "./pages/admin/Monitors";
 import Settings from "./pages/admin/Settings";
 import Logistics from "./pages/admin/Logistics";
 import SaasManagement from "./pages/admin/SaasManagement";
+import SaasFinancial from "./pages/admin/SaasFinancial";
 import SystemUpdates from "./pages/admin/SystemUpdates";
 import NotFound from "./pages/NotFound";
 import PublicContract from "./pages/PublicContract";
