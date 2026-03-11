@@ -1,90 +1,29 @@
 
 
-## Corrigir erro "Algo deu errado" na verificacao de email
+## Problema: Link de recuperação redireciona para o Lovable em vez do app
 
-### Problema raiz
-Tres problemas combinados causam o erro:
+O email de recuperação gera um link com `redirect_to` baseado em `window.location.origin` (que no preview é `https://...lovableproject.com`). Esse domínio pode não estar na lista de URLs permitidas do backend de autenticação, fazendo o redirecionamento falhar e cair na página do Lovable.
 
-1. **Tipo de link errado na edge function**: Usa `type: 'magiclink'` mas deveria usar `type: 'signup'` para confirmar o email do usuario corretamente
-2. **URL hardcoded**: O `redirectTo` aponta fixo para `playgestor.com.br`, quebrando testes no preview
-3. **Tratamento de erro fragil no VerifyEmail**: O `supabase.functions.invoke` pode retornar erro em formato inesperado, causando crash no React que o ErrorBoundary captura
+A página `/reset-password` já existe e funciona corretamente — o problema está apenas no redirecionamento do link do email.
 
-### Correcoes
+### Correção
 
-**1. Edge function `send-email` (supabase/functions/send-email/index.ts)**
-- Trocar `type: 'magiclink'` por `type: 'signup'` no `generateLink` para gerar link de confirmacao de email real
-- Receber `origin` no body da requisicao para construir o `redirectTo` dinamicamente
-- Fallback para `https://playgestor.com.br` se origin nao for fornecido
+**Edge Function `send-email`** — Usar a URL publicada do app como fallback confiável para o `redirect_to`, garantindo que o redirecionamento funcione tanto no preview quanto em produção:
 
-**2. VerifyEmail.tsx**
-- Passar `window.location.origin` ao chamar a edge function para que o link funcione no ambiente correto
-- Melhorar tratamento de erro: verificar `data.error` alem de `error` do invoke, evitando throw de objetos nao-Error
-- Envolver o handleResend em tratamento defensivo para evitar crash do React
-
-**3. UserRegister.tsx**
-- Passar `window.location.origin` ao chamar a edge function de confirmacao
-
-### Secao tecnica
-
-**Edge function - correcao do generateLink:**
 ```typescript
-case 'confirmation': {
-  const origin = data?.origin || 'https://playgestor.com.br';
-  
-  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'signup',  // era 'magiclink', agora 'signup' para confirmar email
-    email: to,
-    options: {
-      redirectTo: `${origin}/auth/callback`,
-    }
-  });
-  // ...
-}
+// Linha ~198: trocar a origin dinâmica por URL fixa do app publicado
+const resetOrigin = data?.origin || 'https://biz-joy-forge.lovable.app';
 ```
 
-**VerifyEmail.tsx - chamada corrigida:**
+**Frontend `UserLogin.tsx`** — Garantir que o `origin` enviado seja a URL publicada quando estiver no ambiente Lovable:
+
 ```typescript
-const handleResend = async () => {
-  if (!email || cooldown > 0) return;
-  setResending(true);
-  try {
-    const response = await supabase.functions.invoke('send-email', {
-      body: { 
-        type: 'confirmation', 
-        to: email, 
-        name: name || '',
-        data: { origin: window.location.origin }
-      }
-    });
-    
-    if (response.error || response.data?.error) {
-      throw new Error(response.data?.error || 'Erro ao enviar email');
-    }
-    
-    toast({ title: "Email reenviado!", description: "Verifique sua caixa de entrada e spam." });
-    setCooldown(60);
-  } catch (err) {
-    toast({ title: "Erro ao reenviar", description: "Tente novamente.", variant: "destructive" });
-  } finally {
-    setResending(false);
-  }
-};
+const origin = window.location.origin.includes('lovable')
+  ? 'https://biz-joy-forge.lovable.app'
+  : window.location.origin;
 ```
 
-**UserRegister.tsx - passar origin:**
-```typescript
-await supabase.functions.invoke('send-email', {
-  body: { 
-    type: 'confirmation', 
-    to: email.trim(), 
-    name: name.trim(),
-    data: { origin: window.location.origin }
-  }
-});
-```
+Isso garante que o link do email sempre redirecione para `biz-joy-forge.lovable.app/auth/callback`, que processa o token de recovery e encaminha para `/reset-password` onde o usuário define a nova senha.
 
-### Resultado esperado
-- Link de confirmacao confirma o email corretamente (tipo signup, nao magiclink)
-- Link funciona tanto no preview quanto na URL publicada
-- Nenhum crash do React ao reenviar email - erros sao tratados graciosamente com toast
+Nenhuma mudança na página de reset — ela já está funcional.
 
