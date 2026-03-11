@@ -714,9 +714,23 @@ const Sales = () => {
 
   const fetchProducts = async () => {
     try {
+      // Buscar nomes distintos no inventário (já filtrado por RLS)
+      const { data: inventoryNames } = await supabase
+        .from("inventory_items")
+        .select("name");
+      
+      const uniqueNames = [...new Set((inventoryNames || []).map(i => i.name))];
+      
+      if (uniqueNames.length === 0) {
+        setProducts([]);
+        return;
+      }
+
+      // Buscar apenas produtos que existem no inventário
       const { data, error } = await supabase
         .from("products")
         .select("id, name, cost_price, sale_price")
+        .in("name", uniqueNames)
         .order("name");
       
       if (error) throw error;
