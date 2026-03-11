@@ -1,34 +1,90 @@
 
 
-## Problema: Monitores aparecendo para contas novas
+## Corrigir erro "Algo deu errado" na verificacao de email
 
-A query de monitores na linha 91-97 de `Monitors.tsx` busca **todos** os monitores sem filtro de `franchise_id`. Combinado com a política RLS "Usuarios autenticados podem ver monitores" que permite SELECT com `true`, qualquer conta autenticada vê monitores de **todos** os tenants — incluindo o monitor "Gui - 11111111111" que pertence a outra franquia.
+### Problema raiz
+Tres problemas combinados causam o erro:
 
-O mesmo ocorre no dropdown de monitor em `Sales.tsx`, onde monitores são carregados sem filtro de tenant.
+1. **Tipo de link errado na edge function**: Usa `type: 'magiclink'` mas deveria usar `type: 'signup'` para confirmar o email do usuario corretamente
+2. **URL hardcoded**: O `redirectTo` aponta fixo para `playgestor.com.br`, quebrando testes no preview
+3. **Tratamento de erro fragil no VerifyEmail**: O `supabase.functions.invoke` pode retornar erro em formato inesperado, causando crash no React que o ErrorBoundary captura
 
-### Correções
+### Correcoes
 
-**1. `src/pages/admin/Monitors.tsx` — Filtrar monitors por tenant**
+**1. Edge function `send-email` (supabase/functions/send-email/index.ts)**
+- Trocar `type: 'magiclink'` por `type: 'signup'` no `generateLink` para gerar link de confirmacao de email real
+- Receber `origin` no body da requisicao para construir o `redirectTo` dinamicamente
+- Fallback para `https://playgestor.com.br` se origin nao for fornecido
 
-Na função `fetchData`, após obter o `rootFranchiseId` do usuário, buscar os IDs das franquias do tenant e filtrar os monitores:
+**2. VerifyEmail.tsx**
+- Passar `window.location.origin` ao chamar a edge function para que o link funcione no ambiente correto
+- Melhorar tratamento de erro: verificar `data.error` alem de `error` do invoke, evitando throw de objetos nao-Error
+- Envolver o handleResend em tratamento defensivo para evitar crash do React
 
+**3. UserRegister.tsx**
+- Passar `window.location.origin` ao chamar a edge function de confirmacao
+
+### Secao tecnica
+
+**Edge function - correcao do generateLink:**
 ```typescript
-// Buscar monitors filtrados pelas franquias do tenant
-const franchiseIds = franchisesData?.map(f => f.id) || [];
-const { data: monitorsData } = await supabase
-  .from("monitors")
-  .select("*, franchises(name, city)")
-  .in("franchise_id", franchiseIds)
-  .order("name");
+case 'confirmation': {
+  const origin = data?.origin || 'https://playgestor.com.br';
+  
+  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'signup',  // era 'magiclink', agora 'signup' para confirmar email
+    email: to,
+    options: {
+      redirectTo: `${origin}/auth/callback`,
+    }
+  });
+  // ...
+}
 ```
 
-Reorganizar o fluxo para buscar franquias primeiro, depois usar os IDs para filtrar monitores.
+**VerifyEmail.tsx - chamada corrigida:**
+```typescript
+const handleResend = async () => {
+  if (!email || cooldown > 0) return;
+  setResending(true);
+  try {
+    const response = await supabase.functions.invoke('send-email', {
+      body: { 
+        type: 'confirmation', 
+        to: email, 
+        name: name || '',
+        data: { origin: window.location.origin }
+      }
+    });
+    
+    if (response.error || response.data?.error) {
+      throw new Error(response.data?.error || 'Erro ao enviar email');
+    }
+    
+    toast({ title: "Email reenviado!", description: "Verifique sua caixa de entrada e spam." });
+    setCooldown(60);
+  } catch (err) {
+    toast({ title: "Erro ao reenviar", description: "Tente novamente.", variant: "destructive" });
+  } finally {
+    setResending(false);
+  }
+};
+```
 
-**2. `src/pages/admin/Sales.tsx` — Filtrar dropdown de monitores por tenant**
+**UserRegister.tsx - passar origin:**
+```typescript
+await supabase.functions.invoke('send-email', {
+  body: { 
+    type: 'confirmation', 
+    to: email.trim(), 
+    name: name.trim(),
+    data: { origin: window.location.origin }
+  }
+});
+```
 
-Localizar onde os monitores são carregados para o select de "Monitor (Opcional)" e aplicar o mesmo filtro por `franchise_id` do tenant.
-
-**3. RLS — Remover política genérica (opcional mas recomendado)**
-
-Remover a política "Usuarios autenticados podem ver monitores" que permite SELECT com `true` para todos, pois as outras políticas já cobrem os acessos necessários por role.
+### Resultado esperado
+- Link de confirmacao confirma o email corretamente (tipo signup, nao magiclink)
+- Link funciona tanto no preview quanto na URL publicada
+- Nenhum crash do React ao reenviar email - erros sao tratados graciosamente com toast
 
