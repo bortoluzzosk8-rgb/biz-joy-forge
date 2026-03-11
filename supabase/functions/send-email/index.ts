@@ -195,7 +195,7 @@ serve(async (req) => {
           Deno.env.get('SUPABASE_URL') ?? '',
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
         );
-        const resetOrigin = data?.origin || 'https://playgestor.com.br';
+        const resetOrigin = 'https://biz-joy-forge.lovable.app';
         const { data: resetLinkData, error: resetLinkError } = await supabaseAdminReset.auth.admin.generateLink({
           type: 'recovery',
           email: to,

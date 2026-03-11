@@ -98,11 +98,14 @@ export default function UserLogin() {
     setSendingRecovery(true);
 
     try {
+      const origin = window.location.origin.includes('lovable')
+        ? 'https://biz-joy-forge.lovable.app'
+        : window.location.origin;
       const response = await supabase.functions.invoke('send-email', {
         body: { 
           type: 'password_reset', 
           to: forgotEmail.trim(),
-          data: { origin: window.location.origin }
+          data: { origin }
         }
       });
 
