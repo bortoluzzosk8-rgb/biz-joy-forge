@@ -32,11 +32,12 @@ export function useTenantFranchises() {
 
       try {
         // Buscar a franquia raiz do usuário logado
-        const { data: userFranchiseData } = await supabase
+        const { data: userFranchiseRows } = await supabase
           .from("user_franchises")
           .select("franchise_id")
           .eq("user_id", user.id)
-          .maybeSingle();
+          .limit(1);
+        const userFranchiseData = userFranchiseRows?.[0] || null;
 
         if (!userFranchiseData?.franchise_id) {
           setFranchises([]);

@@ -86,11 +86,12 @@ Deno.serve(async (req) => {
     }
 
     // PRIMEIRO: Verificar se usuário já tem franquia vinculada
-    const { data: existingFranchise, error: franchiseCheckError } = await supabaseAdmin
+    const { data: existingFranchiseRows, error: franchiseCheckError } = await supabaseAdmin
       .from('user_franchises')
       .select('franchise_id')
       .eq('user_id', user_id)
-      .maybeSingle()
+      .limit(1)
+    const existingFranchise = existingFranchiseRows?.[0] || null
 
     if (franchiseCheckError) {
       console.error('Error checking existing franchise:', franchiseCheckError)
