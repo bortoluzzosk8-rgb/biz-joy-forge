@@ -63,7 +63,7 @@ const PublicCatalog = () => {
   const [loading, setLoading] = useState(true);
   const [franchiseName, setFranchiseName] = useState<string>("");
   const [settings, setSettings] = useState<Settings>({
-    catalogHeaderTitle: "Catálogo",
+    catalogHeaderTitle: "Título Principal",
     catalogSubtitle: "Confira nossos produtos!",
     logoUrl: "",
     primaryColor: "#6366f1",
@@ -107,7 +107,7 @@ const PublicCatalog = () => {
       if (error) throw error;
       if (data) {
         setSettings({
-          catalogHeaderTitle: data.catalog_header_title || "Catálogo",
+          catalogHeaderTitle: data.catalog_header_title || "Título Principal",
           catalogSubtitle: data.catalog_subtitle || "Confira nossos produtos!",
           logoUrl: data.logo_url || "",
           primaryColor: data.primary_color || "#6366f1",
