@@ -129,6 +129,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsMotorista(false);
       setUserFranchise(null);
     } finally {
+      checkInProgressRef.current = false;
       setCheckingAdmin(false);
     }
   };
