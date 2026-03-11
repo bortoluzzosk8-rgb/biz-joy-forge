@@ -190,10 +190,33 @@ serve(async (req) => {
         html = getConfirmationTemplate(name || 'Usuário', confirmationUrl);
         break;
       }
-      case 'password_reset':
+      case 'password_reset': {
+        const supabaseAdminReset = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        );
+        const resetOrigin = data?.origin || 'https://playgestor.com.br';
+        const { data: resetLinkData, error: resetLinkError } = await supabaseAdminReset.auth.admin.generateLink({
+          type: 'recovery',
+          email: to,
+          options: {
+            redirectTo: `${resetOrigin}/reset-password`,
+          }
+        });
+
+        if (resetLinkError || !resetLinkData?.properties?.action_link) {
+          console.error('Generate recovery link error:', resetLinkError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to generate recovery link', details: resetLinkError?.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const resetUrl = resetLinkData.properties.action_link;
         subject = 'Recuperação de Senha — PlayGestor 🔐';
-        html = getPasswordResetTemplate(to);
+        html = getPasswordResetTemplate(to, resetUrl);
         break;
+      }
       case 'welcome':
         subject = 'Bem-vindo ao PlayGestor! 🎉';
         html = getWelcomeTemplate(name || 'Usuário', to);

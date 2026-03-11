@@ -103,25 +103,21 @@ export default function UserLogin() {
     setSendingRecovery(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        forgotEmail.trim(),
-        {
-          redirectTo: `${window.location.origin}/reset-password`,
+      const response = await supabase.functions.invoke('send-email', {
+        body: { 
+          type: 'password_reset', 
+          to: forgotEmail.trim(),
+          data: { origin: window.location.origin }
         }
-      );
+      });
 
-      if (error) {
+      if (response.error || response.data?.error) {
         toast({
           title: "Erro",
           description: "Não foi possível enviar o email. Tente novamente.",
           variant: "destructive",
         });
       } else {
-        // Send custom password reset notification via Resend
-        supabase.functions.invoke('send-email', {
-          body: { type: 'password_reset', to: forgotEmail.trim() }
-        }).catch(err => console.error('Password reset email error:', err));
-
         toast({
           title: "Email enviado!",
           description: "Verifique sua caixa de entrada para redefinir sua senha.",
