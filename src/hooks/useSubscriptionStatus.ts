@@ -29,11 +29,12 @@ export const useSubscriptionStatus = (userId: string | undefined) => {
         let franchiseId: string | null = null;
         
         // Tentar user_franchises primeiro (franqueadora)
-        const { data: ufData } = await supabase
+        const { data: ufRows } = await supabase
           .from('user_franchises')
           .select('franchise_id')
           .eq('user_id', userId)
-          .maybeSingle();
+          .limit(1);
+        const ufData = ufRows?.[0] || null;
         
         if (ufData?.franchise_id) {
           franchiseId = ufData.franchise_id;
