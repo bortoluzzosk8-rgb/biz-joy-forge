@@ -36,8 +36,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isMotorista, setIsMotorista] = useState(false);
   const [userFranchise, setUserFranchise] = useState<Franchise | null>(null);
   const [checkingAdmin, setCheckingAdmin] = useState(false);
+  const checkInProgressRef = useRef(false);
 
   const checkAdminStatus = async (userId: string, userEmail?: string) => {
+    if (checkInProgressRef.current) return;
+    checkInProgressRef.current = true;
     setCheckingAdmin(true);
     try {
       // Verificar roles
