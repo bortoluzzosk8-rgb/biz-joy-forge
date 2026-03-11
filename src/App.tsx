@@ -90,7 +90,7 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 >
-                  <Route index element={<Navigate to="rentals" replace />} />
+                  <Route index element={<AdminIndexRedirect />} />
                   <Route path="dashboard/*" element={<Navigate to="/admin/rentals" replace />} />
                   <Route path="products" element={<Products />} />
                   <Route path="categories" element={<Categories />} />
