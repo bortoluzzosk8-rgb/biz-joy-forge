@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -44,6 +44,13 @@ import PublicCatalog from "./pages/PublicCatalog";
 import AuthCallback from "./pages/AuthCallback";
 
 const queryClient = new QueryClient();
+
+const AdminIndexRedirect = () => {
+  const { isMotorista, isSuperAdmin } = useAuth();
+  if (isMotorista) return <Navigate to="logistics" replace />;
+  if (isSuperAdmin) return <Navigate to="leads" replace />;
+  return <Navigate to="rentals" replace />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -90,7 +97,7 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 >
-                  <Route index element={<Navigate to="rentals" replace />} />
+                  <Route index element={<AdminIndexRedirect />} />
                   <Route path="dashboard/*" element={<Navigate to="/admin/rentals" replace />} />
                   <Route path="products" element={<Products />} />
                   <Route path="categories" element={<Categories />} />

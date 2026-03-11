@@ -1,4 +1,4 @@
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -49,6 +49,12 @@ const AdminLayout = () => {
   const { signOut, user, isFranqueadora, isVendedor, isMotorista, isSuperAdmin, userFranchise } = useAuth();
   const { subscriptionStatus } = useSubscriptionStatus(user?.id);
   const isMobile = useIsMobile();
+
+  // Motorista só pode acessar logistics e updates
+  const currentPath = location.pathname.split("/admin/")[1] || "";
+  if (isMotorista && currentPath && !["logistics", "updates"].includes(currentPath)) {
+    return <Navigate to="/admin/logistics" replace />;
+  }
 
   const handleLogout = async () => {
     await signOut();
