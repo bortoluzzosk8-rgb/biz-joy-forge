@@ -22,7 +22,7 @@ const Settings = () => {
     secondaryColor: "#EC4899",
     catalogTitle: "Catálogo de Produtos",
     catalogSubtitle: "Bem-vindo ao nosso catálogo!",
-    catalogHeaderTitle: "Catálogo",
+    catalogHeaderTitle: "Título Principal",
     companyName: "PlayGestor",
     companyCNPJ: "",
     companyAddress: "",
