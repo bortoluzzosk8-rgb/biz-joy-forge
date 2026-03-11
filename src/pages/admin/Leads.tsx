@@ -204,7 +204,7 @@ const Leads = () => {
       // If paid, activate franchise and set expiration to 30 days from due date
       if (paymentStatus === "paid") {
         const expiresAt = new Date(paymentDueDate);
-        expiresAt.setDate(expiresAt.getDate() + 30);
+        expiresAt.setMonth(expiresAt.getMonth() + 1);
 
         const { error: updateError } = await supabase
           .from("franchises")
