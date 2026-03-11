@@ -33,7 +33,7 @@ export const useSettings = () => {
     whatsappNumber: '',
     catalogTitle: 'Catálogo de Produtos',
     catalogSubtitle: 'Bem-vindo ao nosso catálogo!',
-    catalogHeaderTitle: 'Catálogo',
+    catalogHeaderTitle: 'Título Principal',
   });
   const [loading, setLoading] = useState(true);
 
