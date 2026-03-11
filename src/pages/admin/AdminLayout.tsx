@@ -50,7 +50,12 @@ const AdminLayout = () => {
   const { subscriptionStatus } = useSubscriptionStatus(user?.id);
   const isMobile = useIsMobile();
 
-  const handleLogout = async () => {
+  // Motorista só pode acessar logistics e updates
+  const currentPath = location.pathname.split("/admin/")[1] || "";
+  if (isMotorista && currentPath && !["logistics", "updates"].includes(currentPath)) {
+    return <Navigate to="/admin/logistics" replace />;
+  }
+
     await signOut();
     toast.success("Logout realizado com sucesso");
     navigate("/");
