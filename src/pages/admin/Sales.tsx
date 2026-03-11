@@ -2654,9 +2654,9 @@ Obrigado pela confiança! 🙏`;
                       <Input
                         id="current_monitors_quantity"
                         type="number"
-                        min="1"
+                        min="0"
                         value={currentMonitoringSlot.monitors_quantity}
-                        onChange={(e) => setCurrentMonitoringSlot({ ...currentMonitoringSlot, monitors_quantity: parseInt(e.target.value) || 1 })}
+                        onChange={(e) => setCurrentMonitoringSlot({ ...currentMonitoringSlot, monitors_quantity: e.target.value === "" ? 0 : parseInt(e.target.value) || 0 })}
                         placeholder="1"
                       />
                     </div>
