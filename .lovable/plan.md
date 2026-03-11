@@ -1,77 +1,90 @@
 
 
-## Problema: Recuperação de senha não funciona
+## Corrigir erro "Algo deu errado" na verificacao de email
 
-### Causa raiz
+### Problema raiz
+Tres problemas combinados causam o erro:
 
-O fluxo atual envia **dois emails** ao recuperar senha:
-
-1. `supabase.auth.resetPasswordForEmail()` envia o email padrão do Supabase com o link real de reset -- mas esse link redireciona para a URL do Supabase e depois para `window.location.origin/reset-password`. Se o usuario esta no preview do Lovable, o link aponta para o preview. Em producao (`playgestor.com.br`), funciona, mas o email padrão do Supabase tem aparencia generica.
-
-2. `supabase.functions.invoke('send-email', { body: { type: 'password_reset' } })` envia um email bonito via Resend, mas **sem nenhum link de reset** -- apenas diz "voce recebera outro email". O usuario clica nesse email (que e o mais visivel) e nao consegue fazer nada.
-
-Alem disso, o `ResetPassword.tsx` chama `getSession()` imediatamente, mas o token de recuperacao pode nao ter sido trocado por sessao ainda, causando "Link invalido".
+1. **Tipo de link errado na edge function**: Usa `type: 'magiclink'` mas deveria usar `type: 'signup'` para confirmar o email do usuario corretamente
+2. **URL hardcoded**: O `redirectTo` aponta fixo para `playgestor.com.br`, quebrando testes no preview
+3. **Tratamento de erro fragil no VerifyEmail**: O `supabase.functions.invoke` pode retornar erro em formato inesperado, causando crash no React que o ErrorBoundary captura
 
 ### Correcoes
 
-**1. Edge function `send-email` -- adicionar link real ao email de reset**
+**1. Edge function `send-email` (supabase/functions/send-email/index.ts)**
+- Trocar `type: 'magiclink'` por `type: 'signup'` no `generateLink` para gerar link de confirmacao de email real
+- Receber `origin` no body da requisicao para construir o `redirectTo` dinamicamente
+- Fallback para `https://playgestor.com.br` se origin nao for fornecido
 
-No case `password_reset`, gerar o link de recuperacao via `generateLink({ type: 'recovery' })` (igual ao confirmation) e incluir no template com botao clicavel.
+**2. VerifyEmail.tsx**
+- Passar `window.location.origin` ao chamar a edge function para que o link funcione no ambiente correto
+- Melhorar tratamento de erro: verificar `data.error` alem de `error` do invoke, evitando throw de objetos nao-Error
+- Envolver o handleResend em tratamento defensivo para evitar crash do React
 
+**3. UserRegister.tsx**
+- Passar `window.location.origin` ao chamar a edge function de confirmacao
+
+### Secao tecnica
+
+**Edge function - correcao do generateLink:**
 ```typescript
-case 'password_reset': {
-  const supabaseAdmin = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-  );
+case 'confirmation': {
   const origin = data?.origin || 'https://playgestor.com.br';
+  
   const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'recovery',
+    type: 'signup',  // era 'magiclink', agora 'signup' para confirmar email
     email: to,
-    options: { redirectTo: `${origin}/reset-password` }
+    options: {
+      redirectTo: `${origin}/auth/callback`,
+    }
   });
-  // Usar linkData.properties.action_link no template
-  subject = 'Recuperação de Senha — PlayGestor 🔐';
-  html = getPasswordResetTemplate(to, linkData.properties.action_link);
-  break;
+  // ...
 }
 ```
 
-**2. Template de password reset -- adicionar botao com link**
-
-Atualizar `getPasswordResetTemplate` para receber `resetUrl` e incluir botao "Redefinir minha senha".
-
-**3. UserLogin.tsx -- parar de enviar dois emails**
-
-Remover a chamada `supabase.auth.resetPasswordForEmail()` e usar apenas `supabase.functions.invoke('send-email', { body: { type: 'password_reset', to: email, data: { origin: window.location.origin } } })`. Assim so um email e enviado, com o link correto.
-
-**4. ResetPassword.tsx -- aguardar evento PASSWORD_RECOVERY**
-
-Usar `onAuthStateChange` para detectar o evento `PASSWORD_RECOVERY` antes de validar a sessao, evitando o erro "Link invalido" por timing.
-
+**VerifyEmail.tsx - chamada corrigida:**
 ```typescript
-useEffect(() => {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-    if (event === 'PASSWORD_RECOVERY') {
-      setIsValidSession(true);
-      setCheckingSession(false);
+const handleResend = async () => {
+  if (!email || cooldown > 0) return;
+  setResending(true);
+  try {
+    const response = await supabase.functions.invoke('send-email', {
+      body: { 
+        type: 'confirmation', 
+        to: email, 
+        name: name || '',
+        data: { origin: window.location.origin }
+      }
+    });
+    
+    if (response.error || response.data?.error) {
+      throw new Error(response.data?.error || 'Erro ao enviar email');
     }
-  });
-  
-  // Fallback: checar sessao existente apos delay
-  const timer = setTimeout(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) setIsValidSession(true);
-    setCheckingSession(false);
-  }, 2000);
-  
-  return () => { subscription.unsubscribe(); clearTimeout(timer); };
-}, []);
+    
+    toast({ title: "Email reenviado!", description: "Verifique sua caixa de entrada e spam." });
+    setCooldown(60);
+  } catch (err) {
+    toast({ title: "Erro ao reenviar", description: "Tente novamente.", variant: "destructive" });
+  } finally {
+    setResending(false);
+  }
+};
 ```
 
-### Resultado
+**UserRegister.tsx - passar origin:**
+```typescript
+await supabase.functions.invoke('send-email', {
+  body: { 
+    type: 'confirmation', 
+    to: email.trim(), 
+    name: name.trim(),
+    data: { origin: window.location.origin }
+  }
+});
+```
 
-- Um unico email bonito via Resend com link funcional de reset
-- Link aponta para o ambiente correto (preview ou producao)
-- Pagina `/reset-password` detecta corretamente o token de recuperacao
+### Resultado esperado
+- Link de confirmacao confirma o email corretamente (tipo signup, nao magiclink)
+- Link funciona tanto no preview quanto na URL publicada
+- Nenhum crash do React ao reenviar email - erros sao tratados graciosamente com toast
 

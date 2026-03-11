@@ -21,10 +21,17 @@ export default function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Verificar se o usuário veio do link de recuperação
-    const checkSession = async () => {
+    // Escutar evento PASSWORD_RECOVERY antes de validar sessão
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsValidSession(true);
+        setCheckingSession(false);
+      }
+    });
+
+    // Fallback: checar sessão existente após delay para dar tempo ao token
+    const timer = setTimeout(async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
       if (session) {
         setIsValidSession(true);
       } else {
@@ -35,9 +42,12 @@ export default function ResetPassword() {
         });
       }
       setCheckingSession(false);
-    };
+    }, 2000);
 
-    checkSession();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, [toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
