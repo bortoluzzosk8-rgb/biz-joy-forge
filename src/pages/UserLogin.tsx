@@ -54,12 +54,7 @@ export default function UserLogin() {
           variant: "destructive",
         });
       } else if (data.user) {
-        // Atribuir role franqueadora automaticamente após login
-        await supabase.functions.invoke('assign-franqueadora-role', {
-          body: { user_id: data.user.id }
-        });
-        
-        // Forçar atualização dos roles antes de navegar
+        // Aguardar roles serem carregados pelo AuthContext (onAuthStateChange)
         await refreshRoles();
         
         toast({

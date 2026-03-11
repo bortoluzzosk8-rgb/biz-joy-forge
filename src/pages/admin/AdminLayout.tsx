@@ -2,12 +2,46 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, Store, UserCheck, Truck, User, Building2, Clock, CreditCard, Megaphone, ShoppingBag } from "lucide-react";
+import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, Store, UserCheck, Truck, User, Building2, Clock, CreditCard, Megaphone, ShoppingBag, RefreshCw } from "lucide-react";
 import logoPlaygestor from "@/assets/logo-playgestor-novo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import React from "react";
+
+class AdminErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error) {
+    console.error('AdminLayout child error:', error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <p className="text-muted-foreground">Ocorreu um erro ao carregar esta página.</p>
+          <Button
+            variant="outline"
+            onClick={() => this.setState({ hasError: false })}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Tentar novamente
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const AdminLayout = () => {
   const navigate = useNavigate();
@@ -224,7 +258,9 @@ const AdminLayout = () => {
       </div>
 
       <div className="px-4 lg:px-8 py-8">
-        <Outlet />
+        <AdminErrorBoundary>
+          <Outlet />
+        </AdminErrorBoundary>
       </div>
     </div>
   );

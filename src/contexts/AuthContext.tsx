@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -36,8 +36,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isMotorista, setIsMotorista] = useState(false);
   const [userFranchise, setUserFranchise] = useState<Franchise | null>(null);
   const [checkingAdmin, setCheckingAdmin] = useState(false);
+  const checkInProgressRef = useRef(false);
 
   const checkAdminStatus = async (userId: string, userEmail?: string) => {
+    if (checkInProgressRef.current) return;
+    checkInProgressRef.current = true;
     setCheckingAdmin(true);
     try {
       // Verificar roles
@@ -126,6 +129,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsMotorista(false);
       setUserFranchise(null);
     } finally {
+      checkInProgressRef.current = false;
       setCheckingAdmin(false);
     }
   };
@@ -147,10 +151,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Defer the admin check to avoid blocking
-          setTimeout(() => {
-            checkAdminStatus(session.user.id, session.user.email);
-          }, 0);
+          checkAdminStatus(session.user.id, session.user.email);
         } else {
           setIsAdmin(false);
           setIsVendedor(false);
