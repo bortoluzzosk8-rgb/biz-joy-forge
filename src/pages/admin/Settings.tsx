@@ -350,12 +350,13 @@ const Settings = () => {
           {/* Upload de Logo */}
           <div className="space-y-2">
             <Label htmlFor="logo">Logo da Empresa</Label>
-            {(logoPreview || settings.logoUrl) && (
+            {(logoPreview || (settings.logoUrl && settings.logoUrl.length > 0)) && (
               <div className="mb-4 p-4 border-2 rounded-lg bg-muted">
                 <img 
                   src={logoPreview || settings.logoUrl} 
                   alt="Logo Preview" 
                   className="max-h-32 object-contain mx-auto"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               </div>
             )}
