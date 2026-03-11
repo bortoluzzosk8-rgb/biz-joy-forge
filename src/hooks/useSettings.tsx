@@ -73,7 +73,7 @@ export const useSettings = () => {
           whatsappNumber: data.whatsapp_number || '',
           catalogTitle: data.catalog_title || 'Catálogo de Produtos',
           catalogSubtitle: data.catalog_subtitle || 'Bem-vindo ao nosso catálogo!',
-          catalogHeaderTitle: data.catalog_header_title || 'Catálogo',
+          catalogHeaderTitle: data.catalog_header_title || 'Título Principal',
           companyName: data.company_name,
           companyCNPJ: data.company_cnpj,
           companyAddress: data.company_address,

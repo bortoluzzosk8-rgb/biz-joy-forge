@@ -107,7 +107,7 @@ const PublicCatalog = () => {
       if (error) throw error;
       if (data) {
         setSettings({
-          catalogHeaderTitle: data.catalog_header_title || "Catálogo",
+          catalogHeaderTitle: data.catalog_header_title || "Título Principal",
           catalogSubtitle: data.catalog_subtitle || "Confira nossos produtos!",
           logoUrl: data.logo_url || "",
           primaryColor: data.primary_color || "#6366f1",

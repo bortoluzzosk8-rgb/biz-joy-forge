@@ -72,7 +72,7 @@ const Settings = () => {
             secondaryColor: data.secondary_color || "#EC4899",
             catalogTitle: data.catalog_title || "Catálogo de Produtos",
             catalogSubtitle: data.catalog_subtitle || "Bem-vindo ao nosso catálogo!",
-            catalogHeaderTitle: data.catalog_header_title || "Catálogo",
+            catalogHeaderTitle: data.catalog_header_title || "Título Principal",
             companyName: data.company_name || "PlayGestor",
             companyCNPJ: data.company_cnpj || "",
             companyAddress: data.company_address || "",
