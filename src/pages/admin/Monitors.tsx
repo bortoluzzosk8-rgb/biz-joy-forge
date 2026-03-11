@@ -87,15 +87,50 @@ export default function Monitors() {
   async function fetchData() {
     setLoading(true);
     try {
-      // Fetch monitors with franchise info
-      const { data: monitorsData, error: monitorsError } = await supabase
+      // Buscar franquias do tenant primeiro para filtrar monitores
+      let tenantFranchiseIds: string[] = [];
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        const { data: userFranchiseData } = await supabase
+          .from("user_franchises")
+          .select("franchise_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (userFranchiseData?.franchise_id) {
+          const rootFranchiseId = userFranchiseData.franchise_id;
+
+          // Buscar a franquia raiz + unidades filhas (isolamento multi-tenant)
+          const { data: franchisesData, error: franchisesError } = await supabase
+            .from("franchises")
+            .select("id, name, city")
+            .eq("status", "active")
+            .or(`id.eq.${rootFranchiseId},parent_franchise_id.eq.${rootFranchiseId}`)
+            .order("name");
+
+          if (franchisesError) throw franchisesError;
+          setFranchises(franchisesData || []);
+          tenantFranchiseIds = (franchisesData || []).map(f => f.id);
+        }
+      }
+
+      // Fetch monitors filtrados pelo tenant
+      let monitorsQuery = supabase
         .from("monitors")
-        .select(`
-          *,
-          franchises (name, city)
-        `)
+        .select(`*, franchises (name, city)`)
         .order("name");
 
+      if (tenantFranchiseIds.length > 0) {
+        monitorsQuery = monitorsQuery.in("franchise_id", tenantFranchiseIds);
+      } else {
+        // Sem franquias = sem monitores
+        setMonitors([]);
+        setLoading(false);
+        return;
+      }
+
+      const { data: monitorsData, error: monitorsError } = await monitorsQuery;
       if (monitorsError) throw monitorsError;
       setMonitors(monitorsData || []);
 
@@ -112,34 +147,6 @@ export default function Monitors() {
           }
         });
         setMonitorPartyCounts(counts);
-      }
-
-      // Fetch franchises for the dropdown (for franqueadora and vendedor)
-      if (isFranqueadora || isVendedor) {
-        // Buscar a franquia do usuário logado primeiro
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.id) {
-          const { data: userFranchiseData } = await supabase
-            .from("user_franchises")
-            .select("franchise_id")
-            .eq("user_id", user.id)
-            .maybeSingle();
-
-          if (userFranchiseData?.franchise_id) {
-            const rootFranchiseId = userFranchiseData.franchise_id;
-
-            // Buscar a franquia raiz + unidades filhas (isolamento multi-tenant)
-            const { data: franchisesData, error: franchisesError } = await supabase
-              .from("franchises")
-              .select("id, name, city")
-              .eq("status", "active")
-              .or(`id.eq.${rootFranchiseId},parent_franchise_id.eq.${rootFranchiseId}`)
-              .order("name");
-
-            if (franchisesError) throw franchisesError;
-            setFranchises(franchisesData || []);
-          }
-        }
       }
     } catch (error: any) {
       toast({

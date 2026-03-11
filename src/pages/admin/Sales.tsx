@@ -526,13 +526,19 @@ const Sales = () => {
 
   const fetchMonitors = async () => {
     try {
-      let query = supabase.from("monitors").select("id, name, phone, franchise_id");
+      // Filtrar monitores pelo tenant do usuário
+      const franchiseIds = franchises.map(f => f.id);
       
-      if (isFranqueado && userFranchise) {
-        query = query.or(`franchise_id.eq.${userFranchise.id},franchise_id.is.null`);
+      if (franchiseIds.length === 0) {
+        setMonitors([]);
+        return;
       }
       
-      const { data } = await query.order("name");
+      const { data } = await supabase
+        .from("monitors")
+        .select("id, name, phone, franchise_id")
+        .in("franchise_id", franchiseIds)
+        .order("name");
       setMonitors(data || []);
     } catch (error) {
       console.error("Error fetching monitors:", error);
