@@ -1986,6 +1986,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_sessions: {
+        Row: {
+          device_info: string | null
+          id: string
+          last_seen_at: string | null
+          logged_in_at: string | null
+          session_token: string
+          user_id: string
+        }
+        Insert: {
+          device_info?: string | null
+          id?: string
+          last_seen_at?: string | null
+          logged_in_at?: string | null
+          session_token: string
+          user_id: string
+        }
+        Update: {
+          device_info?: string | null
+          id?: string
+          last_seen_at?: string | null
+          logged_in_at?: string | null
+          session_token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       vehicle_driver_assignments: {
         Row: {
           assignment_date: string

@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Shield, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Shield, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const AdminLogin = () => {
@@ -17,12 +18,60 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [creatingFranqueadora, setCreatingFranqueadora] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showSessionDialog, setShowSessionDialog] = useState(false);
+  const [sessionDeviceInfo, setSessionDeviceInfo] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && !authLoading && !checkingAdmin && isAdmin) {
       navigate("/admin");
     }
   }, [user, authLoading, checkingAdmin, isAdmin, navigate]);
+
+  const checkActiveSession = async (emailToCheck: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-active-session', {
+        body: { email: emailToCheck.trim() }
+      });
+      if (error) return false;
+      if (data?.hasActiveSession) {
+        setSessionDeviceInfo(data.deviceInfo || null);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const performLogin = async (forceDisconnectOthers = false) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        const msg = error.message;
+        if (msg?.toLowerCase().includes('leaked') || msg?.toLowerCase().includes('pwned') || msg?.toLowerCase().includes('breach')) {
+          // Ignore leaked password warning
+        } else {
+          throw error;
+        }
+      }
+
+      if (data?.user || !error) {
+        if (forceDisconnectOthers) {
+          await supabase.auth.signOut({ scope: 'others' });
+        }
+        toast.success("Login realizado com sucesso!");
+      }
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast.error(error.message || "Erro ao fazer login");
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,20 +82,19 @@ const AdminLogin = () => {
     }
 
     setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) throw error;
-      toast.success("Login realizado com sucesso!");
-      // O redirecionamento será feito pelo useEffect após verificar isAdmin
-    } catch (error: any) {
-      console.error("Error:", error);
-      toast.error(error.message || "Erro ao fazer login");
-      setLoading(false);
+    const hasSession = await checkActiveSession(email);
+    setLoading(false);
+
+    if (hasSession) {
+      setShowSessionDialog(true);
+    } else {
+      await performLogin();
     }
+  };
+
+  const handleConfirmForceLogin = async () => {
+    setShowSessionDialog(false);
+    await performLogin(true);
   };
 
   const handleCreateFranqueadora = async () => {
@@ -68,10 +116,7 @@ const AdminLogin = () => {
       });
 
       if (error) throw error;
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      if (data?.error) throw new Error(data.error);
 
       toast.success(data?.message || "Franqueadora criada com sucesso!");
       
@@ -81,7 +126,6 @@ const AdminLogin = () => {
             email: email.trim(),
             password,
           });
-          
           if (loginError) throw loginError;
           toast.success("Login realizado com sucesso!");
         } catch (loginError: any) {
@@ -90,7 +134,6 @@ const AdminLogin = () => {
           setCreatingFranqueadora(false);
         }
       }, 1000);
-
     } catch (error: any) {
       console.error("Error creating franqueadora:", error);
       toast.error(error.message || "Erro ao criar franqueadora");
@@ -194,6 +237,40 @@ const AdminLogin = () => {
           </form>
         </Card>
       </div>
+
+      {/* Dialog de Sessão Ativa */}
+      <Dialog open={showSessionDialog} onOpenChange={setShowSessionDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Sessão ativa detectada
+            </DialogTitle>
+            <DialogDescription>
+              Já existe uma sessão ativa para esta conta
+              {sessionDeviceInfo ? ` (${sessionDeviceInfo})` : ''}.
+              Deseja continuar e desconectar o outro dispositivo?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowSessionDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmForceLogin}
+              disabled={loading}
+            >
+              {loading ? "Conectando..." : "Sim, desconectar e entrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

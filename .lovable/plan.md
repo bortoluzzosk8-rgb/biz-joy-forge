@@ -1,84 +1,90 @@
 
 
-## Sessão Única por Usuário + Remover Aviso de Senha Vazada
+## Corrigir erro "Algo deu errado" na verificacao de email
 
-### Problema
-1. O sistema exibe uma mensagem de "senha vazada" (verificação HaveIBeenPwned do backend de autenticação) — o usuário quer desativar isso.
-2. O sistema permite login simultâneo em vários dispositivos — o usuário quer que só um dispositivo fique conectado por vez, com aviso de confirmação.
+### Problema raiz
+Tres problemas combinados causam o erro:
 
-### Solução
+1. **Tipo de link errado na edge function**: Usa `type: 'magiclink'` mas deveria usar `type: 'signup'` para confirmar o email do usuario corretamente
+2. **URL hardcoded**: O `redirectTo` aponta fixo para `playgestor.com.br`, quebrando testes no preview
+3. **Tratamento de erro fragil no VerifyEmail**: O `supabase.functions.invoke` pode retornar erro em formato inesperado, causando crash no React que o ErrorBoundary captura
 
-#### 1. Desativar verificação de senha vazada
-Configurar o backend de autenticação para não verificar senhas contra bancos de dados de vazamentos.
+### Correcoes
 
-#### 2. Tabela `user_sessions` para rastrear sessões ativas
+**1. Edge function `send-email` (supabase/functions/send-email/index.ts)**
+- Trocar `type: 'magiclink'` por `type: 'signup'` no `generateLink` para gerar link de confirmacao de email real
+- Receber `origin` no body da requisicao para construir o `redirectTo` dinamicamente
+- Fallback para `https://playgestor.com.br` se origin nao for fornecido
 
-```sql
-CREATE TABLE public.user_sessions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  session_token text NOT NULL,
-  device_info text,
-  logged_in_at timestamptz DEFAULT now(),
-  last_seen_at timestamptz DEFAULT now(),
-  UNIQUE(user_id)  -- apenas 1 sessão por usuário
-);
+**2. VerifyEmail.tsx**
+- Passar `window.location.origin` ao chamar a edge function para que o link funcione no ambiente correto
+- Melhorar tratamento de erro: verificar `data.error` alem de `error` do invoke, evitando throw de objetos nao-Error
+- Envolver o handleResend em tratamento defensivo para evitar crash do React
 
-ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
+**3. UserRegister.tsx**
+- Passar `window.location.origin` ao chamar a edge function de confirmacao
 
--- Usuários autenticados podem gerenciar sua própria sessão
-CREATE POLICY "Users can manage own session"
-  ON public.user_sessions FOR ALL TO authenticated
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+### Secao tecnica
 
--- Service role pode gerenciar todas (para a edge function)
-CREATE POLICY "Service can manage all sessions"
-  ON public.user_sessions FOR ALL TO service_role
-  USING (true) WITH CHECK (true);
+**Edge function - correcao do generateLink:**
+```typescript
+case 'confirmation': {
+  const origin = data?.origin || 'https://playgestor.com.br';
+  
+  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'signup',  // era 'magiclink', agora 'signup' para confirmar email
+    email: to,
+    options: {
+      redirectTo: `${origin}/auth/callback`,
+    }
+  });
+  // ...
+}
 ```
 
-#### 3. Edge Function `check-active-session`
-- Recebe `email` do usuário
-- Consulta se existe sessão ativa para esse email
-- Retorna `{ hasActiveSession: true/false }`
-
-#### 4. Fluxo no Login (`UserLogin.tsx` e `AdminLogin.tsx`)
-
-```text
-Usuário preenche email/senha
-        │
-        ▼
-Chama edge function check-active-session(email)
-        │
-        ▼
-  Sessão ativa?
-   ┌────┴────┐
-   Não      Sim
-   │         │
-   ▼         ▼
- Login    Dialog: "Já existe uma sessão ativa.
- normal   Deseja continuar e desconectar o outro dispositivo?"
-              │
-         ┌────┴────┐
-         Não      Sim
-         │         │
-         ▼         ▼
-       Cancela   Login + signOut({ scope: 'others' })
-                 + upsert user_sessions
+**VerifyEmail.tsx - chamada corrigida:**
+```typescript
+const handleResend = async () => {
+  if (!email || cooldown > 0) return;
+  setResending(true);
+  try {
+    const response = await supabase.functions.invoke('send-email', {
+      body: { 
+        type: 'confirmation', 
+        to: email, 
+        name: name || '',
+        data: { origin: window.location.origin }
+      }
+    });
+    
+    if (response.error || response.data?.error) {
+      throw new Error(response.data?.error || 'Erro ao enviar email');
+    }
+    
+    toast({ title: "Email reenviado!", description: "Verifique sua caixa de entrada e spam." });
+    setCooldown(60);
+  } catch (err) {
+    toast({ title: "Erro ao reenviar", description: "Tente novamente.", variant: "destructive" });
+  } finally {
+    setResending(false);
+  }
+};
 ```
 
-#### 5. Manter sessão atualizada
-No `AuthContext`, ao detectar sessão ativa, fazer `upsert` na tabela `user_sessions` com o token atual. Ao fazer `signOut`, deletar o registro.
+**UserRegister.tsx - passar origin:**
+```typescript
+await supabase.functions.invoke('send-email', {
+  body: { 
+    type: 'confirmation', 
+    to: email.trim(), 
+    name: name.trim(),
+    data: { origin: window.location.origin }
+  }
+});
+```
 
-#### 6. Detectar desconexão no outro dispositivo
-No `AuthContext`, usar `onAuthStateChange` — quando o evento `SIGNED_OUT` ou `TOKEN_REFRESHED` falhar, o usuário desconectado verá a tela de login automaticamente. O listener já existente cuida disso.
-
-### Arquivos alterados
-- **Nova migration**: criar tabela `user_sessions`
-- **Nova edge function**: `check-active-session`
-- **`src/pages/UserLogin.tsx`**: adicionar verificação + dialog de confirmação antes do login
-- **`src/pages/AdminLogin.tsx`**: mesmo fluxo
-- **`src/contexts/AuthContext.tsx`**: upsert/delete na `user_sessions` ao logar/deslogar
-- **Configuração auth**: desativar verificação de senha vazada
+### Resultado esperado
+- Link de confirmacao confirma o email corretamente (tipo signup, nao magiclink)
+- Link funciona tanto no preview quanto na URL publicada
+- Nenhum crash do React ao reenviar email - erros sao tratados graciosamente com toast
 
