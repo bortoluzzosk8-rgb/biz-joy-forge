@@ -69,11 +69,12 @@ const Franchises = () => {
       if (!user?.id) return;
 
       // Buscar a franquia raiz do usuário logado
-      const { data: userFranchise, error: userFranchiseError } = await supabase
+      const { data: userFranchiseRows, error: userFranchiseError } = await supabase
         .from("user_franchises")
         .select("franchise_id")
         .eq("user_id", user.id)
-        .maybeSingle();
+        .limit(1);
+      const userFranchise = userFranchiseRows?.[0] || null;
 
       if (userFranchiseError) throw userFranchiseError;
 
