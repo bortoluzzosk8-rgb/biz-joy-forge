@@ -151,6 +151,31 @@ serve(async (req) => {
       );
     }
 
+    // Link seller to the same franchise as the creator
+    const { data: creatorFranchise } = await supabaseAdmin
+      .from('user_franchises')
+      .select('franchise_id')
+      .eq('user_id', currentUser.id)
+      .limit(1)
+      .single();
+
+    if (creatorFranchise) {
+      const { error: franchiseLinkError } = await supabaseAdmin
+        .from('user_franchises')
+        .insert({
+          user_id: newUser.user.id,
+          franchise_id: creatorFranchise.franchise_id,
+          name: name,
+        });
+
+      if (franchiseLinkError) {
+        console.error('Error linking seller to franchise:', franchiseLinkError);
+        // Non-fatal: seller was created, just log the error
+      }
+    } else {
+      console.warn('Creator has no franchise link, seller created without franchise association');
+    }
+
     console.log(`Seller created successfully: ${email} (${newUser.user.id})`);
 
     return new Response(
