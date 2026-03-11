@@ -93,11 +93,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Buscar franchise do usuário (se franqueadora ou motorista)
       if (isFranqueadoraRole) {
-        const { data: franchiseData } = await supabase
+        const { data: franchiseRows } = await supabase
           .from('user_franchises')
           .select('franchise_id, franchises(id, name, city)')
           .eq('user_id', userId)
-          .single();
+          .limit(1);
+        const franchiseData = franchiseRows?.[0] || null;
         
         if (franchiseData?.franchises) {
           setUserFranchise(franchiseData.franchises as any);
