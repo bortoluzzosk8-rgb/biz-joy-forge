@@ -579,7 +579,7 @@ const Drivers = () => {
             {/* Mostra seleção de franquia para franqueadora e vendedor */}
             {(isFranqueadora || isVendedor) && (
               <div className="space-y-2">
-                <Label htmlFor="edit-franchise">Franquia</Label>
+                <Label htmlFor="edit-franchise">Unidade</Label>
                 <Select value={editFranchise} onValueChange={setEditFranchise}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
