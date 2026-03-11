@@ -1,51 +1,90 @@
 
 
-## Filtrar produtos do dropdown para mostrar apenas os que têm estoque
+## Corrigir erro "Algo deu errado" na verificacao de email
 
-### Problema
-O dropdown "Produto" na aba de locação mostra todos os produtos do catálogo (`products` table), mesmo os que não possuem nenhum item no estoque (`inventory_items`). O usuário quer ver apenas produtos que existem no inventário.
+### Problema raiz
+Tres problemas combinados causam o erro:
 
-### Correção
+1. **Tipo de link errado na edge function**: Usa `type: 'magiclink'` mas deveria usar `type: 'signup'` para confirmar o email do usuario corretamente
+2. **URL hardcoded**: O `redirectTo` aponta fixo para `playgestor.com.br`, quebrando testes no preview
+3. **Tratamento de erro fragil no VerifyEmail**: O `supabase.functions.invoke` pode retornar erro em formato inesperado, causando crash no React que o ErrorBoundary captura
 
-**`src/pages/admin/Sales.tsx`** — Alterar `fetchProducts` para buscar apenas produtos que possuem itens correspondentes no `inventory_items`:
+### Correcoes
 
-1. Após carregar os `products`, buscar os nomes distintos de `inventory_items` visíveis ao usuário (já filtrados por RLS).
-2. Filtrar a lista de `products` para incluir apenas os que têm ao menos um item no `inventory_items` com nome correspondente (usando `ilike` match, já que o sistema usa `name` para cruzar produto ↔ item de inventário).
+**1. Edge function `send-email` (supabase/functions/send-email/index.ts)**
+- Trocar `type: 'magiclink'` por `type: 'signup'` no `generateLink` para gerar link de confirmacao de email real
+- Receber `origin` no body da requisicao para construir o `redirectTo` dinamicamente
+- Fallback para `https://playgestor.com.br` se origin nao for fornecido
 
-Alternativa mais simples e direta: substituir o `fetchProducts` para buscar diretamente os nomes distintos de `inventory_items` em vez da tabela `products`, já que o cruzamento é feito por nome. O select do dropdown passaria a listar os nomes únicos do estoque real.
+**2. VerifyEmail.tsx**
+- Passar `window.location.origin` ao chamar a edge function para que o link funcione no ambiente correto
+- Melhorar tratamento de erro: verificar `data.error` alem de `error` do invoke, evitando throw de objetos nao-Error
+- Envolver o handleResend em tratamento defensivo para evitar crash do React
 
-**Abordagem escolhida**: Buscar os nomes distintos dos `inventory_items` e cruzar com `products` para manter o `id` e `sale_price` do produto. Produtos sem itens no inventário serão excluídos do dropdown.
+**3. UserRegister.tsx**
+- Passar `window.location.origin` ao chamar a edge function de confirmacao
 
+### Secao tecnica
+
+**Edge function - correcao do generateLink:**
 ```typescript
-const fetchProducts = async () => {
-  try {
-    // Buscar nomes distintos no inventário
-    const { data: inventoryNames } = await supabase
-      .from("inventory_items")
-      .select("name");
-    
-    const uniqueNames = [...new Set((inventoryNames || []).map(i => i.name))];
-    
-    if (uniqueNames.length === 0) {
-      setProducts([]);
-      return;
+case 'confirmation': {
+  const origin = data?.origin || 'https://playgestor.com.br';
+  
+  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'signup',  // era 'magiclink', agora 'signup' para confirmar email
+    email: to,
+    options: {
+      redirectTo: `${origin}/auth/callback`,
     }
+  });
+  // ...
+}
+```
 
-    // Buscar produtos que existem no inventário
-    const { data, error } = await supabase
-      .from("products")
-      .select("id, name, cost_price, sale_price")
-      .in("name", uniqueNames)
-      .order("name");
+**VerifyEmail.tsx - chamada corrigida:**
+```typescript
+const handleResend = async () => {
+  if (!email || cooldown > 0) return;
+  setResending(true);
+  try {
+    const response = await supabase.functions.invoke('send-email', {
+      body: { 
+        type: 'confirmation', 
+        to: email, 
+        name: name || '',
+        data: { origin: window.location.origin }
+      }
+    });
     
-    if (error) throw error;
-    setProducts(data || []);
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    toast.error("Erro ao carregar produtos");
+    if (response.error || response.data?.error) {
+      throw new Error(response.data?.error || 'Erro ao enviar email');
+    }
+    
+    toast({ title: "Email reenviado!", description: "Verifique sua caixa de entrada e spam." });
+    setCooldown(60);
+  } catch (err) {
+    toast({ title: "Erro ao reenviar", description: "Tente novamente.", variant: "destructive" });
+  } finally {
+    setResending(false);
   }
 };
 ```
 
-Sem mudanças no banco — apenas na query do frontend.
+**UserRegister.tsx - passar origin:**
+```typescript
+await supabase.functions.invoke('send-email', {
+  body: { 
+    type: 'confirmation', 
+    to: email.trim(), 
+    name: name.trim(),
+    data: { origin: window.location.origin }
+  }
+});
+```
+
+### Resultado esperado
+- Link de confirmacao confirma o email corretamente (tipo signup, nao magiclink)
+- Link funciona tanto no preview quanto na URL publicada
+- Nenhum crash do React ao reenviar email - erros sao tratados graciosamente com toast
 
