@@ -374,12 +374,17 @@ const Clients = () => {
     if (!confirm(`Deseja realmente remover "${name}"?`)) return;
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("clients")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .select();
 
       if (error) throw error;
+      if (!data || data.length === 0) {
+        toast.error("Não foi possível remover o cliente. Verifique suas permissões.");
+        return;
+      }
       toast.success("Cliente removido com sucesso");
       fetchClients();
     } catch (error) {
