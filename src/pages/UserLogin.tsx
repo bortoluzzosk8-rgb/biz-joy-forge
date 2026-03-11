@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, LogIn, ArrowLeft, Mail } from 'lucide-react';
+import { Eye, EyeOff, LogIn, ArrowLeft, Mail, AlertTriangle } from 'lucide-react';
 import logoPlayGestor from '@/assets/logo-playgestor-novo.png';
 
 export default function UserLogin() {
@@ -21,24 +21,30 @@ export default function UserLogin() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [sendingRecovery, setSendingRecovery] = useState(false);
+  const [showSessionDialog, setShowSessionDialog] = useState(false);
+  const [sessionDeviceInfo, setSessionDeviceInfo] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { refreshRoles } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email.trim() || !password.trim()) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Preencha email e senha para continuar.",
-        variant: "destructive",
+  const checkActiveSession = async (emailToCheck: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-active-session', {
+        body: { email: emailToCheck.trim() }
       });
-      return;
+      if (error) return false;
+      if (data?.hasActiveSession) {
+        setSessionDeviceInfo(data.deviceInfo || null);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
+  };
 
+  const performLogin = async (forceDisconnectOthers = false) => {
     setLoading(true);
-
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -46,17 +52,27 @@ export default function UserLogin() {
       });
 
       if (error) {
-        toast({
-          title: "Erro no login",
-          description: error.message === "Invalid login credentials" 
-            ? "Email ou senha incorretos" 
-            : error.message,
-          variant: "destructive",
-        });
-      } else if (data.user) {
-        // Aguardar roles serem carregados pelo AuthContext (onAuthStateChange)
+        // Suppress leaked password warnings
+        const msg = error.message;
+        if (msg?.toLowerCase().includes('leaked') || msg?.toLowerCase().includes('pwned') || msg?.toLowerCase().includes('breach')) {
+          // Ignore leaked password warning, proceed
+        } else {
+          toast({
+            title: "Erro no login",
+            description: msg === "Invalid login credentials" 
+              ? "Email ou senha incorretos" 
+              : msg,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+      
+      if (data?.user || !error) {
+        if (forceDisconnectOthers) {
+          await supabase.auth.signOut({ scope: 'others' });
+        }
         await refreshRoles();
-        
         toast({
           title: "Login realizado!",
           description: "Bem-vindo ao painel administrativo!",
@@ -74,6 +90,34 @@ export default function UserLogin() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email.trim() || !password.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha email e senha para continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    const hasSession = await checkActiveSession(email);
+    setLoading(false);
+
+    if (hasSession) {
+      setShowSessionDialog(true);
+    } else {
+      await performLogin();
+    }
+  };
+
+  const handleConfirmForceLogin = async () => {
+    setShowSessionDialog(false);
+    await performLogin(true);
+  };
+
   const handleForgotPassword = async () => {
     if (!forgotEmail.trim()) {
       toast({
@@ -84,7 +128,6 @@ export default function UserLogin() {
       return;
     }
 
-    // Validação básica de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(forgotEmail.trim())) {
       toast({
@@ -233,6 +276,40 @@ export default function UserLogin() {
           </Link>
         </div>
       </div>
+
+      {/* Dialog de Sessão Ativa */}
+      <Dialog open={showSessionDialog} onOpenChange={setShowSessionDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Sessão ativa detectada
+            </DialogTitle>
+            <DialogDescription>
+              Já existe uma sessão ativa para esta conta
+              {sessionDeviceInfo ? ` (${sessionDeviceInfo})` : ''}.
+              Deseja continuar e desconectar o outro dispositivo?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowSessionDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmForceLogin}
+              disabled={loading}
+            >
+              {loading ? "Conectando..." : "Sim, desconectar e entrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Recuperação de Senha */}
       <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>

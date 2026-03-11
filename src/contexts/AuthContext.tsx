@@ -25,6 +25,13 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const getDeviceInfo = (): string => {
+  const ua = navigator.userAgent;
+  const isMobile = /Mobi|Android/i.test(ua);
+  const browser = /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Outro';
+  return `${isMobile ? 'Mobile' : 'Desktop'} - ${browser}`;
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -38,12 +45,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [checkingAdmin, setCheckingAdmin] = useState(false);
   const checkInProgressRef = useRef(false);
 
+  const upsertSession = async (userId: string, accessToken: string) => {
+    try {
+      await supabase
+        .from('user_sessions')
+        .upsert({
+          user_id: userId,
+          session_token: accessToken.substring(0, 50),
+          device_info: getDeviceInfo(),
+          last_seen_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+    } catch (err) {
+      console.error('Error upserting session:', err);
+    }
+  };
+
+  const deleteSession = async (userId: string) => {
+    try {
+      await supabase
+        .from('user_sessions')
+        .delete()
+        .eq('user_id', userId);
+    } catch (err) {
+      console.error('Error deleting session:', err);
+    }
+  };
+
   const checkAdminStatus = async (userId: string, userEmail?: string) => {
     if (checkInProgressRef.current) return;
     checkInProgressRef.current = true;
     setCheckingAdmin(true);
     try {
-      // Verificar roles
       const [franqueadoraCheck, adminCheck, vendedorCheck, motoristaCheck, superAdminCheck] = await Promise.all([
         supabase.rpc('has_role', { _user_id: userId, _role: 'franqueadora' }),
         supabase.rpc('has_role', { _user_id: userId, _role: 'admin' }),
@@ -60,11 +92,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       const hasSomeRole = isFranqueadoraRole || isAdminRole || isVendedorRole || isMotoristaRole || isSuperAdminRole;
       
-      // Se não tem nenhum role, é um usuário recém-criado que precisa da role
       if (!hasSomeRole && userEmail) {
         console.log('Usuário sem role detectado, atribuindo role automaticamente...');
         
-        // Chamar edge function para atribuir role
         const { error: assignError } = await supabase.functions.invoke('assign-franqueadora-role', {
           body: { user_id: userId }
         });
@@ -72,10 +102,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (assignError) {
           console.error('Erro ao atribuir role:', assignError);
         } else {
-          // Aguardar e verificar novamente
           await new Promise(resolve => setTimeout(resolve, 500));
           
-          // Re-verificar após atribuição
           const [newFranqueadoraCheck, newSuperAdminCheck] = await Promise.all([
             supabase.rpc('has_role', { _user_id: userId, _role: 'franqueadora' }),
             supabase.rpc('has_role', { _user_id: userId, _role: 'super_admin' })
@@ -94,7 +122,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsMotorista(isMotoristaRole);
       setIsAdmin(isAdminRole || isFranqueadoraRole || isVendedorRole || isMotoristaRole || isSuperAdminRole);
       
-      // Buscar franchise do usuário (se franqueadora ou motorista)
       if (isFranqueadoraRole) {
         const { data: franchiseRows } = await supabase
           .from('user_franchises')
@@ -107,7 +134,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUserFranchise(franchiseData.franchises as any);
         }
       } else if (isMotoristaRole) {
-        // Para motoristas, buscar a franchise da tabela drivers
         const { data: driverData } = await supabase
           .from('drivers')
           .select('franchise_id, franchise:franchises(id, name, city)')
@@ -143,8 +169,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -152,6 +176,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (session?.user) {
           checkAdminStatus(session.user.id, session.user.email);
+          // Register/update session
+          upsertSession(session.user.id, session.access_token);
         } else {
           setIsAdmin(false);
           setIsVendedor(false);
@@ -162,13 +188,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
         await checkAdminStatus(session.user.id, session.user.email);
+        await upsertSession(session.user.id, session.access_token);
       } else {
         setIsAdmin(false);
         setIsVendedor(false);
@@ -182,6 +208,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
+    if (user) {
+      await deleteSession(user.id);
+    }
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
