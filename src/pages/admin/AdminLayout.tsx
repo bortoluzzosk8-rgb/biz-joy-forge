@@ -55,7 +55,7 @@ const AdminLayout = () => {
     { value: "products", label: "Produtos", icon: Package, roles: ["franqueadora"] },
     { value: "categories", label: "Categorias", icon: Tag, roles: ["franqueadora"] },
     { value: "financial", label: "Financeiro", icon: DollarSign, roles: ["franqueadora"] },
-    { value: "leads", label: "Leads", icon: UserPlus, roles: ["franqueadora"] },
+    
     { value: "franchises", label: "Unidades", icon: Store, roles: ["franqueadora"] },
     { value: "sellers", label: "Vendedores", icon: UserCheck, roles: ["franqueadora"] },
     { value: "settings", label: "Config", icon: Settings, roles: ["franqueadora"] },
