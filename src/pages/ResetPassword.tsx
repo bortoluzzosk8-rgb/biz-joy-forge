@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, KeyRound, ArrowLeft } from 'lucide-react';
-import logoEngbrink from '@/assets/logo-engbrink.jpg';
+import logoPlaygestor from '@/assets/logo-playgestor-novo.png';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
