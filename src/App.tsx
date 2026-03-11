@@ -45,6 +45,13 @@ import AuthCallback from "./pages/AuthCallback";
 
 const queryClient = new QueryClient();
 
+const AdminIndexRedirect = () => {
+  const { isMotorista, isSuperAdmin } = useAuth();
+  if (isMotorista) return <Navigate to="logistics" replace />;
+  if (isSuperAdmin) return <Navigate to="leads" replace />;
+  return <Navigate to="rentals" replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
