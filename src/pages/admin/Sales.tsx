@@ -551,8 +551,14 @@ const Sales = () => {
     fetchProducts();
     fetchFranchises();
     fetchSettings();
-    fetchMonitors();
   }, []);
+
+  // Buscar monitores quando as franquias forem carregadas
+  useEffect(() => {
+    if (franchises.length > 0) {
+      fetchMonitors();
+    }
+  }, [franchises]);
 
   // Auto-selecionar franquia do franqueado
   useEffect(() => {
