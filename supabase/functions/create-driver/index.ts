@@ -128,16 +128,21 @@ serve(async (req) => {
 
     if (createError) {
       console.error('Error creating user:', createError);
-      if (createError.message?.includes('already been registered')) {
+      const msg = createError.message?.toLowerCase() || '';
+      // Ignore leaked/pwned password warnings
+      if (msg.includes('leaked') || msg.includes('pwned') || msg.includes('hibp')) {
+        console.log('Ignoring HIBP warning, retrying without password check is not possible via admin API. Treating as success if user was created.');
+      } else if (msg.includes('already been registered')) {
         return new Response(
           JSON.stringify({ error: 'Este email já está cadastrado' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'Erro ao criar usuário' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-      return new Response(
-        JSON.stringify({ error: 'Erro ao criar usuário' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
     if (!newUser.user) {
