@@ -443,7 +443,7 @@ const Drivers = () => {
             {/* Mostra seleção de franquia para franqueadora e vendedor */}
             {(isFranqueadora || isVendedor) && (
               <div className="space-y-2">
-                <Label htmlFor="franchise">Franquia</Label>
+                <Label htmlFor="franchise">Unidade</Label>
                 <Select value={selectedFranchise} onValueChange={setSelectedFranchise}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
@@ -495,7 +495,7 @@ const Drivers = () => {
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Telefone</TableHead>
-                  {(isFranqueadora || isVendedor) && <TableHead>Franquia</TableHead>}
+                  {(isFranqueadora || isVendedor) && <TableHead>Unidade</TableHead>}
                   <TableHead>Criado em</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -579,7 +579,7 @@ const Drivers = () => {
             {/* Mostra seleção de franquia para franqueadora e vendedor */}
             {(isFranqueadora || isVendedor) && (
               <div className="space-y-2">
-                <Label htmlFor="edit-franchise">Franquia</Label>
+                <Label htmlFor="edit-franchise">Unidade</Label>
                 <Select value={editFranchise} onValueChange={setEditFranchise}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />

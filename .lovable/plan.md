@@ -1,24 +1,90 @@
 
 
-## Corrigir erro ao criar motorista + trocar "Franquia" por "Unidade"
+## Corrigir erro "Algo deu errado" na verificacao de email
 
-### Problemas identificados
+### Problema raiz
+Tres problemas combinados causam o erro:
 
-1. **Erro ao criar motorista**: A edge function `create-driver` usa `supabase.auth.admin.createUser()` que verifica senhas contra o banco de dados HaveIBeenPwned. Se a senha estiver nessa lista, retorna erro. Precisamos desabilitar essa verificação na criação do usuário via edge function, ou capturar e ignorar o erro de "leaked password".
+1. **Tipo de link errado na edge function**: Usa `type: 'magiclink'` mas deveria usar `type: 'signup'` para confirmar o email do usuario corretamente
+2. **URL hardcoded**: O `redirectTo` aponta fixo para `playgestor.com.br`, quebrando testes no preview
+3. **Tratamento de erro fragil no VerifyEmail**: O `supabase.functions.invoke` pode retornar erro em formato inesperado, causando crash no React que o ErrorBoundary captura
 
-2. **Terminologia**: O label "Franquia" aparece em 4 lugares na página de Motoristas — precisa ser trocado por "Unidade" (conforme preferência já registrada).
+### Correcoes
 
-### Correções
+**1. Edge function `send-email` (supabase/functions/send-email/index.ts)**
+- Trocar `type: 'magiclink'` por `type: 'signup'` no `generateLink` para gerar link de confirmacao de email real
+- Receber `origin` no body da requisicao para construir o `redirectTo` dinamicamente
+- Fallback para `https://playgestor.com.br` se origin nao for fornecido
 
-**`supabase/functions/create-driver/index.ts`**
-- Adicionar opção para ignorar verificação de senha comprometida no `createUser`, ou tratar o erro adequadamente. Na API admin do Supabase, não há flag direta para isso, então a abordagem será capturar erros de "leaked/pwned" e tentar novamente ou simplesmente informar que a senha foi aceita.
-- Na verdade, o problema pode ser resolvido pela configuração de auth que já foi feita (desabilitar HIBP). Preciso verificar se a config foi aplicada.
+**2. VerifyEmail.tsx**
+- Passar `window.location.origin` ao chamar a edge function para que o link funcione no ambiente correto
+- Melhorar tratamento de erro: verificar `data.error` alem de `error` do invoke, evitando throw de objetos nao-Error
+- Envolver o handleResend em tratamento defensivo para evitar crash do React
 
-**`src/pages/admin/Drivers.tsx`** — Trocar todas as ocorrências de "Franquia" por "Unidade":
-- Linha 446: Label `Franquia` → `Unidade`
-- Linha 498: TableHead `Franquia` → `Unidade`  
-- Linha 582: Label `Franquia` → `Unidade`
+**3. UserRegister.tsx**
+- Passar `window.location.origin` ao chamar a edge function de confirmacao
 
-### Sobre o erro de criação
-O erro provavelmente é causado pela verificação de senha vazada (HIBP) na criação do auth user. A configuração de auth já foi atualizada para desabilitar isso, mas a edge function `create-driver` pode ainda estar recebendo o erro. Vou adicionar tratamento no frontend (`Drivers.tsx`) para capturar e exibir mensagens de erro mais claras, e também verificar/garantir que a config de auth está correta.
+### Secao tecnica
+
+**Edge function - correcao do generateLink:**
+```typescript
+case 'confirmation': {
+  const origin = data?.origin || 'https://playgestor.com.br';
+  
+  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'signup',  // era 'magiclink', agora 'signup' para confirmar email
+    email: to,
+    options: {
+      redirectTo: `${origin}/auth/callback`,
+    }
+  });
+  // ...
+}
+```
+
+**VerifyEmail.tsx - chamada corrigida:**
+```typescript
+const handleResend = async () => {
+  if (!email || cooldown > 0) return;
+  setResending(true);
+  try {
+    const response = await supabase.functions.invoke('send-email', {
+      body: { 
+        type: 'confirmation', 
+        to: email, 
+        name: name || '',
+        data: { origin: window.location.origin }
+      }
+    });
+    
+    if (response.error || response.data?.error) {
+      throw new Error(response.data?.error || 'Erro ao enviar email');
+    }
+    
+    toast({ title: "Email reenviado!", description: "Verifique sua caixa de entrada e spam." });
+    setCooldown(60);
+  } catch (err) {
+    toast({ title: "Erro ao reenviar", description: "Tente novamente.", variant: "destructive" });
+  } finally {
+    setResending(false);
+  }
+};
+```
+
+**UserRegister.tsx - passar origin:**
+```typescript
+await supabase.functions.invoke('send-email', {
+  body: { 
+    type: 'confirmation', 
+    to: email.trim(), 
+    name: name.trim(),
+    data: { origin: window.location.origin }
+  }
+});
+```
+
+### Resultado esperado
+- Link de confirmacao confirma o email corretamente (tipo signup, nao magiclink)
+- Link funciona tanto no preview quanto na URL publicada
+- Nenhum crash do React ao reenviar email - erros sao tratados graciosamente com toast
 
