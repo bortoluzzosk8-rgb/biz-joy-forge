@@ -109,6 +109,7 @@ const App = () => (
                   <Route path="monitors" element={<Monitors />} />
                   <Route path="settings" element={<Settings />} />
                   <Route path="saas-management" element={<SaasManagement />} />
+                  <Route path="saas-financial" element={<SaasFinancial />} />
                   <Route path="updates" element={<SystemUpdates />} />
                 </Route>
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

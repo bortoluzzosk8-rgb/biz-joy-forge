@@ -75,6 +75,7 @@ const AdminLayout = () => {
   const superAdminMenuItems = [
     { value: "leads", label: "Leads SaaS", icon: UserPlus, roles: ["super_admin"] },
     { value: "saas-management", label: "Clientes", icon: Building2, roles: ["super_admin"] },
+    { value: "saas-financial", label: "Financeiro", icon: CreditCard, roles: ["super_admin"] },
   ];
 
   // Menu items para clientes (franqueadoras, vendedores, motoristas)
