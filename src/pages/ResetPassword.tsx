@@ -163,7 +163,7 @@ export default function ResetPassword() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <Link to="/">
-            <img src={logoEngbrink} alt="Logo" className="h-16" />
+            <img src={logoPlaygestor} alt="PlayGestor" className="h-20 w-auto" />
           </Link>
         </div>
 
