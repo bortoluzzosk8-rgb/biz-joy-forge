@@ -1,90 +1,30 @@
 
 
-## Corrigir erro "Algo deu errado" na verificacao de email
+## Adicionar aba "Financeiro" na área Super Admin
 
-### Problema raiz
-Tres problemas combinados causam o erro:
+### O que será feito
 
-1. **Tipo de link errado na edge function**: Usa `type: 'magiclink'` mas deveria usar `type: 'signup'` para confirmar o email do usuario corretamente
-2. **URL hardcoded**: O `redirectTo` aponta fixo para `playgestor.com.br`, quebrando testes no preview
-3. **Tratamento de erro fragil no VerifyEmail**: O `supabase.functions.invoke` pode retornar erro em formato inesperado, causando crash no React que o ErrorBoundary captura
+Adicionar uma nova aba "Financeiro" no menu do Super Admin (ao lado de "Leads SaaS" e "Clientes") com uma página que mostra:
 
-### Correcoes
+- **Resumo financeiro**: Total de receitas (pagamentos recebidos), com cards de métricas
+- **Lista de receitas**: Todos os pagamentos de `subscription_payments` com status "paid", mostrando nome da franquia, valor, data, tipo de cobrança
+- **Filtros por período**: Mês atual, últimos 3 meses, últimos 6 meses, todos
+- **Totalização**: Soma dos valores pagos no período filtrado
 
-**1. Edge function `send-email` (supabase/functions/send-email/index.ts)**
-- Trocar `type: 'magiclink'` por `type: 'signup'` no `generateLink` para gerar link de confirmacao de email real
-- Receber `origin` no body da requisicao para construir o `redirectTo` dinamicamente
-- Fallback para `https://playgestor.com.br` se origin nao for fornecido
+### Mudanças técnicas
 
-**2. VerifyEmail.tsx**
-- Passar `window.location.origin` ao chamar a edge function para que o link funcione no ambiente correto
-- Melhorar tratamento de erro: verificar `data.error` alem de `error` do invoke, evitando throw de objetos nao-Error
-- Envolver o handleResend em tratamento defensivo para evitar crash do React
-
-**3. UserRegister.tsx**
-- Passar `window.location.origin` ao chamar a edge function de confirmacao
-
-### Secao tecnica
-
-**Edge function - correcao do generateLink:**
+**1. `src/pages/admin/AdminLayout.tsx`** — Adicionar item "Financeiro" no `superAdminMenuItems`:
 ```typescript
-case 'confirmation': {
-  const origin = data?.origin || 'https://playgestor.com.br';
-  
-  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'signup',  // era 'magiclink', agora 'signup' para confirmar email
-    email: to,
-    options: {
-      redirectTo: `${origin}/auth/callback`,
-    }
-  });
-  // ...
-}
+{ value: "saas-financial", label: "Financeiro", icon: DollarSign, roles: ["super_admin"] },
 ```
 
-**VerifyEmail.tsx - chamada corrigida:**
-```typescript
-const handleResend = async () => {
-  if (!email || cooldown > 0) return;
-  setResending(true);
-  try {
-    const response = await supabase.functions.invoke('send-email', {
-      body: { 
-        type: 'confirmation', 
-        to: email, 
-        name: name || '',
-        data: { origin: window.location.origin }
-      }
-    });
-    
-    if (response.error || response.data?.error) {
-      throw new Error(response.data?.error || 'Erro ao enviar email');
-    }
-    
-    toast({ title: "Email reenviado!", description: "Verifique sua caixa de entrada e spam." });
-    setCooldown(60);
-  } catch (err) {
-    toast({ title: "Erro ao reenviar", description: "Tente novamente.", variant: "destructive" });
-  } finally {
-    setResending(false);
-  }
-};
-```
+**2. `src/pages/admin/SaasFinancial.tsx`** (novo arquivo) — Página financeira do Super Admin:
+- Busca `subscription_payments` com status "paid", fazendo join com `franchises` para exibir o nome
+- Cards de resumo: total recebido no mês, total geral, quantidade de pagamentos
+- Tabela com colunas: Franquia, Valor, Data Pagamento, Tipo, Vencimento
+- Filtro de período (mês atual, 3 meses, 6 meses, todos)
 
-**UserRegister.tsx - passar origin:**
-```typescript
-await supabase.functions.invoke('send-email', {
-  body: { 
-    type: 'confirmation', 
-    to: email.trim(), 
-    name: name.trim(),
-    data: { origin: window.location.origin }
-  }
-});
-```
+**3. `src/App.tsx`** — Adicionar rota `/admin/saas-financial` apontando para o novo componente
 
-### Resultado esperado
-- Link de confirmacao confirma o email corretamente (tipo signup, nao magiclink)
-- Link funciona tanto no preview quanto na URL publicada
-- Nenhum crash do React ao reenviar email - erros sao tratados graciosamente com toast
+**Sem mudanças no banco** — A tabela `subscription_payments` já tem RLS para `super_admin` e contém todos os dados necessários.
 
