@@ -2849,7 +2849,7 @@ Obrigado pela confiança! 🙏`;
                       step="0.01"
                       min="0"
                       value={formData.freight_value}
-                      onChange={(e) => setFormData({ ...formData, freight_value: Math.round((parseFloat(e.target.value) || 0) * 100) / 100 })}
+                      onChange={(e) => setFormData({ ...formData, freight_value: parseFloat(e.target.value) || 0 })}
                       placeholder="0,00"
                     />
                     <p className="text-xs text-muted-foreground">
@@ -2865,7 +2865,7 @@ Obrigado pela confiança! 🙏`;
                       step="0.01"
                       min="0"
                       value={formData.discount_value}
-                      onChange={(e) => setFormData({ ...formData, discount_value: Math.round((parseFloat(e.target.value) || 0) * 100) / 100 })}
+                      onChange={(e) => setFormData({ ...formData, discount_value: parseFloat(e.target.value) || 0 })}
                       placeholder="0,00"
                       className="border-red-200 dark:border-red-800"
                     />
