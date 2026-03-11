@@ -1,90 +1,57 @@
 
 
-## Corrigir erro "Algo deu errado" na verificacao de email
+## Diagnóstico: "Algo deu errado" ao logar
 
-### Problema raiz
-Tres problemas combinados causam o erro:
+### Causa raiz identificada
 
-1. **Tipo de link errado na edge function**: Usa `type: 'magiclink'` mas deveria usar `type: 'signup'` para confirmar o email do usuario corretamente
-2. **URL hardcoded**: O `redirectTo` aponta fixo para `playgestor.com.br`, quebrando testes no preview
-3. **Tratamento de erro fragil no VerifyEmail**: O `supabase.functions.invoke` pode retornar erro em formato inesperado, causando crash no React que o ErrorBoundary captura
+Ao fazer login, o sistema executa `checkAdminStatus` **até 3 vezes simultaneamente**:
 
-### Correcoes
+1. `onAuthStateChange` no AuthContext dispara via `setTimeout(0)`
+2. `getSession().then()` no AuthContext dispara com `await`
+3. `refreshRoles()` chamado no UserLogin.tsx
 
-**1. Edge function `send-email` (supabase/functions/send-email/index.ts)**
-- Trocar `type: 'magiclink'` por `type: 'signup'` no `generateLink` para gerar link de confirmacao de email real
-- Receber `origin` no body da requisicao para construir o `redirectTo` dinamicamente
-- Fallback para `https://playgestor.com.br` se origin nao for fornecido
+Essas chamadas concorrentes causam um "flapping" de estado:
+- `checkingAdmin` alterna entre `true` e `false` de forma imprevisível
+- `isAdmin` pode ficar brevemente `false` enquanto outra chamada ainda roda
+- Isso pode causar montagem/desmontagem rápida de componentes pesados (Sales.tsx tem quase 4000 linhas com `@ts-nocheck`)
+- Qualquer erro de renderização durante esse ciclo rápido dispara o ErrorBoundary global
 
-**2. VerifyEmail.tsx**
-- Passar `window.location.origin` ao chamar a edge function para que o link funcione no ambiente correto
-- Melhorar tratamento de erro: verificar `data.error` alem de `error` do invoke, evitando throw de objetos nao-Error
-- Envolver o handleResend em tratamento defensivo para evitar crash do React
+Além disso, o Sales.tsx importa `isFranqueado` do AuthContext, que **não existe** — sempre retorna `undefined`. Não causa crash direto, mas indica fragilidade.
 
-**3. UserRegister.tsx**
-- Passar `window.location.origin` ao chamar a edge function de confirmacao
+### Correções
 
-### Secao tecnica
+**1. AuthContext — Serializar `checkAdminStatus`**
 
-**Edge function - correcao do generateLink:**
+Adicionar um guard para evitar chamadas concorrentes. Se já houver uma chamada em andamento, a nova chamada aguarda ou é ignorada:
+
 ```typescript
-case 'confirmation': {
-  const origin = data?.origin || 'https://playgestor.com.br';
-  
-  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'signup',  // era 'magiclink', agora 'signup' para confirmar email
-    email: to,
-    options: {
-      redirectTo: `${origin}/auth/callback`,
-    }
-  });
-  // ...
-}
-```
+const checkInProgressRef = useRef(false);
 
-**VerifyEmail.tsx - chamada corrigida:**
-```typescript
-const handleResend = async () => {
-  if (!email || cooldown > 0) return;
-  setResending(true);
-  try {
-    const response = await supabase.functions.invoke('send-email', {
-      body: { 
-        type: 'confirmation', 
-        to: email, 
-        name: name || '',
-        data: { origin: window.location.origin }
-      }
-    });
-    
-    if (response.error || response.data?.error) {
-      throw new Error(response.data?.error || 'Erro ao enviar email');
-    }
-    
-    toast({ title: "Email reenviado!", description: "Verifique sua caixa de entrada e spam." });
-    setCooldown(60);
-  } catch (err) {
-    toast({ title: "Erro ao reenviar", description: "Tente novamente.", variant: "destructive" });
-  } finally {
-    setResending(false);
+const checkAdminStatus = async (userId, userEmail?) => {
+  if (checkInProgressRef.current) return;
+  checkInProgressRef.current = true;
+  setCheckingAdmin(true);
+  try { /* ... lógica atual ... */ }
+  finally {
+    checkInProgressRef.current = false;
+    setCheckingAdmin(false);
   }
 };
 ```
 
-**UserRegister.tsx - passar origin:**
-```typescript
-await supabase.functions.invoke('send-email', {
-  body: { 
-    type: 'confirmation', 
-    to: email.trim(), 
-    name: name.trim(),
-    data: { origin: window.location.origin }
-  }
-});
-```
+**2. AuthContext — Remover `setTimeout(0)` do `onAuthStateChange`**
 
-### Resultado esperado
-- Link de confirmacao confirma o email corretamente (tipo signup, nao magiclink)
-- Link funciona tanto no preview quanto na URL publicada
-- Nenhum crash do React ao reenviar email - erros sao tratados graciosamente com toast
+Trocar o `setTimeout` por chamada direta, mas protegida pelo guard acima. Isso evita disparar `checkAdminStatus` fora de sincronia.
+
+**3. UserLogin — Não chamar `assign-franqueadora-role` redundantemente**
+
+O `onAuthStateChange` no AuthContext já faz isso quando detecta usuário sem role. Remover a chamada duplicada no UserLogin e confiar no `refreshRoles()`.
+
+**4. AdminLayout — Adicionar ErrorBoundary interno**
+
+Envolver o `<Outlet />` em um ErrorBoundary local para que erros em páginas filhas (como Sales) não derrubem toda a aplicação, mostrando uma mensagem com botão de tentar novamente em vez da tela global de erro.
+
+**5. Sales.tsx — Remover `isFranqueado` inexistente**
+
+Remover todas as referências a `isFranqueado` que não existe no AuthContext, evitando comportamentos imprevisíveis.
 
