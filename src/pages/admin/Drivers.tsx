@@ -495,7 +495,7 @@ const Drivers = () => {
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Telefone</TableHead>
-                  {(isFranqueadora || isVendedor) && <TableHead>Franquia</TableHead>}
+                  {(isFranqueadora || isVendedor) && <TableHead>Unidade</TableHead>}
                   <TableHead>Criado em</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
