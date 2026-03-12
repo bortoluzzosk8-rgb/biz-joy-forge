@@ -1567,6 +1567,7 @@ export type Database = {
           quantity: number | null
           rental_end_date: string | null
           rental_start_date: string | null
+          rental_type: string
           return_date: string | null
           return_time: string | null
           sale_date: string
@@ -1610,6 +1611,7 @@ export type Database = {
           quantity?: number | null
           rental_end_date?: string | null
           rental_start_date?: string | null
+          rental_type?: string
           return_date?: string | null
           return_time?: string | null
           sale_date: string
@@ -1653,6 +1655,7 @@ export type Database = {
           quantity?: number | null
           rental_end_date?: string | null
           rental_start_date?: string | null
+          rental_type?: string
           return_date?: string | null
           return_time?: string | null
           sale_date?: string
@@ -2104,25 +2107,46 @@ export type Database = {
         Args: { record_franchise_id: string }
         Returns: boolean
       }
-      check_item_availability: {
-        Args: {
-          p_exclude_sale_id?: string
-          p_inventory_item_id: string
-          p_party_start_time: string
-          p_rental_start_date: string
-          p_return_date: string
-        }
-        Returns: {
-          conflicting_client_name: string
-          conflicting_end_date: string
-          conflicting_franchise_city: string
-          conflicting_franchise_name: string
-          conflicting_party_time: string
-          conflicting_sale_id: string
-          conflicting_start_date: string
-          is_available: boolean
-        }[]
-      }
+      check_item_availability:
+        | {
+            Args: {
+              p_exclude_sale_id?: string
+              p_inventory_item_id: string
+              p_party_start_time: string
+              p_rental_start_date: string
+              p_return_date: string
+            }
+            Returns: {
+              conflicting_client_name: string
+              conflicting_end_date: string
+              conflicting_franchise_city: string
+              conflicting_franchise_name: string
+              conflicting_party_time: string
+              conflicting_sale_id: string
+              conflicting_start_date: string
+              is_available: boolean
+            }[]
+          }
+        | {
+            Args: {
+              p_exclude_sale_id?: string
+              p_inventory_item_id: string
+              p_party_start_time: string
+              p_rental_start_date: string
+              p_rental_type?: string
+              p_return_date: string
+            }
+            Returns: {
+              conflicting_client_name: string
+              conflicting_end_date: string
+              conflicting_franchise_city: string
+              conflicting_franchise_name: string
+              conflicting_party_time: string
+              conflicting_sale_id: string
+              conflicting_start_date: string
+              is_available: boolean
+            }[]
+          }
       get_lead_temperature: {
         Args: { p_cart_created: boolean; p_whatsapp_sent: boolean }
         Returns: string
