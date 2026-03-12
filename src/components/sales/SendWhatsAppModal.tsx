@@ -80,15 +80,11 @@ export const SendWhatsAppModal = ({
       monitoringText = `\n👤 *Monitores:* ${totalMonitors} monitor${totalMonitors > 1 ? 'es' : ''} (${slotsText})`;
     }
 
-    // Texto do tipo de locação
-    const rentalTypeText = sale.rental_type === '4horas' ? ' (Locação de 4 horas)' : '';
-    
-    // Calcular horário de término para locação de 4h
-    let endTimeText = "";
-    if (sale.rental_type === '4horas' && time) {
-      const [h, m] = time.split(':').map(Number);
-      const endH = h + 4;
-      endTimeText = ` até ${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    // Calcular horário de disponibilidade (retirada + 1h)
+    let returnTimeText = "";
+    if (sale.return_time) {
+      const [rh, rm] = sale.return_time.split(':').map(Number);
+      returnTimeText = ` até ${sale.return_time} (retirada)`;
     }
 
     const defaultMessage = `Olá ${sale.client_name}! 👋
