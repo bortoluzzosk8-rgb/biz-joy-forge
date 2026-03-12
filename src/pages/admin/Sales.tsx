@@ -2327,23 +2327,20 @@ Obrigado pela confiança! 🙏`;
                 />
               </div>
               
-              {/* Data de Retirada - esconde se for 4 horas (auto mesmo dia) */}
-              {formData.rental_type !== '4horas' && (
-                <div className="space-y-2">
-                  <Label htmlFor="return_date_early">Data de Retirada *</Label>
-                  <Input
-                    id="return_date_early"
-                    type="date"
-                    value={formData.return_date}
-                    onChange={(e) => {
-                      setFormData({ ...formData, return_date: e.target.value });
-                      setAvailableInventory([]);
-                    }}
-                    min={formData.rental_start_date || undefined}
-                    required
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="return_date_early">Data de Retirada *</Label>
+                <Input
+                  id="return_date_early"
+                  type="date"
+                  value={formData.return_date}
+                  onChange={(e) => {
+                    setFormData({ ...formData, return_date: e.target.value });
+                    setAvailableInventory([]);
+                  }}
+                  min={formData.rental_start_date || undefined}
+                  required
+                />
+              </div>
               
               <div className="space-y-2">
                 <Label htmlFor="party_start_time_early">
