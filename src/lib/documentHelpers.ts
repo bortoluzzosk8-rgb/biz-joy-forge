@@ -469,10 +469,6 @@ export const buildContractTemplate = (
         <span>💰 <strong>Valor Total:</strong></span>
         <span><strong>R$ {{totalValue}}</strong></span>
       </div>
-      <div class="payment-row">
-        <span><strong>Forma de Pagamento:</strong></span>
-        <span>{{paymentMethod}}</span>
-      </div>
       {{#hasPaidPayments}}
       <div class="payment-row" style="color: #10b981;">
         <span>✅ <strong>Valor já pago:</strong></span>
