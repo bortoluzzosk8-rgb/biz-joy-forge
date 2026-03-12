@@ -59,6 +59,7 @@ const PublicContract = () => {
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [salePayments, setSalePayments] = useState<any[]>([]);
   const [documentHtml, setDocumentHtml] = useState<string>("");
   const [downloading, setDownloading] = useState(false);
 
