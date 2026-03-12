@@ -3153,7 +3153,7 @@ Obrigado pela confiança! 🙏`;
                     <th className="p-3 text-left whitespace-nowrap border-r border-primary-foreground/20">Status</th>
                     <th className="p-3 text-left whitespace-nowrap border-r border-primary-foreground/20">Brinquedos</th>
                     <th className="p-3 text-left whitespace-nowrap border-r border-primary-foreground/20">Horário</th>
-                    <th className="p-3 text-center whitespace-nowrap border-r border-primary-foreground/20 w-[80px]">Tipo</th>
+                    
                     <th className="p-3 text-left whitespace-nowrap border-r border-primary-foreground/20 w-[110px]">
                       <button onClick={() => handleSort('rental_start_date')} className="flex items-center hover:opacity-80 transition-opacity">
                         Data da Festa {getSortIcon('rental_start_date')}
