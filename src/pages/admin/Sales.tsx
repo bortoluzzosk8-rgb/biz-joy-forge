@@ -60,6 +60,7 @@ type Sale = {
   rental_end_date?: string;
   return_date?: string;
   return_time?: string;
+  rental_type?: string;
   
   // Novos campos de entrega e monitoria
   delivery_address?: string;
