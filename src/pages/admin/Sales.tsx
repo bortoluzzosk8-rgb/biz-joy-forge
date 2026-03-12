@@ -2320,12 +2320,7 @@ Obrigado pela confiança! 🙏`;
                   type="date"
                   value={formData.rental_start_date}
                   onChange={(e) => {
-                    const updates: any = { rental_start_date: e.target.value };
-                    // Se for 4 horas, return_date = rental_start_date (mesmo dia)
-                    if (formData.rental_type === '4horas') {
-                      updates.return_date = e.target.value;
-                    }
-                    setFormData({ ...formData, ...updates });
+                    setFormData({ ...formData, rental_start_date: e.target.value });
                     setAvailableInventory([]);
                   }}
                   required
