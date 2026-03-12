@@ -3420,17 +3420,8 @@ Obrigado pela confiança! 🙏`;
                         <td className="p-3 border-r whitespace-nowrap">
                           {sale.party_start_time || "-"}
                         </td>
-                        <td className="p-3 border-r text-center whitespace-nowrap">
-                          {(sale as any).rental_type === '4horas' ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                              ⏱️ 4h
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
-                              📅 Diária
-                            </span>
-                          )}
-                        </td>
+
+
                         <td className="p-3 border-r whitespace-nowrap">
                           {formatDateBR(sale.rental_start_date)}
                         </td>
