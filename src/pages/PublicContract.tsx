@@ -206,6 +206,15 @@ const PublicContract = () => {
       partyStartTime: sale.party_start_time || null,
       returnDate: formatDateBR(sale.return_date),
       returnTime: sale.return_time || null,
+      rentalType: (sale as any).rental_type || 'diaria',
+      isRental4h: (sale as any).rental_type === '4horas',
+      rentalEndTime: (() => {
+        if ((sale as any).rental_type === '4horas' && sale.party_start_time) {
+          const [h, m] = sale.party_start_time.split(':').map(Number);
+          return `${String(h + 4).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        }
+        return null;
+      })(),
 
       // Endereço de entrega
       hasDeliveryAddress: !!sale.delivery_address,

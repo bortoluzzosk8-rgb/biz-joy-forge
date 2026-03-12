@@ -407,8 +407,9 @@ export const buildContractTemplate = (
     <div class="section">
       <div class="section-title">📅 Período da Locação</div>
       <div class="section-content">
-        <strong>Data do Evento:</strong> {{rentalStartDate}}{{#partyStartTime}} às {{partyStartTime}}{{/partyStartTime}}<br>
-        {{#returnDate}}<strong>Data de Devolução:</strong> {{returnDate}}{{#returnTime}} às {{returnTime}}{{/returnTime}}{{/returnDate}}
+        {{#isRental4h}}<strong>Tipo:</strong> Locação de 4 horas<br>{{/isRental4h}}
+        <strong>Data do Evento:</strong> {{rentalStartDate}}{{#partyStartTime}} às {{partyStartTime}}{{/partyStartTime}}{{#rentalEndTime}} até {{rentalEndTime}}{{/rentalEndTime}}<br>
+        {{^isRental4h}}{{#returnDate}}<strong>Data de Devolução:</strong> {{returnDate}}{{#returnTime}} às {{returnTime}}{{/returnTime}}{{/returnDate}}{{/isRental4h}}
       </div>
     </div>
     {{/hasRentalDates}}

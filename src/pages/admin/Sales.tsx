@@ -1455,6 +1455,7 @@ const Sales = () => {
           delivery_address: formData.delivery_address,
           delivery_city: formData.delivery_city,
           total_value: calculateSaleTotal(),
+          rental_type: formData.rental_type || 'diaria',
           items: saleItems.map(item => ({ product_name: item.product_name })),
           monitoringSlots: monitoringSlots.map(slot => ({
             monitors_quantity: slot.monitors_quantity,
