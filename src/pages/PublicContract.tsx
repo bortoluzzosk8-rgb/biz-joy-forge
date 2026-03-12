@@ -102,6 +102,14 @@ const PublicContract = () => {
 
       setSaleItems(itemsData || []);
 
+      // Buscar pagamentos da venda
+      const { data: paymentsData } = await supabase
+        .from("sale_payments")
+        .select("payment_method")
+        .eq("sale_id", saleId!);
+
+      setSalePayments(paymentsData || []);
+
       // Buscar cliente se tiver ID
       if (saleData.client_id) {
         const { data: clientData } = await supabase
