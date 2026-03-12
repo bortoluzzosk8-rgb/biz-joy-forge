@@ -2432,7 +2432,13 @@ Obrigado pela confiança! 🙏`;
               )}
             </div>
 
-            
+    // Validar horário obrigatório para locação de 4 horas
+    if (formData.rental_type === '4horas' && !formData.party_start_time) {
+      toast.error("Informe o horário de início para locação de 4 horas");
+      setIsSubmitting(false);
+      return;
+    }
+
             {formData.rental_start_date && formData.return_date && (
               <Card className="p-3 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 mt-4">
                 <p className="text-sm text-green-900 dark:text-green-100">
