@@ -245,8 +245,14 @@ const PublicContract = () => {
       hasDiscount: (sale.discount_value || 0) > 0,
       discountValue: formatCurrency(sale.discount_value || 0).replace("R$", "").trim(),
 
-      // Pagamento
-      paymentMethod: getPaymentMethodLabel(sale.payment_method || "cash"),
+      // Pagamento - agregar métodos reais dos pagamentos
+      paymentMethod: (() => {
+        if (salePayments.length > 0) {
+          const uniqueMethods = [...new Set(salePayments.map(p => p.payment_method))];
+          return uniqueMethods.map(m => getPaymentMethodLabel(m)).join(' / ');
+        }
+        return getPaymentMethodLabel(sale.payment_method || "cash");
+      })(),
       installments: sale.installments || 1,
       installmentValue: formatCurrency(
         (sale.total_value - (sale.down_payment || 0)) / (sale.installments || 1)
