@@ -3291,6 +3291,7 @@ Obrigado pela confiança! 🙏`;
                       />
                     </td>
                     <td className="p-2 border-r"></td>
+                    <td className="p-2 border-r"></td>
                     <td className="p-2 border-r">
                       <Input 
                         type="date"
