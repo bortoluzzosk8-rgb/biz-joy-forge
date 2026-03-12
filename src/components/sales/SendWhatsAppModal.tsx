@@ -21,6 +21,7 @@ interface SaleData {
   delivery_address?: string;
   delivery_city?: string;
   total_value: number;
+  rental_type?: string;
   items?: Array<{ product_name: string }>;
   monitoringSlots?: Array<{
     monitors_quantity: number;
