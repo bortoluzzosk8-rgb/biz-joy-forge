@@ -91,7 +91,7 @@ export const SendWhatsAppModal = ({
 
 Sua reserva foi confirmada! 🎉
 
-📅 *Data:* ${dateFormatted}${time ? ` às ${time}${endTimeText}` : ""}${rentalTypeText}
+📅 *Data:* ${dateFormatted}${time ? ` às ${time}${returnTimeText}` : ""}
 ${address ? `📍 *Local:* ${address}` : ""}
 🎪 *Itens:* ${itemsList}${monitoringText}
 💰 *Valor Total:* ${formatCurrency(sale.total_value)}
