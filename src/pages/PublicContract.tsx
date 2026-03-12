@@ -73,7 +73,7 @@ const PublicContract = () => {
     if (sale && settings) {
       generateDocumentContent();
     }
-  }, [sale, settings, saleItems, client, franchise]);
+  }, [sale, settings, saleItems, client, franchise, salePayments]);
 
   const fetchSaleData = async () => {
     try {
