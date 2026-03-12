@@ -80,11 +80,22 @@ export const SendWhatsAppModal = ({
       monitoringText = `\n👤 *Monitores:* ${totalMonitors} monitor${totalMonitors > 1 ? 'es' : ''} (${slotsText})`;
     }
 
+    // Texto do tipo de locação
+    const rentalTypeText = sale.rental_type === '4horas' ? ' (Locação de 4 horas)' : '';
+    
+    // Calcular horário de término para locação de 4h
+    let endTimeText = "";
+    if (sale.rental_type === '4horas' && time) {
+      const [h, m] = time.split(':').map(Number);
+      const endH = h + 4;
+      endTimeText = ` até ${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
     const defaultMessage = `Olá ${sale.client_name}! 👋
 
 Sua reserva foi confirmada! 🎉
 
-📅 *Data:* ${dateFormatted}${time ? ` às ${time}` : ""}
+📅 *Data:* ${dateFormatted}${time ? ` às ${time}${endTimeText}` : ""}${rentalTypeText}
 ${address ? `📍 *Local:* ${address}` : ""}
 🎪 *Itens:* ${itemsList}${monitoringText}
 💰 *Valor Total:* ${formatCurrency(sale.total_value)}
