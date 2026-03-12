@@ -2299,6 +2299,37 @@ Obrigado pela confiança! 🙏`;
             </div>
             
             <div className="grid gap-4 sm:grid-cols-2">
+              {/* Tipo de Locação */}
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="rental_type">Tipo de Locação</Label>
+                <Select
+                  value={formData.rental_type}
+                  onValueChange={(value) => {
+                    const updates: any = { rental_type: value };
+                    if (value === '4horas') {
+                      if (formData.rental_start_date) {
+                        updates.return_date = formData.rental_start_date;
+                      }
+                    }
+                    setFormData({ ...formData, ...updates });
+                    setAvailableInventory([]);
+                  }}
+                >
+                  <SelectTrigger id="rental_type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="diaria">📅 Diária (dia inteiro)</SelectItem>
+                    <SelectItem value="4horas">⏱️ 4 Horas</SelectItem>
+                  </SelectContent>
+                </Select>
+                {formData.rental_type === '4horas' && (
+                  <p className="text-xs text-muted-foreground">
+                    ℹ️ Locação de 4 horas com 1h de intervalo. O brinquedo fica disponível novamente após 5h do início.
+                  </p>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="rental_start_date_early">
                   <Calendar className="w-4 h-4 inline mr-1" />
