@@ -1447,6 +1447,7 @@ const Sales = () => {
           client_phone: selectedClient?.phone || null,
           rental_start_date: formData.rental_start_date,
           party_start_time: formData.party_start_time,
+          return_time: formData.return_time,
           delivery_address: formData.delivery_address,
           delivery_city: formData.delivery_city,
           total_value: calculateSaleTotal(),
