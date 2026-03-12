@@ -1,90 +1,48 @@
 
 
-## Corrigir erro "Algo deu errado" na verificacao de email
+## Adicionar opção de locação por 4 horas com intervalo de 1 hora
 
-### Problema raiz
-Tres problemas combinados causam o erro:
+### Contexto
+Atualmente o sistema só permite locação diária (o item fica indisponível o dia todo). O usuário quer a opção de alugar por **4 horas**, com **1 hora de intervalo** entre locações, permitindo múltiplas locações no mesmo dia.
 
-1. **Tipo de link errado na edge function**: Usa `type: 'magiclink'` mas deveria usar `type: 'signup'` para confirmar o email do usuario corretamente
-2. **URL hardcoded**: O `redirectTo` aponta fixo para `playgestor.com.br`, quebrando testes no preview
-3. **Tratamento de erro fragil no VerifyEmail**: O `supabase.functions.invoke` pode retornar erro em formato inesperado, causando crash no React que o ErrorBoundary captura
+Exemplo: Futebol de Sabão alugado das 08:00 às 12:00 → disponível novamente às 13:00.
 
-### Correcoes
+### Alterações
 
-**1. Edge function `send-email` (supabase/functions/send-email/index.ts)**
-- Trocar `type: 'magiclink'` por `type: 'signup'` no `generateLink` para gerar link de confirmacao de email real
-- Receber `origin` no body da requisicao para construir o `redirectTo` dinamicamente
-- Fallback para `https://playgestor.com.br` se origin nao for fornecido
+**1. Migration SQL** — Adicionar coluna `rental_type` na tabela `sales` e atualizar a função `check_item_availability`:
 
-**2. VerifyEmail.tsx**
-- Passar `window.location.origin` ao chamar a edge function para que o link funcione no ambiente correto
-- Melhorar tratamento de erro: verificar `data.error` alem de `error` do invoke, evitando throw de objetos nao-Error
-- Envolver o handleResend em tratamento defensivo para evitar crash do React
+```sql
+-- Novo campo: tipo de locação
+ALTER TABLE public.sales 
+  ADD COLUMN rental_type text NOT NULL DEFAULT 'diaria';
 
-**3. UserRegister.tsx**
-- Passar `window.location.origin` ao chamar a edge function de confirmacao
-
-### Secao tecnica
-
-**Edge function - correcao do generateLink:**
-```typescript
-case 'confirmation': {
-  const origin = data?.origin || 'https://playgestor.com.br';
-  
-  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'signup',  // era 'magiclink', agora 'signup' para confirmar email
-    email: to,
-    options: {
-      redirectTo: `${origin}/auth/callback`,
-    }
-  });
-  // ...
-}
+-- Atualizar função de disponibilidade para considerar horários quando rental_type = '4horas'
 ```
 
-**VerifyEmail.tsx - chamada corrigida:**
-```typescript
-const handleResend = async () => {
-  if (!email || cooldown > 0) return;
-  setResending(true);
-  try {
-    const response = await supabase.functions.invoke('send-email', {
-      body: { 
-        type: 'confirmation', 
-        to: email, 
-        name: name || '',
-        data: { origin: window.location.origin }
-      }
-    });
-    
-    if (response.error || response.data?.error) {
-      throw new Error(response.data?.error || 'Erro ao enviar email');
-    }
-    
-    toast({ title: "Email reenviado!", description: "Verifique sua caixa de entrada e spam." });
-    setCooldown(60);
-  } catch (err) {
-    toast({ title: "Erro ao reenviar", description: "Tente novamente.", variant: "destructive" });
-  } finally {
-    setResending(false);
-  }
-};
+A função `check_item_availability` será reescrita para:
+- Receber `p_rental_type` e `p_party_end_time` (horário fim = início + 4h)
+- Se ambas as locações são diárias: conflito por sobreposição de datas (como hoje)
+- Se pelo menos uma é de 4 horas: verificar sobreposição de horários com 1h de buffer no mesmo dia
+- Locação diária bloqueia o dia inteiro; locação de 4h só bloqueia o slot de 5h (4h + 1h intervalo)
+
+**2. `src/pages/admin/Sales.tsx`** — Formulário:
+- Adicionar campo `rental_type` ao `formData` (select: "Diária" ou "4 Horas")
+- Quando "4 Horas" selecionado: tornar `party_start_time` obrigatório e calcular automaticamente o horário de término (início + 4h)
+- Mostrar horário de término calculado como informativo
+- Passar `rental_type` no save e no `check_item_availability`
+- Adicionar `rental_type` ao tipo `Sale`
+
+**3. Função SQL `check_item_availability`** — Lógica de conflito atualizada:
+```text
+Para cada locação existente no mesmo item:
+  - Se a nova OU existente é 'diaria':
+      → Conflito se as datas se sobrepõem (comportamento atual)
+  - Se AMBAS são '4horas' E no mesmo dia:
+      → Conflito se os horários (com +1h buffer) se sobrepõem
+      → Ex: existente 08:00-12:00 → bloqueia até 13:00
+            nova 13:00-17:00 → OK (sem conflito)
+            nova 12:30-16:30 → CONFLITO (dentro do buffer)
 ```
 
-**UserRegister.tsx - passar origin:**
-```typescript
-await supabase.functions.invoke('send-email', {
-  body: { 
-    type: 'confirmation', 
-    to: email.trim(), 
-    name: name.trim(),
-    data: { origin: window.location.origin }
-  }
-});
-```
-
-### Resultado esperado
-- Link de confirmacao confirma o email corretamente (tipo signup, nao magiclink)
-- Link funciona tanto no preview quanto na URL publicada
-- Nenhum crash do React ao reenviar email - erros sao tratados graciosamente com toast
+**4. Exibição na lista** — Mostrar o tipo de locação na tabela de vendas para diferenciar visualmente.
 
