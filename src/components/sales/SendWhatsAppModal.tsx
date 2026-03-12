@@ -18,10 +18,10 @@ interface SaleData {
   client_phone?: string;
   rental_start_date?: string;
   party_start_time?: string;
+  return_time?: string;
   delivery_address?: string;
   delivery_city?: string;
   total_value: number;
-  rental_type?: string;
   items?: Array<{ product_name: string }>;
   monitoringSlots?: Array<{
     monitors_quantity: number;
