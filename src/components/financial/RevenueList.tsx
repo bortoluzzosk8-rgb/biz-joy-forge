@@ -87,7 +87,8 @@ export function RevenueList() {
     try {
       let query = supabase
         .from("sales")
-        .select("total_value, rental_start_date, delivery_date, franchise_id");
+        .select("total_value, rental_start_date, delivery_date, franchise_id, status")
+        .not("status", "in", "(cancelled,canceled)");
       
       if (franchiseId) {
         query = query.eq("franchise_id", franchiseId);
