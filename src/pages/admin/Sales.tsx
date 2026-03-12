@@ -1131,12 +1131,8 @@ const Sales = () => {
       return;
     }
 
-    // Validar horário obrigatório para locação de 4 horas
-    if (formData.rental_type === '4horas' && !formData.party_start_time) {
-      toast.error("Informe o horário de início para locação de 4 horas");
-      setIsSubmitting(false);
-      return;
-    }
+
+
 
     // Validar horário de retirada quando no mesmo dia da festa
     if (formData.rental_start_date && formData.return_date && 
