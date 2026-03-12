@@ -810,7 +810,8 @@ const Sales = () => {
               p_rental_start_date: formData.rental_start_date,
               p_party_start_time: formData.party_start_time || null,
               p_return_date: formData.return_date,
-              p_exclude_sale_id: formData.id || null
+              p_exclude_sale_id: formData.id || null,
+              p_rental_type: formData.rental_type || 'diaria'
             }
           );
 
