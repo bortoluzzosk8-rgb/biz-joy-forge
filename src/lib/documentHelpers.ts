@@ -216,10 +216,6 @@ export const buildReceiptTemplate = (
         <span><strong>✅ Valor Pago:</strong></span>
         <span>R$ {{paidAmount}}</span>
       </div>
-      <div class="payment-row">
-        <span><strong>Forma de Pagamento:</strong></span>
-        <span>{{paymentMethod}}</span>
-      </div>
       {{#hasPaymentDate}}
       <div class="payment-row">
         <span><strong>📅 Data do Pagamento:</strong></span>
