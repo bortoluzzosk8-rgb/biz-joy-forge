@@ -2340,68 +2340,96 @@ Obrigado pela confiança! 🙏`;
                   type="date"
                   value={formData.rental_start_date}
                   onChange={(e) => {
-                    setFormData({ ...formData, rental_start_date: e.target.value });
-                    // Limpar inventário disponível para forçar nova busca
+                    const updates: any = { rental_start_date: e.target.value };
+                    // Se for 4 horas, return_date = rental_start_date (mesmo dia)
+                    if (formData.rental_type === '4horas') {
+                      updates.return_date = e.target.value;
+                    }
+                    setFormData({ ...formData, ...updates });
                     setAvailableInventory([]);
                   }}
                   required
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="return_date_early">Data de Retirada *</Label>
-                <Input
-                  id="return_date_early"
-                  type="date"
-                  value={formData.return_date}
-                  onChange={(e) => {
-                    setFormData({ ...formData, return_date: e.target.value });
-                    // Limpar inventário disponível para forçar nova busca
-                    setAvailableInventory([]);
-                  }}
-                  min={formData.rental_start_date || undefined}
-                  required
-                />
-              </div>
+              {/* Data de Retirada - esconde se for 4 horas (auto mesmo dia) */}
+              {formData.rental_type !== '4horas' && (
+                <div className="space-y-2">
+                  <Label htmlFor="return_date_early">Data de Retirada *</Label>
+                  <Input
+                    id="return_date_early"
+                    type="date"
+                    value={formData.return_date}
+                    onChange={(e) => {
+                      setFormData({ ...formData, return_date: e.target.value });
+                      setAvailableInventory([]);
+                    }}
+                    min={formData.rental_start_date || undefined}
+                    required
+                  />
+                </div>
+              )}
               
               <div className="space-y-2">
-                <Label htmlFor="party_start_time_early">Horário de Início da Festa</Label>
+                <Label htmlFor="party_start_time_early">
+                  Horário de Início {formData.rental_type === '4horas' ? '*' : ''}
+                </Label>
                 <Input
                   id="party_start_time_early"
                   type="time"
                   value={formData.party_start_time}
                   onChange={(e) => {
                     setFormData({ ...formData, party_start_time: e.target.value });
-                    // Limpar inventário disponível para forçar nova busca
                     setAvailableInventory([]);
                   }}
+                  required={formData.rental_type === '4horas'}
                 />
-                <p className="text-xs text-muted-foreground">
-                  ℹ️ O horário ajuda a verificar disponibilidade no mesmo dia
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="return_time">Horário de Retirada</Label>
-                <Input
-                  id="return_time"
-                  type="time"
-                  value={formData.return_time}
-                  onChange={(e) => setFormData({ ...formData, return_time: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  ℹ️ Horário em que o equipamento será recolhido
-                </p>
-                {formData.rental_start_date === formData.return_date && 
-                 formData.party_start_time && formData.return_time && 
-                 formData.return_time < formData.party_start_time && (
-                  <Card className="p-3 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 mt-2">
-                    <p className="text-sm text-red-900 dark:text-red-100">
-                      ⚠️ O horário de retirada não pode ser anterior ao horário de início da festa no mesmo dia!
-                    </p>
-                  </Card>
+                {formData.rental_type === '4horas' && formData.party_start_time && (() => {
+                  const [h, m] = formData.party_start_time.split(':').map(Number);
+                  const endH = h + 4;
+                  const endTime = `${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                  const availableAt = `${String(endH + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                  return (
+                    <div className="text-xs space-y-1 mt-1">
+                      <p className="text-muted-foreground">
+                        ⏰ Término: <span className="font-semibold">{endTime}</span>
+                      </p>
+                      <p className="text-muted-foreground">
+                        ✅ Disponível novamente às: <span className="font-semibold text-green-600">{availableAt}</span>
+                      </p>
+                    </div>
+                  );
+                })()}
+                {formData.rental_type !== '4horas' && (
+                  <p className="text-xs text-muted-foreground">
+                    ℹ️ O horário ajuda a verificar disponibilidade no mesmo dia
+                  </p>
                 )}
               </div>
+              
+              {formData.rental_type !== '4horas' && (
+                <div className="space-y-2">
+                  <Label htmlFor="return_time">Horário de Retirada</Label>
+                  <Input
+                    id="return_time"
+                    type="time"
+                    value={formData.return_time}
+                    onChange={(e) => setFormData({ ...formData, return_time: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    ℹ️ Horário em que o equipamento será recolhido
+                  </p>
+                  {formData.rental_start_date === formData.return_date && 
+                   formData.party_start_time && formData.return_time && 
+                   formData.return_time < formData.party_start_time && (
+                    <Card className="p-3 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 mt-2">
+                      <p className="text-sm text-red-900 dark:text-red-100">
+                        ⚠️ O horário de retirada não pode ser anterior ao horário de início da festa no mesmo dia!
+                      </p>
+                    </Card>
+                  )}
+                </div>
+              )}
             </div>
 
             
