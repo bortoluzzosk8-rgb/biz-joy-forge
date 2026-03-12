@@ -1636,6 +1636,7 @@ const Sales = () => {
       rental_start_date: "",
       return_date: "",
       return_time: "",
+      rental_type: "diaria",
       
       // Campos de entrega e monitoria
       delivery_address: "",
