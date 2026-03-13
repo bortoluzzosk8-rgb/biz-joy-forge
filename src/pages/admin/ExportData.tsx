@@ -69,24 +69,25 @@ const EXPORTABLE_TABLES: { key: TableKey; label: string; group: string }[] = [
 
 const STORAGE_BUCKETS = ["payment-receipts", "logos", "inventory-images"];
 
-function toCsv(data: Record<string, unknown>[]): string {
-  if (!data.length) return "";
-  const headers = Object.keys(data[0]);
-  const rows = data.map((row) =>
-    headers
-      .map((h) => {
-        const val = row[h];
-        const str = val === null || val === undefined ? "" : String(val);
-        return `"${str.replace(/"/g, '""')}"`;
-      })
-      .join(",")
-  );
-  return [headers.join(","), ...rows].join("\n");
+function escSql(val: unknown): string {
+  if (val === null || val === undefined) return "NULL";
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (typeof val === "object") return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
+  return `'${String(val).replace(/'/g, "''")}'`;
 }
 
-function downloadCsv(filename: string, csv: string) {
-  const bom = "\uFEFF";
-  const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+function toSql(tableName: string, data: Record<string, unknown>[]): string {
+  if (!data.length) return "";
+  const headers = Object.keys(data[0]);
+  const lines = data.map((row) => {
+    const values = headers.map((h) => escSql(row[h])).join(", ");
+    return `INSERT INTO public.${tableName} (${headers.join(", ")}) VALUES (${values});`;
+  });
+  return lines.join("\n");
+}
+
+function downloadSql(filename: string, content: string) {
+  const blob = new Blob([content], { type: "application/sql;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -143,12 +144,8 @@ const ExportData = () => {
           toast.error(`Erro ao exportar ${key}`);
           continue;
         }
-        if (!data || data.length === 0) {
-          toast.info(`Tabela "${key}" está vazia, pulando...`);
-          continue;
-        }
-        const csv = toCsv(data as Record<string, unknown>[]);
-        downloadCsv(`${key}_${new Date().toISOString().slice(0, 10)}.csv`, csv);
+        const sql = toSql(key, data as Record<string, unknown>[]);
+        downloadSql(`${key}_${new Date().toISOString().slice(0, 10)}.sql`, sql);
         exported++;
       }
       if (exported > 0) {
@@ -177,13 +174,8 @@ const ExportData = () => {
       });
 
       if (error) throw error;
-      if (!data || !Array.isArray(data) || data.length === 0) {
-        toast.info("Nenhum usuário encontrado.");
-        return;
-      }
-
-      const csv = toCsv(data as Record<string, unknown>[]);
-      downloadCsv(`users_${new Date().toISOString().slice(0, 10)}.csv`, csv);
+      const sql = toSql("auth_users", data as Record<string, unknown>[]);
+      downloadSql(`users_${new Date().toISOString().slice(0, 10)}.sql`, sql);
       toast.success("Usuários exportados com sucesso!");
     } catch (err: any) {
       console.error("Erro ao exportar usuários:", err);
@@ -223,8 +215,8 @@ const ExportData = () => {
           updated_at: file.updated_at,
           public_url: `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${bucket}/${file.name}`,
         }));
-        const csv = toCsv(rows as Record<string, unknown>[]);
-        downloadCsv(`storage_${bucket}_${new Date().toISOString().slice(0, 10)}.csv`, csv);
+        const sql = toSql(`storage_${bucket}`, rows as Record<string, unknown>[]);
+        downloadSql(`storage_${bucket}_${new Date().toISOString().slice(0, 10)}.sql`, sql);
         exported++;
       }
       if (exported > 0) {
@@ -248,7 +240,7 @@ const ExportData = () => {
           Exportar Dados
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Exporte dados do sistema em formato CSV.
+          Exporte dados do sistema em formato SQL (INSERT INTO).
         </p>
       </div>
 
