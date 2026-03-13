@@ -240,7 +240,7 @@ const ExportData = () => {
           Exportar Dados
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Exporte dados do sistema em formato CSV.
+          Exporte dados do sistema em formato SQL (INSERT INTO).
         </p>
       </div>
 
