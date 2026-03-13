@@ -69,24 +69,25 @@ const EXPORTABLE_TABLES: { key: TableKey; label: string; group: string }[] = [
 
 const STORAGE_BUCKETS = ["payment-receipts", "logos", "inventory-images"];
 
-function toCsv(data: Record<string, unknown>[]): string {
-  if (!data.length) return "";
-  const headers = Object.keys(data[0]);
-  const rows = data.map((row) =>
-    headers
-      .map((h) => {
-        const val = row[h];
-        const str = val === null || val === undefined ? "" : String(val);
-        return `"${str.replace(/"/g, '""')}"`;
-      })
-      .join(",")
-  );
-  return [headers.join(","), ...rows].join("\n");
+function escSql(val: unknown): string {
+  if (val === null || val === undefined) return "NULL";
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (typeof val === "object") return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
+  return `'${String(val).replace(/'/g, "''")}'`;
 }
 
-function downloadCsv(filename: string, csv: string) {
-  const bom = "\uFEFF";
-  const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+function toSql(tableName: string, data: Record<string, unknown>[]): string {
+  if (!data.length) return "";
+  const headers = Object.keys(data[0]);
+  const lines = data.map((row) => {
+    const values = headers.map((h) => escSql(row[h])).join(", ");
+    return `INSERT INTO public.${tableName} (${headers.join(", ")}) VALUES (${values});`;
+  });
+  return lines.join("\n");
+}
+
+function downloadSql(filename: string, content: string) {
+  const blob = new Blob([content], { type: "application/sql;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
