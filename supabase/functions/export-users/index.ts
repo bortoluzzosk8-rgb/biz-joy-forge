@@ -37,14 +37,21 @@ Deno.serve(async (req) => {
 
     const userId = userData.user.id;
 
-    // Check if user has franqueadora or super_admin role
-    const { data: roles } = await anonClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
+    // Check if user has franqueadora or super_admin role via SECURITY DEFINER function
+    const [franqueadoraRole, superAdminRole] = await Promise.all([
+      anonClient.rpc("has_role", { _user_id: userId, _role: "franqueadora" }),
+      anonClient.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
+    ]);
 
-    const allowedRoles = ["franqueadora", "super_admin"];
-    const hasAccess = roles?.some((r: any) => allowedRoles.includes(r.role));
+    if (franqueadoraRole.error || superAdminRole.error) {
+      console.error("Role check error:", franqueadoraRole.error || superAdminRole.error);
+      return new Response(JSON.stringify({ error: "Role check failed" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const hasAccess = Boolean(franqueadoraRole.data || superAdminRole.data);
     if (!hasAccess) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
