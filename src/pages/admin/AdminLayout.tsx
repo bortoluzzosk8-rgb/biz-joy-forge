@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, Store, UserCheck, Truck, User, Building2, Clock, CreditCard, Megaphone, ShoppingBag, RefreshCw } from "lucide-react";
+import { Package, DollarSign, Calendar, Users, UserPlus, LogOut, Settings, Tag, Warehouse, Store, UserCheck, Truck, User, Building2, Clock, CreditCard, Megaphone, ShoppingBag, RefreshCw, Database } from "lucide-react";
 import logoPlaygestor from "@/assets/logo-playgestor-novo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
@@ -100,6 +100,7 @@ const AdminLayout = () => {
     { value: "franchises", label: "Unidades", icon: Store, roles: ["franqueadora"] },
     { value: "sellers", label: "Vendedores", icon: UserCheck, roles: ["franqueadora"] },
     { value: "settings", label: "Config", icon: Settings, roles: ["franqueadora"] },
+    { value: "export-data", label: "Exportar", icon: Database, roles: ["franqueadora"] },
   ];
 
   // Filtrar menus baseado no role
