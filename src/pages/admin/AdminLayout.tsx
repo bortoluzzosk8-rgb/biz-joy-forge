@@ -100,6 +100,7 @@ const AdminLayout = () => {
     { value: "franchises", label: "Unidades", icon: Store, roles: ["franqueadora"] },
     { value: "sellers", label: "Vendedores", icon: UserCheck, roles: ["franqueadora"] },
     { value: "settings", label: "Config", icon: Settings, roles: ["franqueadora"] },
+    { value: "export-data", label: "Exportar", icon: Database, roles: ["franqueadora"] },
   ];
 
   // Filtrar menus baseado no role
