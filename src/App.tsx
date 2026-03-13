@@ -116,6 +116,7 @@ const App = () => (
                   <Route path="drivers" element={<Drivers />} />
                   <Route path="monitors" element={<Monitors />} />
                   <Route path="settings" element={<Settings />} />
+                  <Route path="export-data" element={<ExportData />} />
                   <Route path="saas-management" element={<SaasManagement />} />
                   <Route path="saas-financial" element={<SaasFinancial />} />
                   <Route path="updates" element={<SystemUpdates />} />
