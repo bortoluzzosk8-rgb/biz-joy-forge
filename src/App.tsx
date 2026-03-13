@@ -31,6 +31,7 @@ import Sellers from "./pages/admin/Sellers";
 import Drivers from "./pages/admin/Drivers";
 import Monitors from "./pages/admin/Monitors";
 import Settings from "./pages/admin/Settings";
+import ExportData from "./pages/admin/ExportData";
 import Logistics from "./pages/admin/Logistics";
 import SaasManagement from "./pages/admin/SaasManagement";
 import SaasFinancial from "./pages/admin/SaasFinancial";
