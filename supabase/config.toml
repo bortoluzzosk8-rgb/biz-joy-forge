@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.check-active-session]
 verify_jwt = false
+
+[functions.export-users]
+verify_jwt = false
