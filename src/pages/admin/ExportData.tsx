@@ -215,8 +215,8 @@ const ExportData = () => {
           updated_at: file.updated_at,
           public_url: `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${bucket}/${file.name}`,
         }));
-        const csv = toCsv(rows as Record<string, unknown>[]);
-        downloadCsv(`storage_${bucket}_${new Date().toISOString().slice(0, 10)}.csv`, csv);
+        const sql = toSql(`storage_${bucket}`, rows as Record<string, unknown>[]);
+        downloadSql(`storage_${bucket}_${new Date().toISOString().slice(0, 10)}.sql`, sql);
         exported++;
       }
       if (exported > 0) {
