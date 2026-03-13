@@ -144,12 +144,8 @@ const ExportData = () => {
           toast.error(`Erro ao exportar ${key}`);
           continue;
         }
-        if (!data || data.length === 0) {
-          toast.info(`Tabela "${key}" está vazia, pulando...`);
-          continue;
-        }
-        const csv = toCsv(data as Record<string, unknown>[]);
-        downloadCsv(`${key}_${new Date().toISOString().slice(0, 10)}.csv`, csv);
+        const sql = toSql(key, data as Record<string, unknown>[]);
+        downloadSql(`${key}_${new Date().toISOString().slice(0, 10)}.sql`, sql);
         exported++;
       }
       if (exported > 0) {
