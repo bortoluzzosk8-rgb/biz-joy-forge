@@ -174,13 +174,8 @@ const ExportData = () => {
       });
 
       if (error) throw error;
-      if (!data || !Array.isArray(data) || data.length === 0) {
-        toast.info("Nenhum usuário encontrado.");
-        return;
-      }
-
-      const csv = toCsv(data as Record<string, unknown>[]);
-      downloadCsv(`users_${new Date().toISOString().slice(0, 10)}.csv`, csv);
+      const sql = toSql("auth_users", data as Record<string, unknown>[]);
+      downloadSql(`users_${new Date().toISOString().slice(0, 10)}.sql`, sql);
       toast.success("Usuários exportados com sucesso!");
     } catch (err: any) {
       console.error("Erro ao exportar usuários:", err);
